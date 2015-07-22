@@ -1,0 +1,1 @@
+load("/tools/build_rules/go", "go_binary")
