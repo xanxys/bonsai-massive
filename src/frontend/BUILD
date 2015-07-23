@@ -1,5 +1,5 @@
 go_binary(
-    name="frontend",
+    name="server",
     srcs=[
         "main.go"
     ],
