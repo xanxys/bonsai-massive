@@ -2,3 +2,6 @@ FROM ubuntu:14.10
 
 COPY frontend-server.bin /root/bonsai/frontend-server.bin
 COPY client.js /root/bonsai/client.js
+
+EXPOSE 8000
+ENTRYPOINT ["/root/bonsai/frontend-server.bin"]

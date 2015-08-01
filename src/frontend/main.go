@@ -14,5 +14,5 @@ func (s String) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	fmt.Println("Hello World")
 	http.Handle("/", String("Bonsai frontend server"))
-	http.ListenAndServe("localhost:8000", nil)
+	http.ListenAndServe(":8000", nil)
 }
