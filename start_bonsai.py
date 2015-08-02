@@ -17,9 +17,11 @@ def get_container_tag(container_name):
 def create_containers():
     print("Creating container")
     subprocess.call(["bazel", "build", "frontend:server"], cwd="./src")
-    subprocess.call(["bazel", "build", "client"], cwd="./src")
+    subprocess.call(["bazel", "build", "client:static"], cwd="./src")
     shutil.copyfile("src/bazel-bin/frontend/server.bin", "docker/frontend-server.bin")
-    shutil.copyfile("src/bazel-bin/client/client.js", "docker/client.js")
+    shutil.rmtree("docker/static", ignore_errors=True)
+    os.mkdir("docker/static")
+    subprocess.call(["tar", "-xf", "src/bazel-bin/client/static.tar", "-C", "docker/static"])
     subprocess.call(["docker", "build", "-t", get_container_tag('bonsai_frontend'), "-f", "docker/frontend", "./docker"])
 
 def deploy_containers_local():
