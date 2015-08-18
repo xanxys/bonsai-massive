@@ -90,6 +90,51 @@ class GasLattice {
     }
 }
 
+
+// (Hopefully) super-accelerated Gas Lattice using hashlife.
+class HashGasLattice {
+    // First, we extend the CA to include walls as one of state.
+    // We denote wall as -1, and now have 17 states.
+
+     public static step1(
+            l : number, r : number, b : number, t : number, self : number) {
+        if (self === - 1) {
+            return -1;
+        }
+        // Stream, wall-reflection.
+        var s = 0
+        if (l === -1) {
+            s |= (self & 1) ? 2 : 0;
+        } else {
+            s |= (l & 2) ? 2 : 0;
+        }
+        if (r === -1) {
+            s |= (self & 2) ? 1 : 0;
+        } else {
+            s |= (r & 1) ? 1 : 0;
+        }
+        if (b === -1) {
+            s |= (self & 4) ? 8 : 0;
+        } else {
+            s |= (b & 8) ? 8 : 0;
+        }
+        if (t === -1) {
+            s |= (self & 8) ? 4 : 0;
+        } else {
+            s |= (t & 4) ? 4 : 0;
+        }
+        // Collision.
+        if (s === 3) {
+            s = 12;
+        } else if (s === 12) {
+            s = 3;
+        }
+        return s;
+    }
+
+}
+
+
 $(document).ready(function() {
     var canvas = $('#cv_gas')[0];
 
