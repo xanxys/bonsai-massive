@@ -1,38 +1,46 @@
 declare var $;
 declare var _;
 
-$(document).ready(function() {
-    var canvas = $('#cv_gas')[0];
+class Cell {
+    // 4 bit field
+    // (X-, X+, Y-, Y+)
+    // LSB
+    public state : number;
 
-    var Cell = function() {
+    constructor() {
         if (Math.random() < 0.1) {
-            this.state = Math.floor(Math.random() * 15);  // 4 bit field (X-, X+, Y-, Y+) no flow by default.
+            this.state = Math.floor(Math.random() * 15);
         } else {
             this.state = 0;
         }
-    };
+    }
+}
 
-    var n = 50;
-    var grid = {};
-    _.map(_.range(n), function(ix) {
-        _.map(_.range(n), function(iy) {
-            var key = ix + ":" + iy;
-            grid[key] = new Cell();
-            if (ix < n * 0.1 && n * 0.4 < iy && iy < n * 0.6) {
-                grid[key].state = 2;
-            }
+class GasLattice {
+    public n : number;
+    private grid;
+
+    constructor(n : number) {
+        this.n = n;
+        var grid = {};
+        _.map(_.range(n), function(ix) {
+            _.map(_.range(n), function(iy) {
+                var cell = new Cell();
+                if (ix < n * 0.1 && n * 0.4 < iy && iy < n * 0.6) {
+                    cell.state = 2;
+                }
+
+                var key = ix + ":" + iy;
+                grid[key] = cell;
+            });
         });
-    });
-
-    function iter() {
-        step();
-        draw();
-        setTimeout(iter, 1000 / 30);
+        this.grid = grid;
     }
 
-
-    function step() {
+    public step() {
         var new_grid = {};
+        var grid = this.grid;
+        var n = this.n;
         _.map(_.range(n), function(ix) {
             _.map(_.range(n), function(iy) {
                 var key = ix + ":" + iy;
@@ -73,7 +81,24 @@ $(document).ready(function() {
                 new_grid[key] = c;
             });
         });
-        grid = new_grid;
+        this.grid = new_grid;
+    }
+
+    public at(ix : number, iy : number) : Cell {
+        var key : string = ix + ":" + iy;
+        return this.grid[key];
+    }
+}
+
+$(document).ready(function() {
+    var canvas = $('#cv_gas')[0];
+
+    var lattice = new GasLattice(50);
+
+    function iter() {
+        lattice.step();
+        draw();
+        setTimeout(iter, 1000 / 30);
     }
 
     function draw() {
@@ -91,12 +116,11 @@ $(document).ready(function() {
             ctx.fillStyle = 'rgb(100, 100, 100)';
             ctx.lineWidth = 0.1;
             ctx.strokeStyle = 'white';
-            _.map(_.range(n), function(ix) {
-                _.map(_.range(n), function(iy) {
+            _.map(_.range(lattice.n), function(ix) {
+                _.map(_.range(lattice.n), function(iy) {
                     ctx.save();
                     ctx.translate(ix, iy);
-                    var key = ix + ":" + iy;
-                    var st = grid[key].state;
+                    var st = lattice.at(ix, iy).state;
 
                     ctx.beginPath();
                     ctx.rect(0.05, 0.05, 0.9, 0.9);
@@ -132,8 +156,8 @@ $(document).ready(function() {
             ctx.fillStyle = 'rgba(100, 100, 200, 0.8)';
             ctx.lineWidth = 0.1;
             ctx.strokeStyle = 'white';
-            _.map(_.range(n / k), function(sx) {
-                _.map(_.range(n / k), function(sy) {
+            _.map(_.range(lattice.n / k), function(sx) {
+                _.map(_.range(lattice.n / k), function(sy) {
                     // Average expected flow velocity.
                     var xaccum = 0;
                     var yaccum = 0;
@@ -143,8 +167,7 @@ $(document).ready(function() {
                         _.map(_.range(k), function(dy) {
                             var ix = sx * k + dx;
                             var iy = sy * k + dy;
-                            var key = ix + ":" + iy;
-                            var st = grid[key].state;
+                            var st = lattice.at(ix, iy).state;
                             if (st & 1) {
                                 xaccum -= 1;
                             }
