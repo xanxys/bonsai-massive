@@ -1,3 +1,6 @@
+declare var $;
+declare var _;
+
 $(document).ready(function() {
     var canvas = $('#cv_gas')[0];
 
