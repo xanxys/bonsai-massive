@@ -368,11 +368,11 @@ function test() {
         console.log("Testing at t=", lattice_ref.timestep, "case=", i_case);
         _.map(_.range(n), ix => {
             _.map(_.range(n), iy => {
-                if (lattice.at(ix, iy) != lattice_ref.at(ix, iy)) {
+                if (lattice.at(ix, iy).state !== lattice_ref.at(ix, iy).state) {
                     console.log(
                         "@(", ix, iy, ") ",
-                        "Expected:", lattice_ref.at(ix, iy),
-                        "Observed:", lattice.at(ix, iy));
+                        "Expected:", lattice_ref.at(ix, iy).state,
+                        "Observed:", lattice.at(ix, iy).state);
                 }
             });
         });
@@ -497,6 +497,6 @@ $(document).ready(function() {
 
     }
 
-    //iter();
     test();
+    iter();
 });
