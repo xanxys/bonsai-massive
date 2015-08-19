@@ -90,14 +90,105 @@ class GasLattice {
     }
 }
 
+class HashGasCell {
+    // 2 ^ level = size
+    // e.g. 0: 1 (base)
+    public level : number;
+
+    // Leaf value (only when level == 0)
+    public v : number;
+
+    // Children (only when level >= 1)
+    // Y^
+    //  |c01 c11
+    //  |c00 c10
+    // -|--------> X
+    public c00 : HashGasCell;
+    public c10 : HashGasCell;
+    public c01 : HashGasCell;
+    public c11 : HashGasCell;
+
+    public static newLeaf(v : number) : HashGasCell {
+        var c = new HashGasCell();
+        c.level = 0;
+        c.v = v;
+        return c;
+    }
+
+    public static newNode(c00 : HashGasCell, c10 : HashGasCell, c01 : HashGasCell, c11 : HashGasCell) : HashGasCell {
+        var c = new HashGasCell();
+        c.level = c00.level + 1;
+        c.c00 = c00;
+        c.c10 = c10;
+        c.c01 = c01;
+        c.c11 = c11;
+        return c;
+    }
+
+    // Get center level-1 cell after 2^(level-2) steps.
+    // e.g. level==2
+    public nextExp() : HashGasCell {
+        console.assert(this.level >= 2);
+        var c00 = this.c00;
+        var c10 = this.c10;
+        var c01 = this.c01;
+        var c11 = this.c11;
+        if (this.level === 2) {
+            // Normal execution of 1 step.
+            var C00 = HashGasCell.newLeaf(HashGasLattice.step1(
+                c00.c01.v, c10.c01.v, c00.c10.v, c01.c10.v, c00.c11.v));
+            var C10 = HashGasCell.newLeaf(HashGasLattice.step1(
+                c00.c11.v, c10.c11.v, c10.c00.v, c11.c00.v, c10.c01.v));
+            var C01 = HashGasCell.newLeaf(HashGasLattice.step1(
+                c01.c00.v, c11.c00.v, c00.c11.v, c01.c11.v, c01.c10.v));
+            var C11 = HashGasCell.newLeaf(HashGasLattice.step1(
+                c01.c10.v, c11.c10.v, c10.c01.v, c11.c01.v, c11.c00.v));
+            return HashGasCell.newNode(C00, C10, C01, C11);
+        } else {
+            // Create intermediate cells with a half of the requires steps.
+            //  _
+            //  t*2  c01.c01 c01.c11 | c11.c01 c11.c11
+            //    /\ c01.c00 c01.c10 | c11.c00 c11.c10
+            //  -t*1 ----------------+----------------
+            //    \/ c00.c01 c00.c11 | c10.c01 c10.c11
+            //  t*0  c00.c00 c00.c10 | c10.c00 c10.c10
+            //              |       t1*       |
+            //       |     t0*       |        t2*     |
+            var t00 = c00.nextExp();
+            var t10 = HashGasCell.newNode(c00.c10, c10.c00, c00.c11, c10.c01).nextExp();
+            var t20 = c10.nextExp();
+            var t01 = HashGasCell.newNode(c00.c01, c00.c11, c01.c00, c01.c10).nextExp();
+            var t11 = HashGasCell.newNode(c00.c11, c10.c01, c01.c10, c11.c00).nextExp();
+            var t21 = HashGasCell.newNode(c10.c01, c10.c11, c11.c00, c11.c10).nextExp();
+            var t02 = c01.nextExp();
+            var t12 = HashGasCell.newNode(c01.c10, c11.c00, c01.c11, c11.c01).nextExp();
+            var t22 = c11.nextExp();
+
+            // Step another half.
+            //  t02 t12 t22      ^
+            //  t01 t11 t21 ^    _c*1'
+            //  t00 t10 t20 _c*0'
+            //  | c0*' |
+            //      | c1*' |
+            var C00 = HashGasCell.newNode(t00, t10, t01, t11).nextExp();
+            var C10 = HashGasCell.newNode(t10, t20, t11, t21).nextExp();
+            var C01 = HashGasCell.newNode(t01, t11, t02, t12).nextExp();
+            var C11 = HashGasCell.newNode(t11, t21, t12, t22).nextExp();
+
+            return HashGasCell.newNode(C00, C10, C01, C11);
+        }
+    }
+
+
+}
 
 // (Hopefully) super-accelerated Gas Lattice using hashlife.
 class HashGasLattice {
     // First, we extend the CA to include walls as one of state.
     // We denote wall as -1, and now have 17 states.
 
-     public static step1(
-            l : number, r : number, b : number, t : number, self : number) {
+    public static step1(
+            l : number, r : number, b : number, t : number, self : number) : number {
         if (self === - 1) {
             return -1;
         }
