@@ -7,17 +7,14 @@ class Cell {
     // LSB
     public state : number;
 
-    constructor() {
-        if (Math.random() < 0.1) {
-            this.state = Math.floor(Math.random() * 15);
-        } else {
-            this.state = 0;
-        }
+    constructor(state : number) {
+        this.state = state;
     }
 }
 
 class GasLattice {
     public n : number;
+    public timestep : number;
     private grid;
 
     constructor(n : number) {
@@ -25,9 +22,15 @@ class GasLattice {
         var grid = {};
         _.map(_.range(n), function(ix) {
             _.map(_.range(n), function(iy) {
-                var cell = new Cell();
+                var cell : Cell;
                 if (ix < n * 0.1 && n * 0.4 < iy && iy < n * 0.6) {
-                    cell.state = 2;
+                    cell = new Cell(2);
+                } else {
+                    if (Math.random() < 0.1) {
+                        cell = new Cell(Math.floor(Math.random() * 15));
+                    } else {
+                        cell = new Cell(0);
+                    }
                 }
 
                 var key = ix + ":" + iy;
@@ -35,6 +38,7 @@ class GasLattice {
             });
         });
         this.grid = grid;
+        this.timestep = 0;
     }
 
     public step() {
@@ -44,7 +48,6 @@ class GasLattice {
         _.map(_.range(n), function(ix) {
             _.map(_.range(n), function(iy) {
                 var key = ix + ":" + iy;
-                var c = new Cell();
                 var s = 0;
                 // X- flow
                 if (ix < n - 1) {
@@ -77,11 +80,11 @@ class GasLattice {
                 } else if (s === 12) {
                     s = 3;
                 }
-                c.state = s;
-                new_grid[key] = c;
+                new_grid[key] = new Cell(s);
             });
         });
         this.grid = new_grid;
+        this.timestep++;
     }
 
     public at(ix : number, iy : number) : Cell {
@@ -179,40 +182,72 @@ class HashGasCell {
         }
     }
 
-
+    public ref(x : number, y : number) : HashGasCell {
+        if (this.level === 0) {
+            console.assert(x === 0 && y === 0);
+            return this;
+        } else {
+            var h_sz = Math.pow(2, this.level - 1);
+            if (x < h_sz) {
+                if (y < h_sz) {
+                    return this.c00.ref(x, y);
+                } else {
+                    return this.c01.ref(x, y - h_sz);
+                }
+            } else {
+                if (y < h_sz) {
+                    return this.c10.ref(x - h_sz, y);
+                } else {
+                    return this.c11.ref(x - h_sz, y - h_sz);
+                }
+            }
+        }
+    }
 }
 
 // (Hopefully) super-accelerated Gas Lattice using hashlife.
 class HashGasLattice {
+    public n : number;
+
     // Current time.
     public timestep : number;
 
     // Root tree at t = 0. This will get bigger if we step further
     // (to account for boundary).
-    /*
-    public root : HashGasCell;
-    public r_x0 : number;
-    public r_y0 : number;
-    */
-
     public snapshot : HashGasCell;
+
+    // Region of interest.
     public s_x0 : number;
     public s_y0 : number;
     public s_dx : number;
     public s_dy : number;
 
-    constructor() {
+    constructor(n : number) {
         this.timestep = 0;
-        /*
-        this.root = HashGasCell.newLeaf(1);
-        this.r_x0 = 0;
-        this.r_y0 = 0;
-        */
-        this.snapshot = HashGasCell.newLeaf(1);
         this.s_x0 = 0;
         this.s_y0 = 0;
-        this.s_dx = 1;
-        this.s_dy = 1;
+        this.s_dx = n;
+        this.s_dy = n;
+        this.n = n;
+
+        var level = Math.ceil(Math.log(n) / Math.log(2));
+        var root = HashGasLattice.getEmpty(level);
+        _.map(_.range(n), function(ix) {
+            _.map(_.range(n), function(iy) {
+                var s : number;
+                if (ix < n * 0.1 && n * 0.4 < iy && iy < n * 0.6) {
+                    s = 2;
+                } else {
+                    if (Math.random() < 0.1) {
+                        s = Math.floor(Math.random() * 15);
+                    } else {
+                        s = 0;
+                    }
+                }
+                root.ref(ix, iy).v = s;
+            });
+        });
+        this.snapshot = root;
     }
 
     public stepN() {
@@ -270,6 +305,15 @@ class HashGasLattice {
         }
     }
 
+    // Compat method to get a single old Cell.
+    public at(ix : number, iy : number) : Cell {
+        return new Cell(this.snapshot.ref(this.s_x0 + ix, this.s_y0 + iy).v);
+    }
+
+    public set(ix : number, iy : number, c : Cell){
+        this.snapshot.ref(this.s_x0 + ix, this.s_y0 + iy).v = c.state;
+    }
+
     // First, we extend the CA to include walls as one of state.
     // We denote wall as -1, and now have 17 states.
     public static step1(
@@ -310,12 +354,41 @@ class HashGasLattice {
 
 }
 
+function test() {
+    var n = 2;
+    var lattice_ref = new GasLattice(n);
+    var lattice = new HashGasLattice(n);
+    _.map(_.range(n), function(ix) {
+        _.map(_.range(n), function(iy) {
+            lattice.set(ix, iy, lattice_ref.at(ix, iy));
+        });
+    });
+
+    _.map(_.range(10), function() {
+        console.log("Testing at t=", lattice_ref.timestep);
+        _.map(_.range(n), function(ix) {
+            _.map(_.range(n), function(iy) {
+                if (lattice.at(ix, iy) != lattice_ref.at(ix, iy)) {
+                    console.log(
+                        "@(", ix, iy, ") ",
+                        "Expected:", lattice_ref.at(ix, iy),
+                        "Observed:", lattice.at(ix, iy));
+                }
+            });
+        });
+
+        lattice.stepN();
+        while (lattice_ref.timestep < lattice.timestep) {
+            lattice_ref.step();
+        }
+    });
+
+}
 
 $(document).ready(function() {
     var canvas = $('#cv_gas')[0];
 
     var lattice = new GasLattice(50);
-    var h_lattice = new HashGasLattice();
 
     function iter() {
         lattice.step();
@@ -424,5 +497,6 @@ $(document).ready(function() {
 
     }
 
-    iter();
+    //iter();
+    test();
 });
