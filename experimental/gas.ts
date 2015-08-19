@@ -184,9 +184,94 @@ class HashGasCell {
 
 // (Hopefully) super-accelerated Gas Lattice using hashlife.
 class HashGasLattice {
+    // Current time.
+    public timestep : number;
+
+    // Root tree at t = 0. This will get bigger if we step further
+    // (to account for boundary).
+    /*
+    public root : HashGasCell;
+    public r_x0 : number;
+    public r_y0 : number;
+    */
+
+    public snapshot : HashGasCell;
+    public s_x0 : number;
+    public s_y0 : number;
+    public s_dx : number;
+    public s_dy : number;
+
+    constructor() {
+        this.timestep = 0;
+        /*
+        this.root = HashGasCell.newLeaf(1);
+        this.r_x0 = 0;
+        this.r_y0 = 0;
+        */
+        this.snapshot = HashGasCell.newLeaf(1);
+        this.s_x0 = 0;
+        this.s_y0 = 0;
+        this.s_dx = 1;
+        this.s_dy = 1;
+    }
+
+    public stepN() {
+        this.upgrade();
+        var dt = Math.pow(2, this.snapshot.level - 2);
+        var q_sz = dt;
+        this.snapshot = this.snapshot.nextExp();
+        this.s_x0 -= q_sz;
+        this.s_y0 -= q_sz;
+        this.timestep += dt;
+    }
+
+    // Ensure snapshot & root is steppable, and stepped smaller cell contains
+    // region of interest by inserting boundaries properly.
+    //
+    //    |L0|  |
+    //    | L1  |
+    //|  L2     |
+    // ... (alternate)
+    public upgrade() {
+        var sz = Math.pow(2, this.snapshot.level);
+        console.assert(0 <= this.s_x0 && 0 <= this.s_y0);
+        console.assert(this.s_x0 + this.s_dx <= sz);
+        console.assert(this.s_y0 + this.s_dy <= sz);
+
+        while (!this.isSteppable()) {
+            var e = HashGasLattice.getEmpty(this.snapshot.level);
+            if (this.snapshot.level % 2 === 0) {
+                this.snapshot = HashGasCell.newNode(this.snapshot, e, e, e);
+            } else {
+                var e_size = Math.pow(2, this.snapshot.level);
+                this.snapshot = HashGasCell.newNode(e, e, e, this.snapshot);
+                this.s_x0 += e_size;
+                this.s_y0 += e_size;
+            }
+        }
+    }
+
+    private isSteppable() : boolean {
+        if (this.snapshot.level < 2) {
+            return false;
+        }
+        var q_sz = Math.pow(2, this.snapshot.level - 2);
+        return q_sz <= this.s_x0 && q_sz <= this.s_y0
+                && this.s_x0 + this.s_dx <= q_sz * 3
+                && this.s_y0 + this.s_dy <= q_sz * 3;
+    }
+
+    private static getEmpty(level : number) : HashGasCell {
+        if (level === 0) {
+            return HashGasCell.newLeaf(-1);
+        } else {
+            var e = HashGasLattice.getEmpty(level - 1);
+            return HashGasCell.newNode(e, e, e, e);
+        }
+    }
+
     // First, we extend the CA to include walls as one of state.
     // We denote wall as -1, and now have 17 states.
-
     public static step1(
             l : number, r : number, b : number, t : number, self : number) : number {
         if (self === - 1) {
@@ -230,6 +315,7 @@ $(document).ready(function() {
     var canvas = $('#cv_gas')[0];
 
     var lattice = new GasLattice(50);
+    var h_lattice = new HashGasLattice();
 
     function iter() {
         lattice.step();
