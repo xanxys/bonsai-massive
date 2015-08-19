@@ -222,7 +222,8 @@ class HashGasLattice {
     public s_dx : number;
     public s_dy : number;
 
-    constructor(n : number) {
+    constructor(lattice : GasLattice) {
+        var n = lattice.n;
         this.timestep = 0;
         this.s_x0 = 0;
         this.s_y0 = 0;
@@ -231,23 +232,14 @@ class HashGasLattice {
         this.n = n;
 
         var level = Math.ceil(Math.log(n) / Math.log(2));
-        var root = HashGasLattice.getEmpty(level);
-        _.map(_.range(n), function(ix) {
-            _.map(_.range(n), function(iy) {
-                var s : number;
-                if (ix < n * 0.1 && n * 0.4 < iy && iy < n * 0.6) {
-                    s = 2;
-                } else {
-                    if (Math.random() < 0.1) {
-                        s = Math.floor(Math.random() * 15);
-                    } else {
-                        s = 0;
-                    }
-                }
-                root.ref(ix, iy).v = s;
-            });
-        });
-        this.snapshot = root;
+        var fn = (ix, iy) => {
+            if (ix < 0 || iy < 0 || ix >= n || iy >= n) {
+                return -1;
+            } else {
+                return lattice.at(ix, iy).state;
+            }
+        };
+        this.snapshot = HashGasLattice.recreate(level, fn);
     }
 
     public stepN() {
@@ -296,6 +288,23 @@ class HashGasLattice {
                 && this.s_y0 + this.s_dy <= q_sz * 3;
     }
 
+    private static recreate(level : number, fn : (x:number, y:number) => number) : HashGasCell {
+        return this.recreateAux(level, fn, 0, 0);
+    }
+
+    private static recreateAux(level : number, fn : (x:number, y:number) => number, dx : number, dy : number) : HashGasCell {
+        if (level === 0) {
+            return HashGasCell.newLeaf(fn(dx, dy));
+        } else {
+            var h_sz = Math.pow(2, level - 1);
+            var c00 = this.recreateAux(level - 1, fn, 0, 0);
+            var c10 = this.recreateAux(level - 1, fn, h_sz, 0);
+            var c01 = this.recreateAux(level - 1, fn, 0, h_sz);
+            var c11 = this.recreateAux(level - 1, fn, h_sz, h_sz);
+            return HashGasCell.newNode(c00, c10, c01, c11);
+        }
+    }
+
     private static getEmpty(level : number) : HashGasCell {
         if (level === 0) {
             return HashGasCell.newLeaf(-1);
@@ -308,10 +317,6 @@ class HashGasLattice {
     // Compat method to get a single old Cell.
     public at(ix : number, iy : number) : Cell {
         return new Cell(this.snapshot.ref(this.s_x0 + ix, this.s_y0 + iy).v);
-    }
-
-    public set(ix : number, iy : number, c : Cell){
-        this.snapshot.ref(this.s_x0 + ix, this.s_y0 + iy).v = c.state;
     }
 
     // First, we extend the CA to include walls as one of state.
@@ -357,17 +362,12 @@ class HashGasLattice {
 function test() {
     var n = 2;
     var lattice_ref = new GasLattice(n);
-    var lattice = new HashGasLattice(n);
-    _.map(_.range(n), function(ix) {
-        _.map(_.range(n), function(iy) {
-            lattice.set(ix, iy, lattice_ref.at(ix, iy));
-        });
-    });
-
-    _.map(_.range(10), function() {
-        console.log("Testing at t=", lattice_ref.timestep);
-        _.map(_.range(n), function(ix) {
-            _.map(_.range(n), function(iy) {
+    var lattice = new HashGasLattice(lattice_ref);
+    console.log(lattice);
+    _.map(_.range(10), i_case => {
+        console.log("Testing at t=", lattice_ref.timestep, "case=", i_case);
+        _.map(_.range(n), ix => {
+            _.map(_.range(n), iy => {
                 if (lattice.at(ix, iy) != lattice_ref.at(ix, iy)) {
                     console.log(
                         "@(", ix, iy, ") ",
