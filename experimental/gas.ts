@@ -103,6 +103,9 @@ class CellRepo {
     public memoized(cell : HashGasCell) : HashGasCell {
         var key = String(cell.hash());
         if (this.repo[key] !== undefined) {
+            if (cell.level !== this.repo[key].level) {
+                console.log("Collision!", key, cell, this.repo[key]);
+            }
             return this.repo[key];
         } else {
             this.repo[key] = cell;
@@ -427,7 +430,7 @@ class HashGasLattice {
 }
 
 function test() {
-    var n = 10;
+    var n = 16;
     var lattice_ref = new GasLattice(n);
     var lattice = new HashGasLattice(lattice_ref);
     console.log(lattice);
