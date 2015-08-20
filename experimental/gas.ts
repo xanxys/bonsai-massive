@@ -93,6 +93,26 @@ class GasLattice {
     }
 }
 
+class CellRepo {
+    private repo : any;
+
+    constructor() {
+        this.repo = {};
+    }
+
+    public memoized(cell : HashGasCell) : HashGasCell {
+        var key = String(cell.hash());
+        if (this.repo[key] !== undefined) {
+            return this.repo[key];
+        } else {
+            this.repo[key] = cell;
+            return cell;
+        }
+    }
+}
+
+var repo = new CellRepo();
+
 class HashGasCell {
     // 2 ^ level = size
     // e.g. 0: 1 (base)
@@ -111,11 +131,19 @@ class HashGasCell {
     public c01 : HashGasCell;
     public c11 : HashGasCell;
 
+    private cache_hash : number;
+    private cache_next : HashGasCell;
+
+    constructor() {
+        this.cache_hash = -1;
+        this.cache_next = null;
+    }
+
     public static newLeaf(v : number) : HashGasCell {
         var c = new HashGasCell();
         c.level = 0;
         c.v = v;
-        return c;
+        return repo.memoized(c);
     }
 
     public static newNode(c00 : HashGasCell, c10 : HashGasCell, c01 : HashGasCell, c11 : HashGasCell) : HashGasCell {
@@ -125,12 +153,19 @@ class HashGasCell {
         c.c10 = c10;
         c.c01 = c01;
         c.c11 = c11;
-        return c;
+        return repo.memoized(c);
     }
 
     // Get center level-1 cell after 2^(level-2) steps.
     // e.g. level==2
     public nextExp() : HashGasCell {
+        if (this.cache_next === null) {
+            this.cache_next = this.nextExpAux();
+        }
+        return this.cache_next;
+    }
+
+    public nextExpAux() : HashGasCell {
         console.assert(this.level >= 2);
         var c00 = this.c00;
         var c10 = this.c10;
@@ -203,6 +238,38 @@ class HashGasCell {
             }
         }
     }
+
+    // 32 bit uint
+    public hash() : number {
+        if (this.cache_hash >= 0) {
+            return this.cache_hash;
+        }
+        var h;
+        if (this.level === 0) {
+            h = hash([this.v + 1]);
+        } else {
+            var bytes = _.flatten(_.map([this.c00, this.c10, this.c01, this.c11], c => {
+                var h = c.hash();
+                return [(h >> 24) & 0xff, (h >> 16) & 0xff, (h >> 8) & 0xff, h & 0xff];
+            }));
+            h = hash(bytes);
+        }
+        this.cache_hash = h;
+        return h;
+    }
+}
+
+// FNV1-a 32bit
+function hash(arr : number[]) : number {
+    var prime = 16777619;
+    var mask = 0xffffffff;
+    var h = 2166136261;
+    _.each(arr, v => {
+        console.assert(0 <= v && v < 256);
+        h = (h ^ v) & mask;
+        h = (h * prime) & mask;
+    });
+    return h;
 }
 
 // (Hopefully) super-accelerated Gas Lattice using hashlife.
@@ -360,7 +427,7 @@ class HashGasLattice {
 }
 
 function test() {
-    var n = 4;
+    var n = 10;
     var lattice_ref = new GasLattice(n);
     var lattice = new HashGasLattice(lattice_ref);
     console.log(lattice);
