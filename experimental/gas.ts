@@ -297,10 +297,10 @@ class HashGasLattice {
             return HashGasCell.newLeaf(fn(dx, dy));
         } else {
             var h_sz = Math.pow(2, level - 1);
-            var c00 = this.recreateAux(level - 1, fn, 0, 0);
-            var c10 = this.recreateAux(level - 1, fn, h_sz, 0);
-            var c01 = this.recreateAux(level - 1, fn, 0, h_sz);
-            var c11 = this.recreateAux(level - 1, fn, h_sz, h_sz);
+            var c00 = this.recreateAux(level - 1, fn, dx + 0, dy + 0);
+            var c10 = this.recreateAux(level - 1, fn, dx + h_sz, dy + 0);
+            var c01 = this.recreateAux(level - 1, fn, dx + 0, dy + h_sz);
+            var c11 = this.recreateAux(level - 1, fn, dx + h_sz, dy + h_sz);
             return HashGasCell.newNode(c00, c10, c01, c11);
         }
     }
@@ -360,7 +360,7 @@ class HashGasLattice {
 }
 
 function test() {
-    var n = 2;
+    var n = 4;
     var lattice_ref = new GasLattice(n);
     var lattice = new HashGasLattice(lattice_ref);
     console.log(lattice);
@@ -382,6 +382,7 @@ function test() {
             lattice_ref.step();
         }
     });
+    console.log(lattice);
 
 }
 
