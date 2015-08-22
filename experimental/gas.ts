@@ -1,5 +1,6 @@
 declare var $;
 declare var _;
+declare var bigInt;
 
 class Cell {
     // 4 bit field
@@ -95,16 +96,25 @@ class GasLattice {
 
 class CellRepo {
     private repo : any;
+    private memoize_count : number;
 
     constructor() {
         this.repo = {};
+        this.memoize_count = 0;
     }
 
     public memoized(cell : HashGasCell) : HashGasCell {
-        var key = String(cell.hash());
+        this.memoize_count++;
+        if (this.memoize_count % 5000 === 0) {
+            console.log(
+                "HashRepoSize:", _.size(this.repo),
+                "MemoizeAccess:", this.memoize_count);
+        }
+        var key = cell.hash();
         if (this.repo[key] !== undefined) {
             if (cell.level !== this.repo[key].level) {
                 console.log("Collision!", key, cell, this.repo[key]);
+                return null;
             }
             return this.repo[key];
         } else {
@@ -134,11 +144,13 @@ class HashGasCell {
     public c01 : HashGasCell;
     public c11 : HashGasCell;
 
-    private cache_hash : number;
+    private cache_hash : any;
+    private cache_hash_s : string;
     private cache_next : HashGasCell;
 
     constructor() {
-        this.cache_hash = -1;
+        this.cache_hash = null;
+        this.cache_hash_s = "";
         this.cache_next = null;
     }
 
@@ -242,37 +254,41 @@ class HashGasCell {
         }
     }
 
-    // 32 bit uint
-    public hash() : number {
-        if (this.cache_hash >= 0) {
-            return this.cache_hash;
+    // 64bit uint as string
+    public hash() : string {
+        if (this.cache_hash_s === "") {
+            this.cache_hash_s = this.hash_raw().toString();
         }
-        var h;
-        if (this.level === 0) {
-            h = hash([this.v + 1]);
-        } else {
-            var bytes = _.flatten(_.map([this.c00, this.c10, this.c01, this.c11], c => {
-                var h = c.hash();
-                return [(h >> 24) & 0xff, (h >> 16) & 0xff, (h >> 8) & 0xff, h & 0xff];
-            }));
-            h = hash(bytes);
+        return this.cache_hash_s;
+    }
+
+    private hash_raw() : any {
+        if (this.cache_hash === null) {
+            var h;
+            if (this.level === 0) {
+                h = hash([this.v + 1]);
+            } else {
+                var bytes = _.flatten(_.map([this.c00, this.c10, this.c01, this.c11], c => {
+                    var h = c.hash_raw();
+                    return _.map(_.range(8), i => h.shiftRight(i * 8).and(0xff));
+                }));
+                h = hash(bytes);
+            }
+            this.cache_hash = h;
         }
-        this.cache_hash = h;
-        return h;
+        return this.cache_hash;
     }
 }
 
-// FNV1-a 32bit
-function hash(arr : number[]) : number {
-    var prime = 16777619;
-    var mask = 0xffffffff;
-    var h = 2166136261;
-    _.each(arr, v => {
-        console.assert(0 <= v && v < 256);
-        h = (h ^ v) & mask;
-        h = (h * prime) & mask;
-    });
-    return h;
+// Pre-made values.
+var hash_bi_mask = bigInt("ffffffffffffffff", 16);
+var hash_bi_prime = bigInt("1099511628211");
+var hash_bi_basis = bigInt("14695981039346656037");
+// FNV1-a 64bit (returns bigInt)
+function hash(arr : number[]) : any {
+    return _.reduce(arr,
+        (h, v) => h.xor(v).multiply(hash_bi_prime).and(hash_bi_mask),
+        hash_bi_basis);
 }
 
 // (Hopefully) super-accelerated Gas Lattice using hashlife.
@@ -453,7 +469,26 @@ function test() {
         }
     });
     console.log(lattice);
+}
 
+function test_performance() {
+    var n = 256;
+    var t = 50;
+    var lattice_ref = new GasLattice(n);
+    var lattice = new HashGasLattice(lattice_ref);
+
+    var t0 = new Date().getTime();
+    _.map(_.range(t), function() {
+        lattice_ref.step();
+    });
+    console.log("Naive:", new Date().getTime() - t0, "msec");
+
+    t0 = new Date().getTime();
+    while (lattice.timestep < t) {
+        lattice.stepN();
+        console.log("T=", lattice.timestep);
+    }
+    console.log("Hash:", new Date().getTime() - t0, "msec");
 }
 
 $(document).ready(function() {
@@ -569,5 +604,6 @@ $(document).ready(function() {
     }
 
     test();
+    test_performance();
     iter();
 });
