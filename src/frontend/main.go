@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type FrontendServer struct {
@@ -19,6 +20,25 @@ func (s FrontendServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	const n = 128
+	const t = 500
+	fmt.Printf("Testing lattice N=%d T<=%d\n", n, t)
+	ref := NewGasLattice(n)
+	hash := NewHashGasLattice(ref)
+
+	t0 := time.Now()
+	for i := 0; i < t; i++ {
+		ref.Step()
+	}
+	fmt.Printf("Naive: %v\n", time.Now().Sub(t0))
+
+	t0 = time.Now()
+	for hash.Timestep < t {
+		hash.StepN()
+		fmt.Printf("*T=%d\n", hash.Timestep)
+	}
+	fmt.Printf("Hash: %v\n", time.Now().Sub(t0))
+
 	fmt.Println("Starting frontend server")
 	/*server := FrontendServer{
 		text: "Bonsai frontend server 2",

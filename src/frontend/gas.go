@@ -19,7 +19,7 @@ type GasLattice struct {
 	grid     map[string]Cell
 }
 
-func NewGrid(n int) *GasLattice {
+func NewGasLattice(n int) *GasLattice {
 	grid := make(map[string]Cell)
 	for ix := 0; ix < n; ix++ {
 		for iy := 0; iy < n; iy++ {
@@ -27,7 +27,7 @@ func NewGrid(n int) *GasLattice {
 			if ix < n/10 && n/10*4 < iy && iy < n/10*6 {
 				grid[key] = Cell(2)
 			} else {
-				if rand.Float32() < 0.1 {
+				if rand.Float32() < 0.01 {
 					grid[key] = Cell(1 + rand.Int31n(15))
 				} else {
 					grid[key] = 0
