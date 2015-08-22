@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"math/rand"
 )
 
@@ -163,33 +165,49 @@ type HashGasCell struct {
 }
 
 type HashCellRepo struct {
+	repo map[uint64]*HashGasCell
+}
+
+func NewHashCellRepo() *HashCellRepo {
+	return &HashCellRepo{
+		repo: make(map[uint64]*HashGasCell),
+	}
+}
+
+func (repo *HashCellRepo) Memoize(cell *HashGasCell) *HashGasCell {
+	h := cell.Hash()
+	existing, ok := repo.repo[h]
+	if ok {
+		return existing
+	} else {
+		repo.repo[h] = cell
+		return cell
+	}
 }
 
 func NewLeaf(repo *HashCellRepo, s Cell) *HashGasCell {
-	repo.Memoize()
-	return &HashGasCell{
+	return repo.Memoize(&HashGasCell{
 		Level:     0,
 		Value:     s,
 		c00:       nil,
 		c10:       nil,
 		c01:       nil,
 		c11:       nil,
-		cacheHash: nil,
+		cacheHash: 0,
 		cacheNext: nil,
-	}
+	})
 }
 
 func NewNode(repo *HashCellRepo, c00, c10, c01, c11 *HashGasCell) *HashGasCell {
-	repo.Memoize()
-	return &HashGasCell{
+	return repo.Memoize(&HashGasCell{
 		Level:     c00.Level + 1,
 		c00:       c00,
 		c10:       c10,
 		c01:       c01,
 		c11:       c11,
-		cacheHash: nil,
+		cacheHash: 0,
 		cacheNext: nil,
-	}
+	})
 }
 
 // Get center level-1 cell after 2^(level-2) steps.
@@ -203,19 +221,23 @@ func (cell *HashGasCell) NextExp(repo *HashCellRepo) *HashGasCell {
 
 func (cell *HashGasCell) nextExpAux(repo *HashCellRepo) *HashGasCell {
 	if cell.Level < 2 {
-		fmt.Panic("strange level")
+		panic("strange level")
 	}
+	c00 := cell.c00
+	c01 := cell.c01
+	c10 := cell.c10
+	c11 := cell.c11
 	if cell.Level == 2 {
 		// Normal execution of 1 step.
-		C00 := newLeaf(repo, Step1Ext(
+		C00 := NewLeaf(repo, Step1Ext(
 			c00.c01.Value, c10.c01.Value, c00.c10.Value, c01.c10.Value, c00.c11.Value))
-		C10 := newLeaf(repo, Step1Ext(
+		C10 := NewLeaf(repo, Step1Ext(
 			c00.c11.Value, c10.c11.Value, c10.c00.Value, c11.c00.Value, c10.c01.Value))
-		C01 := newLeaf(repo, Step1Ext(
+		C01 := NewLeaf(repo, Step1Ext(
 			c01.c00.Value, c11.c00.Value, c00.c11.Value, c01.c11.Value, c01.c10.Value))
-		C11 := newLeaf(repo, Step1Ext(
+		C11 := NewLeaf(repo, Step1Ext(
 			c01.c10.Value, c11.c10.Value, c10.c01.Value, c11.c01.Value, c11.c00.Value))
-		return newNode(repo, C00, C10, C01, C11)
+		return NewNode(repo, C00, C10, C01, C11)
 	} else {
 		// Create intermediate cells with a half of the requires steps.
 		//  _
@@ -226,15 +248,15 @@ func (cell *HashGasCell) nextExpAux(repo *HashCellRepo) *HashGasCell {
 		//  t*0  c00.c00 c00.c10 | c10.c00 c10.c10
 		//              |       t1*       |
 		//       |     t0*       |        t2*     |
-		t00 := c00.nextExp(repo)
-		t10 := HashGasCell.newNode(repo, c00.c10, c10.c00, c00.c11, c10.c01).nextExp(repo)
-		t20 := c10.nextExp(repo)
-		t01 := HashGasCell.newNode(repo, c00.c01, c00.c11, c01.c00, c01.c10).nextExp(repo)
-		t11 := HashGasCell.newNode(repo, c00.c11, c10.c01, c01.c10, c11.c00).nextExp(repo)
-		t21 := HashGasCell.newNode(repo, c10.c01, c10.c11, c11.c00, c11.c10).nextExp(repo)
-		t02 := c01.nextExp(repo)
-		t12 := HashGasCell.newNode(repo, c01.c10, c11.c00, c01.c11, c11.c01).nextExp(repo)
-		t22 := c11.nextExp(repo)
+		t00 := c00.NextExp(repo)
+		t10 := NewNode(repo, c00.c10, c10.c00, c00.c11, c10.c01).NextExp(repo)
+		t20 := c10.NextExp(repo)
+		t01 := NewNode(repo, c00.c01, c00.c11, c01.c00, c01.c10).NextExp(repo)
+		t11 := NewNode(repo, c00.c11, c10.c01, c01.c10, c11.c00).NextExp(repo)
+		t21 := NewNode(repo, c10.c01, c10.c11, c11.c00, c11.c10).NextExp(repo)
+		t02 := c01.NextExp(repo)
+		t12 := NewNode(repo, c01.c10, c11.c00, c01.c11, c11.c01).NextExp(repo)
+		t22 := c11.NextExp(repo)
 
 		// Step another half.
 		//  t02 t12 t22      ^
@@ -242,23 +264,23 @@ func (cell *HashGasCell) nextExpAux(repo *HashCellRepo) *HashGasCell {
 		//  t00 t10 t20 _c*0'
 		//  | c0*' |
 		//      | c1*' |
-		C00 := newNode(repo, t00, t10, t01, t11).nextExp(repo)
-		C10 := newNode(repo, t10, t20, t11, t21).nextExp(repo)
-		C01 := newNode(repo, t01, t11, t02, t12).nextExp(repo)
-		C11 := newNode(repo, t11, t21, t12, t22).nextExp(repo)
+		C00 := NewNode(repo, t00, t10, t01, t11).NextExp(repo)
+		C10 := NewNode(repo, t10, t20, t11, t21).NextExp(repo)
+		C01 := NewNode(repo, t01, t11, t02, t12).NextExp(repo)
+		C11 := NewNode(repo, t11, t21, t12, t22).NextExp(repo)
 
-		return HashGasCell.newNode(C00, C10, C01, C11)
+		return NewNode(repo, C00, C10, C01, C11)
 	}
 }
 
 func (cell *HashGasCell) Ref(x int, y int) *HashGasCell {
 	if cell.Level == 0 {
 		if x != 0 || y != 0 {
-			fmt.Panic("Invalid coordinate")
+			panic("Invalid coordinate")
 		}
 		return cell
 	} else {
-		h_sz := 1 << (cell.Level - 1)
+		h_sz := 1 << uint(cell.Level-1)
 		if x < h_sz {
 			if y < h_sz {
 				return cell.c00.Ref(x, y)
@@ -282,7 +304,7 @@ func (cell *HashGasCell) Hash() uint64 {
 			binary.Write(h, binary.BigEndian, byte(cell.Value+1))
 		} else {
 			for _, child := range [4]*HashGasCell{cell.c00, cell.c10, cell.c01, cell.c11} {
-				binary.Write(h, binary.BigEndian(), child.Hash())
+				binary.Write(h, binary.BigEndian, child.Hash())
 			}
 		}
 		cell.cacheHash = h.Sum64()
@@ -303,40 +325,42 @@ type HashGasLattice struct {
 	sX0 int
 	sY0 int
 	sDx int
-	sDY int
+	sDy int
 
 	repo *HashCellRepo
 }
 
-func newHashGasLattice(lattice *GasLattice) *HashGasLattice {
-	level := Math.ceil(Math.log(n) / Math.log(2))
-	fn := func(ix int, iy int) {
-		if ix < 0 || iy < 0 || ix >= n || iy >= n {
+func NewHashGasLattice(lattice *GasLattice) *HashGasLattice {
+	level := int(math.Ceil(math.Log2(float64(lattice.N))))
+	fn := func(ix int, iy int) Cell {
+		if ix < 0 || iy < 0 || ix >= lattice.N || iy >= lattice.N {
 			return Cell(-1)
 		} else {
 			return lattice.At(ix, iy)
 		}
 	}
 
+	repo := NewHashCellRepo()
 	return &HashGasLattice{
+		repo:     repo,
 		N:        lattice.N,
 		Timestep: 0,
 		sX0:      0,
 		sY0:      0,
 		sDx:      lattice.N,
 		sDy:      lattice.N,
-		snapshot: Recreate(level, fn),
+		Snapshot: Recreate(repo, level, fn),
 	}
 }
 
 func (lattice *HashGasLattice) StepN() {
-	this.upgrade()
-	var dt = Math.pow(2, this.snapshot.level-2)
-	var q_sz = dt
-	this.snapshot = this.snapshot.nextExp()
-	this.s_x0 -= q_sz
-	this.s_y0 -= q_sz
-	this.timestep += dt
+	lattice.upgrade()
+	dt := 1 << uint(lattice.Snapshot.Level-2)
+	q_sz := dt
+	lattice.Snapshot = lattice.Snapshot.NextExp(lattice.repo)
+	lattice.sX0 -= q_sz
+	lattice.sY0 -= q_sz
+	lattice.Timestep += uint64(dt)
 }
 
 // Ensure snapshot & root is steppable, and stepped smaller cell contains
@@ -347,24 +371,24 @@ func (lattice *HashGasLattice) StepN() {
 //|  L2     |
 // ... (alternate)
 func (lattice *HashGasLattice) upgrade() {
-	sz := 1 << lattice.Snapshot.Level
-	if !(0 <= this.s_x0 && 0 <= this.s_y0) {
-		fmt.Panic("Impossible to upgrade")
+	sz := 1 << uint(lattice.Snapshot.Level)
+	if !(0 <= lattice.sX0 && 0 <= lattice.sY0) {
+		panic("Impossible to upgrade")
 	}
-	if !(this.s_x0+this.s_dx <= sz) {
-		fmt.Panic("Impossible to upgrade")
+	if !(lattice.sX0+lattice.sDx <= sz) {
+		panic("Impossible to upgrade")
 	}
-	if !(this.s_y0+this.s_dy <= sz) {
-		fmt.Panic("Impossible to upgrade")
+	if !(lattice.sY0+lattice.sDy <= sz) {
+		panic("Impossible to upgrade")
 	}
 
 	for !lattice.isSteppable() {
-		e := getWall(lattice.Snapshot.Level)
+		e := getWall(lattice.repo, lattice.Snapshot.Level)
 		if lattice.Snapshot.Level%2 == 0 {
-			lattice.Snapshot = newNode(lattice.repo, lattice.Snapshot, e, e, e)
+			lattice.Snapshot = NewNode(lattice.repo, lattice.Snapshot, e, e, e)
 		} else {
-			eSize := 1 << lattice.Ssnapshot.level
-			lattice.Snapshot = newNode(lattice.repo, e, e, e, this.snapshot)
+			eSize := 1 << uint(lattice.Snapshot.Level)
+			lattice.Snapshot = NewNode(lattice.repo, e, e, e, lattice.Snapshot)
 			lattice.sX0 += eSize
 			lattice.sY0 += eSize
 		}
@@ -372,45 +396,44 @@ func (lattice *HashGasLattice) upgrade() {
 }
 
 func (lattice *HashGasLattice) isSteppable() bool {
-	if lattice.Snapshot.level < 2 {
+	if lattice.Snapshot.Level < 2 {
 		return false
 	}
-	q_sz := 1 << (lattice.Snapshot.Level - 2)
-	return
-	q_sz <= lattice.s_x0 &&
-		q_sz <= lattice.s_y0 &&
-		lattice.s_x0+lattice.s_dx <= q_sz*3 &&
-		lattice.s_y0+lattice.s_dy <= q_sz*3
+	q_sz := 1 << uint(lattice.Snapshot.Level-2)
+	return q_sz <= lattice.sX0 &&
+		q_sz <= lattice.sY0 &&
+		lattice.sX0+lattice.sDx <= q_sz*3 &&
+		lattice.sY0+lattice.sDy <= q_sz*3
 }
 
-func (lattice *HashGasLattice) Recreate(level int, fn func(int, int) Cell) *HashGasCell {
-	return lattice.recreateAux(level, fn, 0, 0)
+func Recreate(repo *HashCellRepo, level int, fn func(int, int) Cell) *HashGasCell {
+	return recreateAux(repo, uint(level), fn, 0, 0)
 }
 
-func (lattice *HashGasLattice) recreateAux(level int, fn func(int, int) Cell, dx int, dy int) *HashGasCell {
+func recreateAux(repo *HashCellRepo, level uint, fn func(int, int) Cell, dx, dy int) *HashGasCell {
 	if level == 0 {
-		return newLeaf(lattice.repo, fn(dx, dy))
+		return NewLeaf(repo, fn(dx, dy))
 	} else {
 		h_sz := 1 << (level - 1)
-		c00 := lattice.recreateAux(level-1, fn, dx+0, dy+0)
-		c10 := lattice.recreateAux(level-1, fn, dx+h_sz, dy+0)
-		c01 := lattice.recreateAux(level-1, fn, dx+0, dy+h_sz)
-		c11 := lattice.recreateAux(level-1, fn, dx+h_sz, dy+h_sz)
-		return newNode(lattice.repo, c00, c10, c01, c11)
+		c00 := recreateAux(repo, level-1, fn, dx+0, dy+0)
+		c10 := recreateAux(repo, level-1, fn, dx+h_sz, dy+0)
+		c01 := recreateAux(repo, level-1, fn, dx+0, dy+h_sz)
+		c11 := recreateAux(repo, level-1, fn, dx+h_sz, dy+h_sz)
+		return NewNode(repo, c00, c10, c01, c11)
 	}
 }
 
-func getWall(level int) *HashGasCell {
+func getWall(repo *HashCellRepo, level int) *HashGasCell {
 	if level == 0 {
-		return HashGasCell.newLeaf(-1)
+		return NewLeaf(repo, -1)
 	} else {
-		var e = HashGasLattice.getEmpty(level - 1)
-		return HashGasCell.newNode(e, e, e, e)
+		e := getWall(repo, level-1)
+		return NewNode(repo, e, e, e, e)
 	}
 }
 
 func (lattice *HashGasLattice) At(ix int, iy int) Cell {
-	return lattice.snapshot.Ref(this.s_x0+ix, this.s_y0+iy)
+	return lattice.Snapshot.Ref(lattice.sX0+ix, lattice.sY0+iy).Value
 }
 
 // First, we extend the CA to include walls as one of state.

@@ -1,6 +1,7 @@
 go_binary(
     name="server",
     srcs=[
-        "main.go"
+        "main.go",
+        "gas.go",
     ],
 )
