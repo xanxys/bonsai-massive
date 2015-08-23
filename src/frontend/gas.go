@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand"
+	"sort"
 )
 
 // 4 bit field in Lattice Gas Automata.
@@ -19,7 +20,7 @@ type GasLattice struct {
 	grid     map[string]Cell
 }
 
-func NewGasLattice(n int) *GasLattice {
+func NewGasLattice(n int, temperature float64) *GasLattice {
 	grid := make(map[string]Cell)
 	for ix := 0; ix < n; ix++ {
 		for iy := 0; iy < n; iy++ {
@@ -27,7 +28,7 @@ func NewGasLattice(n int) *GasLattice {
 			if ix < n/10 && n/10*4 < iy && iy < n/10*6 {
 				grid[key] = Cell(2)
 			} else {
-				if rand.Float32() < 0.01 {
+				if rand.Float64() < temperature {
 					grid[key] = Cell(1 + rand.Int31n(15))
 				} else {
 					grid[key] = 0
@@ -107,41 +108,6 @@ func (lattice *GasLattice) At(ix int, iy int) Cell {
 	return lattice.grid[fmt.Sprintf("%d:%d", ix, iy)]
 }
 
-/*
-class CellRepo {
-    private repo : any;
-    private memoize_count : number;
-
-    constructor() {
-        this.repo = {};
-        this.memoize_count = 0;
-    }
-
-    public memoized(cell : HashGasCell) : HashGasCell {
-        this.memoize_count++;
-        if (this.memoize_count % 5000 === 0) {
-            console.log(
-                "HashRepoSize:", _.size(this.repo),
-                "MemoizeAccess:", this.memoize_count);
-        }
-        var key = cell.hash();
-        if (this.repo[key] !== undefined) {
-            if (cell.level !== this.repo[key].level) {
-                console.log("Collision!", key, cell, this.repo[key]);
-                return null;
-            }
-            return this.repo[key];
-        } else {
-            this.repo[key] = cell;
-            return cell;
-        }
-    }
-}
-
-var repo = new CellRepo();
-
-*/
-
 type HashGasCell struct {
 	// 2 ^ level = size
 	// e.g. 0: 1 (base)
@@ -171,6 +137,29 @@ type HashCellRepo struct {
 func NewHashCellRepo() *HashCellRepo {
 	return &HashCellRepo{
 		repo: make(map[uint64]*HashGasCell),
+	}
+}
+
+func (repo *HashCellRepo) PrintStat() {
+	fmt.Printf("Repo size=%d\n", len(repo.repo))
+
+	counts := make(map[int]int)
+	for _, cell := range repo.repo {
+		_, exist := counts[cell.Level]
+		if exist {
+			counts[cell.Level]++
+		} else {
+			counts[cell.Level] = 1
+		}
+	}
+
+	levels := make([]int, 0)
+	for level, _ := range counts {
+		levels = append(levels, level)
+	}
+	sort.Ints(levels)
+	for _, level := range levels {
+		fmt.Printf("@%d: %d\n", level, counts[level])
 	}
 }
 
@@ -393,6 +382,10 @@ func (lattice *HashGasLattice) upgrade() {
 			lattice.sY0 += eSize
 		}
 	}
+}
+
+func (lattice *HashGasLattice) PrintStat() {
+	lattice.repo.PrintStat()
 }
 
 func (lattice *HashGasLattice) isSteppable() bool {

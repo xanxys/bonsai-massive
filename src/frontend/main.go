@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 )
@@ -19,11 +20,11 @@ func (s FrontendServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, s.text)
 }
 
-func main() {
+func testCompareSpeed() {
 	const n = 128
 	const t = 500
 	fmt.Printf("Testing lattice N=%d T<=%d\n", n, t)
-	ref := NewGasLattice(n)
+	ref := NewGasLattice(n, 0.01)
 	hash := NewHashGasLattice(ref)
 
 	t0 := time.Now()
@@ -38,6 +39,30 @@ func main() {
 		fmt.Printf("*T=%d\n", hash.Timestep)
 	}
 	fmt.Printf("Hash: %v\n", time.Now().Sub(t0))
+}
+
+func testTemperatureProperty() {
+	const n = 128
+	const t = 500
+	fmt.Printf("= Testing lattice N=%d T<=%d\n", n, t)
+
+	// 1..10^-6
+	for i := 0; i < 30; i++ {
+		temp := math.Pow(10, -float64(i)*0.2)
+		ref := NewGasLattice(n, temp)
+		hash := NewHashGasLattice(ref)
+
+		t0 := time.Now()
+		for hash.Timestep < t {
+			hash.StepN()
+		}
+		fmt.Printf("== temp=%f dt=%v\n", temp, time.Now().Sub(t0))
+		hash.PrintStat()
+	}
+}
+
+func main() {
+	testTemperatureProperty()
 
 	fmt.Println("Starting frontend server")
 	/*server := FrontendServer{
