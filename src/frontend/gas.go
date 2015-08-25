@@ -14,6 +14,11 @@ import (
 // LSB
 type Cell int
 
+type Lattice interface {
+	GetN() int
+	At(ix int, iy int) Cell
+}
+
 type GasLattice struct {
 	N        int
 	Timestep int64
@@ -41,6 +46,10 @@ func NewGasLattice(n int, temperature float64) *GasLattice {
 		Timestep: 0,
 		grid:     grid,
 	}
+}
+
+func (lattice *GasLattice) GetN() int {
+	return lattice.N
 }
 
 func (lattice *GasLattice) Step() {
@@ -481,4 +490,8 @@ func Step1Ext(l, r, b, t, self Cell) Cell {
 		s = 3
 	}
 	return Cell(s)
+}
+
+func (lattice *HashGasLattice) GetN() int {
+	return lattice.N
 }

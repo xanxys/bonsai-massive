@@ -73,15 +73,16 @@ type TestResponse struct {
 	State map[string]int
 }
 
-func SerializeLattice(lattice *HashGasLattice) TestResponse {
+func SerializeLattice(lattice Lattice) TestResponse {
+	n := lattice.GetN()
 	m := make(map[string]int)
-	for ix := 0; ix < lattice.N; ix++ {
-		for iy := 0; iy < lattice.N; iy++ {
+	for ix := 0; ix < n; ix++ {
+		for iy := 0; iy < n; iy++ {
 			m[fmt.Sprintf("%d:%d", ix, iy)] = int(lattice.At(ix, iy))
 		}
 	}
 	return TestResponse{
-		N:     lattice.N,
+		N:     n,
 		State: m,
 	}
 }
