@@ -95,8 +95,8 @@ func main() {
 		text: "Bonsai frontend server 2",
 	} */
 
-	n := 64
-	hash := NewHashGasLattice(NewGasLattice(n, 0.005))
+	n := 128
+	hash := NewHashGasLattice(NewGasLattice(n, 0.005)) // NewGasLattice(n, 0.005)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -113,6 +113,11 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Write(b)
 
+		/*
+			for i := 0; i < 10; i++ {
+				hash.Step()
+			}
+		*/
 		hash.StepN()
 		fmt.Printf("T=%d\n", hash.Timestep)
 	})

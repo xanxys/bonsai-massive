@@ -136,15 +136,15 @@ $(document).ready(function() {
     }
 
     function draw() {
-        var k = 2;
-        var scale = 6;
+        var k = 4;
+        var scale = 3;
 
         var ctx = canvas.getContext('2d');
         ctx.fillStyle = 'black';
         ctx.rect(0, 0, 500, 500);
         ctx.fill();
 
-        if (true) {
+        if (false) {
             ctx.save();
             ctx.scale(scale, scale);
             ctx.lineWidth = 0.1;
@@ -189,7 +189,7 @@ $(document).ready(function() {
             });
             ctx.restore();
         }
-        if (false) {
+        if (true) {
             ctx.save();
             ctx.scale(scale * k, scale * k);
             ctx.fillStyle = 'rgba(100, 100, 200, 0.8)';
