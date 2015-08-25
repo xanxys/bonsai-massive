@@ -1,0 +1,5 @@
+package bonsai;
+
+// Endpoint: /api/XX
+message SomethingRequest {
+}

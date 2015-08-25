@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -61,13 +62,41 @@ func testTemperatureProperty() {
 	}
 }
 
-func main() {
-	testTemperatureProperty()
+// TODO: migrate to proto as soon as hashlife is proven to work.
+type TestRequest struct {
+	Timestep int
+}
 
-	fmt.Println("Starting frontend server")
+// TODO: migrate to proto as soon as hashlife is proven to work.
+type TestResponse struct {
+	N     int
+	State map[string]int
+}
+
+func SerializeLattice(lattice *HashGasLattice) TestResponse {
+	m := make(map[string]int)
+	for ix := 0; ix < lattice.N; ix++ {
+		for iy := 0; iy < lattice.N; iy++ {
+			m[fmt.Sprintf("%d:%d", ix, iy)] = int(lattice.At(ix, iy))
+		}
+	}
+	return TestResponse{
+		N:     lattice.N,
+		State: m,
+	}
+}
+
+func main() {
+	go testTemperatureProperty()
+
+	fmt.Println("Starting frontend server http://localhost:8000")
 	/*server := FrontendServer{
 		text: "Bonsai frontend server 2",
 	} */
+
+	n := 64
+	hash := NewHashGasLattice(NewGasLattice(n, 0.005))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -75,6 +104,18 @@ func main() {
 		}
 		http.ServeFile(w, r, "/root/bonsai/static/index.html")
 	})
+	http.HandleFunc("/api/test", func(w http.ResponseWriter, r *http.Request) {
+		resp := SerializeLattice(hash)
+		b, _ := json.Marshal(resp)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Write(b)
+
+		hash.StepN()
+		fmt.Printf("T=%d\n", hash.Timestep)
+	})
+
 	http.Handle("/static/",
 		http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
 	// http.Handle("/", server)
