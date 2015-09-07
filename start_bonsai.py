@@ -4,6 +4,7 @@
 # You need to be in docker group to run this script.
 # This script is not supposed to be run by root.
 import argparse
+import datetime
 import os
 import random
 import shutil
@@ -12,7 +13,8 @@ import subprocess
 project_name = "bonsai-genesis"
 
 def get_container_tag(container_name):
-    return "gcr.io/%s/%s" % (project_name, container_name)
+    label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
+    return "gcr.io/%s/%s:%s" % (project_name, container_name, label)
 
 def create_containers():
     print("Creating container")

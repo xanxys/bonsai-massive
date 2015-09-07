@@ -98,13 +98,22 @@ func main() {
 	n := 128
 	hash := NewHashGasLattice(NewGasLattice(n, 0.005)) // NewGasLattice(n, 0.005)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
+	http.HandleFunc("/prototype", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/prototype" {
 			http.NotFound(w, r)
 			return
 		}
 		http.ServeFile(w, r, "/root/bonsai/static/index.html")
 	})
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprintf(w, "World List\n")
+	})
+
 	http.HandleFunc("/api/test", func(w http.ResponseWriter, r *http.Request) {
 		resp := SerializeLattice(hash)
 		b, _ := json.Marshal(resp)
