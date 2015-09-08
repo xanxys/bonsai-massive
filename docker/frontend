@@ -1,4 +1,4 @@
-FROM ubuntu:14.10
+FROM busybox
 
 COPY frontend-server.bin /root/bonsai/frontend-server.bin
 COPY static /root/bonsai/static
