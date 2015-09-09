@@ -1,0 +1,10 @@
+body {
+    background-color: #efebe9; /* brown50 */
+}
+
+.card_main {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    background-color: #fafafa; /* Grey50 */
+    padding: 16px;
+    margin: 16px;
+}
