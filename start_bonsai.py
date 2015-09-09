@@ -18,6 +18,8 @@ def get_container_tag(container_name):
 
 def create_containers():
     print("Creating container")
+    # Without clean, bazel somehow won't update
+    subprocess.call(["bazel", "clean"], cwd="./src")
     subprocess.call(["bazel", "build", "frontend:server"], cwd="./src")
     subprocess.call(["bazel", "build", "client:static"], cwd="./src")
     shutil.copyfile("src/bazel-bin/frontend/server.bin", "docker/frontend-server.bin")

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"mime"
 	"net/http"
 	"time"
 )
@@ -89,6 +90,8 @@ func SerializeLattice(lattice Lattice) TestResponse {
 
 func main() {
 	go testTemperatureProperty()
+
+	mime.AddExtensionType(".svg", "image/svg+xml")
 
 	fmt.Println("Starting frontend server http://localhost:8000")
 	/*server := FrontendServer{

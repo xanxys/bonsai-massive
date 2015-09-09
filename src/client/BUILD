@@ -6,6 +6,7 @@ genrule(
         ":client",
         ":client_old",
         "index.html",
+        'landing.html',
     ],
     outs = ["static.tar"],
     cmd = "tar -c --xform s:^.*/:: $(SRCS) > $@",
@@ -18,6 +19,7 @@ filegroup(
         "*.css",
         "*.js",
         "icons/*.png",
+        "svg_icons/*.svg",
         "third_party/*.js",
     ]),
 )
