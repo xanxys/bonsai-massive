@@ -43,7 +43,7 @@ def deploy_containers_gke(container_name):
     print("Pushing containers to GC repository")
     subprocess.call(['gcloud', 'docker', 'push', container_name])
 
-    print("Rolling out new image %s", container_name)
+    print("Rolling out new image %s" % container_name)
     subprocess.call(['kubectl', 'rolling-update',
         'dev-fe-rc',
         '--update-period=10s',
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     container_name = get_container_tag('bonsai_frontend')
-    print("New container %s", container_name)
+    print("New container %s" % container_name)
 
     create_containers(container_name)
     if args.local:
