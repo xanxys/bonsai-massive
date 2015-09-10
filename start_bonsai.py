@@ -16,7 +16,7 @@ def get_container_tag(container_name):
     label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
     return "gcr.io/%s/%s:%s" % (project_name, container_name, label)
 
-def create_containers():
+def create_containers(container_name):
     print("Creating container")
     # Without clean, bazel somehow won't update
     subprocess.call(["bazel", "clean"], cwd="./src")
@@ -26,9 +26,9 @@ def create_containers():
     shutil.rmtree("docker/static", ignore_errors=True)
     os.mkdir("docker/static")
     subprocess.call(["tar", "-xf", "src/bazel-bin/client/static.tar", "-C", "docker/static"])
-    subprocess.call(["docker", "build", "-t", get_container_tag('bonsai_frontend'), "-f", "docker/frontend", "./docker"])
+    subprocess.call(["docker", "build", "-t", container_name, "-f", "docker/frontend", "./docker"])
 
-def deploy_containers_local():
+def deploy_containers_local(container_name):
     print("Running containers locally")
     name = "bonsai_fe-%d" % random.randint(0, 1000)
     subprocess.call([
@@ -37,11 +37,17 @@ def deploy_containers_local():
         "--interactive",
         "--name", name,
         "--publish", "8000:8000",
-        get_container_tag('bonsai_frontend')])
+        container_name])
 
-def deploy_containers_gke():
-    print("Pushing containers")
-    subprocess.call(['gcloud', 'docker', 'push', get_container_tag('bonsai_frontend')])
+def deploy_containers_gke(container_name):
+    print("Pushing containers to GC repository")
+    subprocess.call(['gcloud', 'docker', 'push', container_name])
+
+    print("Rolling out new image %s", container_name)
+    subprocess.call(['kubectl', 'rolling-update',
+        'dev-fe-rc',
+        '--update-period=10s',
+        '--image=%s' % container_name])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Launch bonsai service")
@@ -49,8 +55,11 @@ if __name__ == '__main__':
         const=True, help="Run locally (default: run remotely)")
     args = parser.parse_args()
 
-    create_containers()
+    container_name = get_container_tag('bonsai_frontend')
+    print("New container %s", container_name)
+
+    create_containers(container_name)
     if args.local:
-        deploy_containers_local()
+        deploy_containers_local(container_name)
     else:
-        deploy_containers_gke()
+        deploy_containers_gke(container_name)
