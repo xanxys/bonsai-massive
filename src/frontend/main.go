@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./api"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -90,6 +91,8 @@ func SerializeLattice(lattice Lattice) TestResponse {
 
 func main() {
 	go testTemperatureProperty()
+
+	fmt.Print(api.WorldsQ{})
 
 	mime.AddExtensionType(".svg", "image/svg+xml")
 

@@ -1,16 +1,11 @@
 package(default_visibility = ["//visibility:public"])
 
-# TODO(bazel-team): The MacOS tools give an error if there is no object file on
-# the command line to libtool, so we use an empty .cc file here. We should find
-# a better way to handle this case.
 cc_library(
     name = "malloc",
-    srcs = ["empty.cc"],
 )
 
 cc_library(
     name = "stl",
-    srcs = ["empty.cc"],
 )
 
 filegroup(
@@ -31,7 +26,9 @@ filegroup(
 filegroup(
     name = "toolchain",
     srcs = [
+        ":cc-compiler-armeabi-v7a",
         ":cc-compiler-darwin",
+        ":cc-compiler-freebsd",
         ":cc-compiler-local",
         ":empty",
     ],
@@ -39,6 +36,20 @@ filegroup(
 
 cc_toolchain(
     name = "cc-compiler-local",
+    all_files = ":empty",
+    compiler_files = ":empty",
+    cpu = "local",
+    dwp_files = ":empty",
+    dynamic_runtime_libs = [":empty"],
+    linker_files = ":empty",
+    objcopy_files = ":empty",
+    static_runtime_libs = [":empty"],
+    strip_files = ":empty",
+    supports_param_files = 0,
+)
+
+cc_toolchain(
+    name = "cc-compiler-armeabi-v7a",
     all_files = ":empty",
     compiler_files = ":empty",
     cpu = "local",
@@ -70,6 +81,20 @@ cc_toolchain(
     all_files = ":empty",
     compiler_files = ":empty",
     cpu = "darwin",
+    dwp_files = ":empty",
+    dynamic_runtime_libs = [":empty"],
+    linker_files = ":empty",
+    objcopy_files = ":empty",
+    static_runtime_libs = [":empty"],
+    strip_files = ":empty",
+    supports_param_files = 0,
+)
+
+cc_toolchain(
+    name = "cc-compiler-freebsd",
+    all_files = ":empty",
+    compiler_files = ":empty",
+    cpu = "local",
     dwp_files = ":empty",
     dynamic_runtime_libs = [":empty"],
     linker_files = ":empty",

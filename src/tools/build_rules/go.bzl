@@ -31,7 +31,7 @@ def go_binary_impl(ctx):
 go_binary = rule(
   implementation = go_binary_impl,
   attrs = {
-      "srcs": attr.label_list(allow_files=FileType([".go"])),
+      "srcs": attr.label_list(allow_files=FileType([".go", ".a"])),
       "deps": attr.label_list(allow_files=False),
       "flags": attr.string_list(),
   },

@@ -12,6 +12,26 @@ filegroup(
         "//tools/jdk:srcs",
         "//tools/genrule:srcs",
         "//tools/cpp:srcs",
+        "//tools/j2objc:srcs",
+        "//tools/objc:srcs",
+        "//tools/test:srcs",
+        "//tools/python:srcs",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]) + [
+        "//tools/build_defs/d:srcs",
+        "//tools/build_defs/docker:srcs",
+        "//tools/build_rules/appengine:srcs",
+        "//tools/build_rules/closure:srcs",
+        "//tools/build_rules/rust:srcs",
+        "//tools/buildstamp:srcs",
+        "//tools/jdk:package-srcs",
+        "//tools/genrule:srcs",
+        "//tools/cpp:srcs",
+        "//tools/j2objc:srcs",
         "//tools/objc:srcs",
         "//tools/test:srcs",
         "//tools/python:srcs",

@@ -1,3 +1,5 @@
+"""Utilities for testing bazel."""
+#
 # Copyright 2015 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,11 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""test_rules.bzl: Utilities for testing bazel."""
 
 ### First, trivial tests that either always pass, always fail,
 ### or sometimes pass depending on a trivial computation.
-
 
 def success_target(ctx, msg):
   """Return a success for an analysis test.
@@ -31,7 +31,7 @@ def success_target(ctx, msg):
     with actions that always succeed at execution time.
   """
   exe = ctx.outputs.executable
-  dat = ctx.new_file(ctx.data_configuration.genfiles_dir, exe, ".dat")
+  dat = ctx.new_file(ctx.configuration.genfiles_dir, exe, ".dat")
   ctx.file_action(
       output=dat,
       content=msg)
@@ -41,15 +41,15 @@ def success_target(ctx, msg):
       executable=True)
   return struct(runfiles=ctx.runfiles([exe, dat]))
 
-
 def _successful_test_impl(ctx):
   return success_target(ctx, ctx.attr.msg)
 
 successful_test = rule(
-    implementation=_successful_test_impl,
-    attrs={"msg": attr.string(mandatory=True)},
-    test=True, executable=True)
-
+    attrs = {"msg": attr.string(mandatory = True)},
+    executable = True,
+    test = True,
+    implementation = _successful_test_impl,
+)
 
 def failure_target(ctx, msg):
   """Return a failure for an analysis test.
@@ -66,7 +66,7 @@ def failure_target(ctx, msg):
   """
   ### fail(msg) ### <--- This would fail at analysis time.
   exe = ctx.outputs.executable
-  dat = ctx.new_file(ctx.data_configuration.genfiles_dir, exe, ".dat")
+  dat = ctx.new_file(ctx.configuration.genfiles_dir, exe, ".dat")
   ctx.file_action(
       output=dat,
       content=msg)
@@ -76,18 +76,17 @@ def failure_target(ctx, msg):
       executable=True)
   return struct(runfiles=ctx.runfiles([exe, dat]))
 
-
 def _failed_test_impl(ctx):
   return failure_target(ctx, ctx.attr.msg)
 
 failed_test = rule(
-    implementation=_failed_test_impl,
-    attrs={"msg": attr.string(mandatory=True)},
-    test=True, executable=True)
-
+    attrs = {"msg": attr.string(mandatory = True)},
+    executable = True,
+    test = True,
+    implementation = _failed_test_impl,
+)
 
 ### Second, general purpose utilities
-
 
 def assert_(condition, string="assertion failed", *args):
   """Trivial assertion mechanism.
@@ -107,12 +106,10 @@ def assert_(condition, string="assertion failed", *args):
   if not condition:
     fail(string % args)
 
-
 def strip_prefix(prefix, string):
   assert_(string.startswith(prefix),
           "%s does not start with %s", string, prefix)
   return string[len(prefix):len(string)]
-
 
 def expectation_description(expect=None, expect_failure=None):
   """Turn expectation of result or error into a string."""
@@ -120,7 +117,6 @@ def expectation_description(expect=None, expect_failure=None):
     return "failure " + str(expect_failure)
   else:
     return "result " + repr(expect)
-
 
 def check_results(result, failure, expect, expect_failure):
   """See if actual computation results match expectations.
@@ -141,7 +137,6 @@ def check_results(result, failure, expect, expect_failure):
   else:
     return (False, "expect " + wanted + " but found " + found)
 
-
 def load_results(name, result=None, failure=None,
                  expect=None, expect_failure=None):
   """issue load-time results of a test.
@@ -160,7 +155,6 @@ def load_results(name, result=None, failure=None,
   (is_success, msg) = check_results(result, failure, expect, expect_failure)
   this_test = successful_test if is_success else failed_test
   return this_test(name=name, msg=msg)
-
 
 def analysis_results(ctx, result=None, failure=None,
                      expect=None, expect_failure=None):
@@ -182,24 +176,25 @@ def analysis_results(ctx, result=None, failure=None,
   this_test = success_target if is_success else failure_target
   return this_test(ctx, msg)
 
-
 ### Simple tests
-
 
 def _rule_test_impl(ctx):
   """check that a rule generates the desired outputs and providers."""
   rule_ = ctx.attr.rule
   rule_name = str(rule_.label)
   exe = ctx.outputs.executable
-  if ctx.attr.generates != []:
-    prefix = ctx.label.package + "/"
-    generates = ctx.attr.generates
-    generated = [strip_prefix(prefix, f.short_path) for f in rule_.files]
+  if ctx.attr.generates:
+    prefix = rule_.label.package + "/"
+    # TODO(bazel-team): Use set() instead of sorted() once
+    # set comparison is implemented.
+    generates = sorted(ctx.attr.generates)
+    generated = sorted([strip_prefix(prefix, f.short_path)
+                        for f in rule_.files])
     if generates != generated:
       fail("rule %s generates %s not %s"
            % (rule_name, repr(generated), repr(generates)))
   provides = ctx.attr.provides
-  if provides != {}:
+  if provides:
     files = []
     commands = []
     for k in provides.keys():
@@ -209,7 +204,7 @@ def _rule_test_impl(ctx):
         fail(("rule %s doesn't provide attribute %s. "
               + "Its list of attributes is: %s")
              % (rule_name, k, dir(rule_)))
-      file_ = ctx.new_file(ctx.data_configuration.genfiles_dir, exe, "." + k)
+      file_ = ctx.new_file(ctx.configuration.genfiles_dir, exe, "." + k)
       files += [file_]
       regexp = provides[k]
       commands += [
@@ -222,15 +217,16 @@ def _rule_test_impl(ctx):
   else:
     return success_target(ctx, "success")
 
-
 rule_test = rule(
-    implementation=_rule_test_impl,
-    attrs={
-        "rule": attr.label(mandatory=True),
+    attrs = {
+        "rule": attr.label(mandatory = True),
         "generates": attr.string_list(),
-        "provides": attr.string_dict()},
-    test=True, executable=True)
-
+        "provides": attr.string_dict(),
+    },
+    executable = True,
+    test = True,
+    implementation = _rule_test_impl,
+)
 
 def _file_test_impl(ctx):
   """check that a file has a given content."""
@@ -239,12 +235,12 @@ def _file_test_impl(ctx):
   content = ctx.attr.content
   regexp = ctx.attr.regexp
   matches = ctx.attr.matches
-  if (content == "") == (regexp == ""):
+  if bool(content) == bool(regexp):
     fail("Must specify one and only one of content or regexp")
-  if content != "" and matches != -1:
+  if content and matches != -1:
     fail("matches only makes sense with regexp")
-  if content != "":
-    dat = ctx.new_file(ctx.data_configuration.genfiles_dir, exe, ".dat")
+  if content:
+    dat = ctx.new_file(ctx.configuration.genfiles_dir, exe, ".dat")
     ctx.file_action(
         output=dat,
         content=content)
@@ -254,9 +250,10 @@ def _file_test_impl(ctx):
         executable=True)
     return struct(runfiles=ctx.runfiles([exe, dat, file_]))
   if matches != -1:
-    script = "[ %s == $(grep -c %s %s) ]" % (matches, repr(regexp), file_.path)
+    script = "[ %s == $(grep -c %s %s) ]" % (
+        matches, repr(regexp), file_.short_path)
   else:
-    script = "grep %s %s" % (repr(regexp), file_.path)
+    script = "grep %s %s" % (repr(regexp), file_.short_path)
   ctx.file_action(
       output=exe,
       content=script,
@@ -264,10 +261,17 @@ def _file_test_impl(ctx):
   return struct(runfiles=ctx.runfiles([exe, file_]))
 
 file_test = rule(
-    implementation=_file_test_impl,
-    attrs={
-        "file": attr.label(mandatory=True, allow_files=True, single_file=True),
-        "content": attr.string(default=""),
-        "regexp": attr.string(default=""),
-        "matches": attr.int(default=-1)},
-    test=True, executable=True)
+    attrs = {
+        "file": attr.label(
+            mandatory = True,
+            allow_files = True,
+            single_file = True,
+        ),
+        "content": attr.string(default = ""),
+        "regexp": attr.string(default = ""),
+        "matches": attr.int(default = -1),
+    },
+    executable = True,
+    test = True,
+    implementation = _file_test_impl,
+)

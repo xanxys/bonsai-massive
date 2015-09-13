@@ -1,5 +1,94 @@
-package bonsai;
+// Keep proto3 migration in mind:
+// Don't use required.
+// Don't use has***() for primitives.
+package api;
 
-// Endpoint: /api/XX
-message SomethingRequest {
+
+// Client-Frontend worst connection assumption
+// * bandwidth: 1 MB/s
+// * latency: 100ms RTT
+// * failure rate: once in hour
+service FrontendService {
+    // Administrative, read-only.
+    // Endpoint: /api/worlds
+    rpc Worlds(WorldsQ) returns (WorldsS);
+
+    // Administrative, write.
+    // Endpoint: /api/world_delta
+    rpc WorldDelta(WorldDeltaQ) returns (WorldsS);
+
+    // In-World fetching
+    // Endpoint: /api/chunk
+    rpc Chunk(ChunkQ) returns (ChunkS);
+}
+
+message WorldsQ {
+}
+
+message WorldDeltaQ {
+    //
+    optional DeltaType type = 1;
+
+    // Default values mean no change.
+    // In case of ADD, desc.world_id will be ignored.
+    optional WorldDescription desc = 2;
+}
+
+enum DeltaType {
+    MODIFY = 0;
+    ADD = 1;
+    DELETE = 2;
+}
+
+enum WorldState {
+    RUNNING = 1;
+    STOPPED = 2;
+    // Transition: STOPPED -> RUNNING.
+    T_RUN = 3;
+    // Transition: RUNNING -> STOPPED.
+    T_STOP = 4;
+}
+
+message WorldsS {
+    repeated WorldDescription worlds = 1;
+}
+
+message WorldDescription {
+    optional uint64 world_id = 1;
+
+    // In UI, it is expected name is single-line, possible descriptive string.
+    // e.g. "World:1/NoBC", "HelloBonsai22 - Guests should use this!"
+    optional string name = 2;
+}
+
+
+
+message ChunkQ {
+    optional ChunkId cid = 1;
+    optional int32 level = 2;
+
+    // Style option should come here.
+}
+
+// Target size: 100KB
+message ChunkS {
+    optional ChunkId cid = 1;
+
+    optional int32 level = 2;
+
+    // Triangle soup with vertex colors. Lights are tonemapped and
+    // baked in. Color is in LDR space, not physically accurate in any way.
+    optional PolySoup soup = 3;
+}
+
+message PolySoup {
+}
+
+// This structure is permanent.
+// Chunk is 1m * 1m * 10m volume.
+message ChunkId {
+    // World-selector.
+    optional uint64 world_id = 1;
+    optional int32 index_x = 2;
+    optional int32 index_y = 3;
 }

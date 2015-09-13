@@ -16,20 +16,11 @@ java_filetype = FileType([".java"])
 jar_filetype = FileType([".jar"])
 srcjar_filetype = FileType([".jar", ".srcjar"])
 
-def is_windows(config):
-  return config.fragment(cpp).compiler.startswith("windows_")
-
-def path_separator(ctx):
-  if is_windows(ctx.configuration):
-    return ";"
-  else:
-    return ":"
-
 # This is a quick and dirty rule to make Bazel compile itself. It's not
 # production ready.
 
 def java_library_impl(ctx):
-  javac_options = ctx.configuration.fragment(java_configuration).default_javac_flags
+  javac_options = ctx.fragments.java.default_javac_flags
   class_jar = ctx.outputs.class_jar
   compile_time_jars = set(order="link")
   runtime_jars = set(order="link")
@@ -70,7 +61,7 @@ def java_library_impl(ctx):
     cmd += ctx.file._javac.path
     cmd += " " + " ".join(javac_options)
     if compile_time_jars:
-      cmd += " -classpath '" + cmd_helper.join_paths(path_separator(ctx), compile_time_jars) + "'"
+      cmd += " -classpath '" + cmd_helper.join_paths(ctx.configuration.host_path_separator, compile_time_jars) + "'"
     cmd += " -d " + build_output + files + "\n"
 
   # We haven't got a good story for where these should end up, so
@@ -81,7 +72,7 @@ def java_library_impl(ctx):
          "touch " + build_output + "\n")
   ctx.action(
     inputs = (sources + compile_time_jars_list + [sources_param_file] +
-              ctx.files.resources + ctx.files.srcjars),
+              [ctx.file._jar] + ctx.files._jdk + ctx.files.resources + ctx.files.srcjars),
     outputs = [class_jar],
     mnemonic='Javac',
     command=cmd,
@@ -116,7 +107,7 @@ def java_binary_impl(ctx):
          "touch " + build_output + "\n")
 
   ctx.action(
-    inputs=list(library_result.runtime_jars) + [manifest],
+    inputs=list(library_result.runtime_jars) + [manifest] + ctx.files._jdk,
     outputs=[deploy_jar],
     mnemonic='Deployjar',
     command=cmd,
@@ -167,8 +158,7 @@ def java_binary_impl(ctx):
         ]),
     executable = True)
 
-  runfiles = ctx.runfiles(files = [
-      deploy_jar, executable] + ctx.files.jvm, collect_data = True)
+  runfiles = ctx.runfiles(files = [deploy_jar, executable] + ctx.files._jdk, collect_data = True)
   files_to_build = set([deploy_jar, manifest, executable])
   files_to_build += library_result.files
 
@@ -191,6 +181,7 @@ java_library_attrs = {
     "_java": attr.label(default=Label("//tools/jdk:java"), single_file=True),
     "_javac": attr.label(default=Label("//tools/jdk:javac"), single_file=True),
     "_jar": attr.label(default=Label("//tools/jdk:jar"), single_file=True),
+    "_jdk": attr.label(default=Label("//tools/jdk:jdk"), allow_files=True),
     "data": attr.label_list(allow_files=True, cfg=DATA_CFG),
     "resources": attr.label_list(allow_files=True),
     "srcs": attr.label_list(allow_files=java_filetype),
@@ -207,7 +198,9 @@ java_library = rule(
     attrs = java_library_attrs,
     outputs = {
         "class_jar": "lib%{name}.jar",
-    })
+    },
+    fragments = ['java'],
+)
 
 # A copy to avoid conflict with native rule.
 bootstrap_java_library = rule(
@@ -215,12 +208,13 @@ bootstrap_java_library = rule(
     attrs = java_library_attrs,
     outputs = {
         "class_jar": "lib%{name}.jar",
-    })
+    },
+    fragments = ['java'],
+)
 
 java_binary_attrs_common = java_library_attrs + {
     "jvm_flags": attr.string_list(),
     "jvm": attr.label(default=Label("//tools/jdk:jdk"), allow_files=True),
-    "args": attr.string_list(),
 }
 
 java_binary_attrs = java_binary_attrs_common + {
@@ -236,13 +230,17 @@ java_binary_outputs = {
 java_binary = rule(java_binary_impl,
    executable = True,
    attrs = java_binary_attrs,
-   outputs = java_binary_outputs)
+   outputs = java_binary_outputs,
+   fragments = ['java'],
+)
 
 # A copy to avoid conflict with native rule
 bootstrap_java_binary = rule(java_binary_impl,
    executable = True,
    attrs = java_binary_attrs,
-   outputs = java_binary_outputs)
+   outputs = java_binary_outputs,
+   fragments = ['java'],
+)
 
 java_test = rule(java_binary_impl,
    executable = True,
@@ -254,6 +252,7 @@ java_test = rule(java_binary_impl,
    },
    outputs = java_binary_outputs,
    test = True,
+   fragments = ['java'],
 )
 
 java_import = rule(

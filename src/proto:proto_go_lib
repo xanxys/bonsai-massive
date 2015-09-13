@@ -1,0 +1,2 @@
+Build options: --package_path=%workspace%:/home/xyx/.bazel/base_workspace --explain=proto:proto_go_lib
+Executing action 'BazelWorkspaceStatusAction stable-status.txt': unconditional execution is requested.

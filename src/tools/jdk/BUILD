@@ -16,6 +16,11 @@ filegroup(
 )
 
 filegroup(
+    name = "jni_md_header-freebsd",
+    srcs = ["//external:jni_md_header-freebsd"],
+)
+
+filegroup(
     name = "java",
     srcs = ["//external:java"],
 )
@@ -60,6 +65,17 @@ java_import(
 )
 
 # This one is just needed because of how filegroup redirection works.
+filegroup(name = "jre-null")
+
+filegroup(
+    name = "jre",
+    srcs = [
+        ":jre-null",
+        "//external:jre-default",
+    ],
+)
+
+# This one is just needed because of how filegroup redirection works.
 filegroup(name = "jdk-null")
 
 filegroup(
@@ -88,4 +104,9 @@ exports_files([
 filegroup(
     name = "srcs",
     srcs = ["BUILD"],  # Tools are build from the workspace for tests.
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
 )
