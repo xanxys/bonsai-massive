@@ -5,6 +5,7 @@
 # This script is not supposed to be run by root.
 import argparse
 import datetime
+import http.server
 import os
 import random
 import shutil
@@ -49,11 +50,42 @@ def deploy_containers_gke(container_name):
         '--update-period=10s',
         '--image=%s' % container_name])
 
+class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        base_dir = './src/client'
+        path_components = self.path[1:].split('/')
+        print(path_components)
+        if path_components[0] == 'static':
+            # Convert to real file path
+            if len(path_components) == 1:
+                file_path_cs = ["index.html"]
+            else:
+                file_path_cs = path_components[1:]
+            file_path = os.path.join(base_dir, *file_path_cs)
+
+            ctype = self.guess_type(file_path)
+
+            try:
+                f = open(file_path, 'rb')
+                self.send_response(200)
+                self.send_header('Content-Type', ctype)
+                self.end_headers()
+                print(f, self.wfile)
+                shutil.copyfileobj(f, self.wfile)
+                f.close()
+            except IOError:
+                self.send_error(404, "Static file %s not found" % file_path)
+        else:
+            self.send_error(404, "Redirection is not implemented yet")
+
 def run_fake_server():
     fake_port = 7000
     fallback_url = "http://localhost:8000/"
     print("Running fake server at http://localhost:%d/ with fallback %s" % (
         fake_port, fallback_url))
+
+    httpd = http.server.HTTPServer(('localhost', fake_port), FakeServerHandler)
+    httpd.serve_forever()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Launch bonsai service or fake server")
