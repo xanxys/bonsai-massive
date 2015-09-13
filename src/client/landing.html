@@ -11,12 +11,8 @@
 		<script src="/static/vue.js"></script>
 		<script src="/static/underscore.js"></script>
 		<script src="/static/underscore.string.min.js"></script>
-		<script src="/static/stats.min.js"></script>
-		<script src="/static/three.js"></script>
-		<script src="/static/TrackballControls.js"></script>
-		<script src="/static/genome.js"></script>
-		<script src="/static/chunk.js"></script>
 		<script src="/static/jquery.js"></script>
+		<script src="/static/landing.js"></script>
 	</head>
 	<body>
 		<div class="logo">
@@ -34,13 +30,15 @@
         </div>
 
 		Biospheres
-        <div class="card_main">
-            <image src="/static/biosphere.svg" width="40px" height="40px"/> Test World
-            <ul>
-                <li>132 cores</li>
-                <li>2,323,134 ticks</li>
-            </ul>
-        </div>
+		<div id="biospheres">
+	        <div v-repeat="biospheres" class="card_main">
+	            <image src="/static/biosphere.svg" width="40px" height="40px"/> {{name}}
+	            <ul>
+	                <li>{{num_cores}} cores</li>
+	                <li>{{num_ticks}} ticks</li>
+	            </ul>
+	        </div>
+		</div>
 
 
 
