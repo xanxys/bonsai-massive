@@ -5,17 +5,20 @@
 # This script is not supposed to be run by root.
 import argparse
 import datetime
+import http.client
 import http.server
 import os
 import random
 import shutil
 import subprocess
 
-project_name = "bonsai-genesis"
+PROJECT_NAME = "bonsai-genesis"
+FAKE_PORT = 7000
+LOCAL_PORT = 8000
 
 def get_container_tag(container_name):
     label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
-    return "gcr.io/%s/%s:%s" % (project_name, container_name, label)
+    return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, label)
 
 def create_containers(container_name):
     print("Creating container %s" % container_name)
@@ -37,7 +40,7 @@ def deploy_containers_local(container_name):
         "--tty",
         "--interactive",
         "--name", name,
-        "--publish", "8000:8000",
+        "--publish", "%d:8000" % LOCAL_PORT,
         container_name])
 
 def deploy_containers_gke(container_name):
@@ -50,12 +53,15 @@ def deploy_containers_gke(container_name):
         '--update-period=10s',
         '--image=%s' % container_name])
 
+def get_local_url():
+    return "http://localhost:%d/" % LOCAL_PORT
+
 class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         base_dir = './src/client'
         path_components = self.path[1:].split('/')
-        print(path_components)
         if path_components[0] == 'static':
+            print('STATIC')
             # Convert to real file path
             if len(path_components) == 1:
                 file_path_cs = ["index.html"]
@@ -70,21 +76,33 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-Type', ctype)
                 self.end_headers()
-                print(f, self.wfile)
                 shutil.copyfileobj(f, self.wfile)
                 f.close()
             except IOError:
-                self.send_error(404, "Static file %s not found" % file_path)
+                print('->PROXY')
+                self.do_get_proxy()
         else:
-            self.send_error(404, "Redirection is not implemented yet")
+            print('PROXY')
+            self.do_get_proxy()
+
+
+    def do_get_proxy(self):
+        conn = http.client.HTTPConnection('localhost', LOCAL_PORT)
+        conn.request('GET', 'http://localhost:%d%s' % (
+            LOCAL_PORT, self.path))
+        resp = conn.getresponse()
+
+        self.send_response(resp.status)
+        self.send_header('Content-Type', resp.getheader('Content-Type'))
+        self.end_headers()
+        shutil.copyfileobj(resp, self.wfile)
+        conn.close()
 
 def run_fake_server():
-    fake_port = 7000
-    fallback_url = "http://localhost:8000/"
     print("Running fake server at http://localhost:%d/ with fallback %s" % (
-        fake_port, fallback_url))
+        FAKE_PORT, get_local_url()))
 
-    httpd = http.server.HTTPServer(('localhost', fake_port), FakeServerHandler)
+    httpd = http.server.HTTPServer(('localhost', FAKE_PORT), FakeServerHandler)
     httpd.serve_forever()
 
 if __name__ == '__main__':
