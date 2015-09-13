@@ -23,10 +23,10 @@ def create_containers(container_name):
     subprocess.call(["bazel", "clean"], cwd="./src")
     subprocess.call(["bazel", "build", "frontend:server"], cwd="./src")
     subprocess.call(["bazel", "build", "client:static"], cwd="./src")
-    shutil.copyfile("src/bazel-bin/frontend/server.bin", "docker/frontend-server.bin")
+    shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
     shutil.rmtree("docker/static", ignore_errors=True)
     os.mkdir("docker/static")
-    subprocess.call(["tar", "-xf", "src/bazel-bin/client/static.tar", "-C", "docker/static"])
+    subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
     subprocess.call(["docker", "build", "-t", container_name, "-f", "docker/frontend", "./docker"])
 
 def deploy_containers_local(container_name):
