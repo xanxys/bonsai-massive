@@ -31,16 +31,15 @@
 
 		Biospheres
 		<div id="biospheres">
+			<button v-on="click: update">Update</button>
 	        <div v-repeat="biospheres" class="card_main">
 	            <image src="/static/biosphere.svg" width="40px" height="40px"/> {{name}}
 	            <ul>
-	                <li>{{numCores}} cores</li>
-	                <li>{{numTicks}} ticks</li>
+	                <li>{{num_cores}} cores</li>
+	                <li>{{num_ticks}} ticks</li>
 	            </ul>
 	        </div>
 		</div>
-
-
 
 		<!-- %%$$ANALYTICS$$%% -->
 	</body>

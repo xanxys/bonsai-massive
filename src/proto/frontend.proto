@@ -11,27 +11,27 @@ package api;
 service FrontendService {
     // Administrative, read-only.
     // Endpoint: /api/worlds
-    rpc Worlds(WorldsQ) returns (WorldsS);
+    rpc Biospheres(BiospheresQ) returns (BiospheresS);
 
     // Administrative, write.
     // Endpoint: /api/world_delta
-    rpc WorldDelta(WorldDeltaQ) returns (WorldsS);
+    rpc BiosphereDelta(BiosphereDeltaQ) returns (BiospheresS);
 
-    // In-World fetching
+    // In-Biosphere fetching
     // Endpoint: /api/chunk
     rpc Chunk(ChunkQ) returns (ChunkS);
 }
 
-message WorldsQ {
+message BiospheresQ {
 }
 
-message WorldDeltaQ {
+message BiosphereDeltaQ {
     //
     optional DeltaType type = 1;
 
     // Default values mean no change.
     // In case of ADD, desc.world_id will be ignored.
-    optional WorldDescription desc = 2;
+    optional BiosphereDesc desc = 2;
 }
 
 enum DeltaType {
@@ -40,7 +40,7 @@ enum DeltaType {
     DELETE = 2;
 }
 
-enum WorldState {
+enum BiosphereState {
     RUNNING = 1;
     STOPPED = 2;
     // Transition: STOPPED -> RUNNING.
@@ -49,15 +49,15 @@ enum WorldState {
     T_STOP = 4;
 }
 
-message WorldsS {
-    repeated WorldDescription worlds = 1;
+message BiospheresS {
+    repeated BiosphereDesc biospheres = 1;
 }
 
-message WorldDescription {
-    optional uint64 world_id = 1;
+message BiosphereDesc {
+    optional uint64 biosphere_id = 1;
 
     // In UI, it is expected name is single-line, possible descriptive string.
-    // e.g. "World:1/NoBC", "HelloBonsai22 - Guests should use this!"
+    // e.g. "Biosphere:1/NoBC", "HelloBonsai22 - Guests should use this!"
     optional string name = 2;
 
     // How many cores this world is currently configured to use.
@@ -93,7 +93,7 @@ message PolySoup {
 // This structure is permanent.
 // Chunk is 1m * 1m * 10m volume.
 message ChunkId {
-    // World-selector.
+    // Biosphere-selector.
     optional uint64 world_id = 1;
     optional int32 index_x = 2;
     optional int32 index_y = 3;

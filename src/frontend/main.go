@@ -63,10 +63,10 @@ func main() {
 		}
 		fmt.Fprintf(w, "World List\n")
 	})
-	http.HandleFunc("/api/worlds", func(w http.ResponseWriter, r *http.Request) {
-		q := MaybeExtractQ(w, r, &api.WorldsQ{})
+	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
+		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
 		if q != nil {
-			s := fe.HandleWorlds((*q).(*api.WorldsQ))
+			s := fe.HandleWorlds((*q).(*api.BiospheresQ))
 			WriteS(w, r, s)
 		}
 	})
