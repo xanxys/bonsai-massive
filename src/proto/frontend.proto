@@ -59,6 +59,12 @@ message WorldDescription {
     // In UI, it is expected name is single-line, possible descriptive string.
     // e.g. "World:1/NoBC", "HelloBonsai22 - Guests should use this!"
     optional string name = 2;
+
+    // How many cores this world is currently configured to use.
+    optional uint32 num_cores = 3;
+
+    // Current timestamp of the world.
+    optional uint64 num_ticks = 4;
 }
 
 

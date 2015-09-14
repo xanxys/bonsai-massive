@@ -9,15 +9,23 @@ $(document).ready(() => {
             biospheres: [
                 {
                     name: "Test World",
-                    num_cores: 123,
-                    num_ticks: 23456
+                    numCores: 123,
+                    numTicks: 23456
                 },
                 {
                     name: "Big World 2",
-                    num_cores: 45,
-                    num_ticks: 3232132
+                    numCores: 45,
+                    numTicks: 3232132
                 }
             ]
+        },
+        methods: {
+            update: function() {
+                var $data = this.$data;
+                $.ajax('/api/worlds').done(data => {
+                    $data.results = data;
+                });
+            }
         }
     });
 });
