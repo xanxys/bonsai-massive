@@ -1,5 +1,5 @@
 go_binary(
-    name="server_not_working_now",
+    name="server_not_working_now_do_not_use",
     srcs=[
         "main.go",
         "gas.go",
@@ -13,6 +13,7 @@ genrule(
     srcs=[
         "main.go",
         "gas.go",
+        "service.go",
         "//proto:proto_go_src",
     ],
     outs=[

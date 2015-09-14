@@ -9,26 +9,6 @@ import (
 	"net/http"
 )
 
-type FeServiceImpl struct {
-}
-
-func (fe *FeServiceImpl) HandleWorlds(q *api.WorldsQ) *api.WorldsS {
-	name := "Hogehoge"
-	var nCores uint32
-	var nTicks uint64
-	nCores = 42
-	nTicks = 38
-	return &api.WorldsS{
-		Worlds: []*api.WorldDescription{
-			&api.WorldDescription{
-				Name:     &name,
-				NumCores: &nCores,
-				NumTicks: &nTicks,
-			},
-		},
-	}
-}
-
 // MaybeExtractQ extracts proto from HTTP request and returns it.
 // Nil indicates failure, and appropriate status / description is written
 // to response.
@@ -73,6 +53,9 @@ func main() {
 	fmt.Printf("Starting frontend server http://localhost:%d\n", port)
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
+	fe := &FeServiceImpl{}
+
+	// Dispatchers.
 	http.HandleFunc("/prototype", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/prototype" {
 			http.NotFound(w, r)
@@ -80,7 +63,6 @@ func main() {
 		}
 		http.ServeFile(w, r, "/root/bonsai/static/index.html")
 	})
-
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -88,9 +70,6 @@ func main() {
 		}
 		fmt.Fprintf(w, "World List\n")
 	})
-
-	fe := &FeServiceImpl{}
-
 	http.HandleFunc("/api/worlds", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.WorldsQ{})
 		if q != nil {
@@ -98,8 +77,9 @@ func main() {
 			WriteS(w, r, s)
 		}
 	})
-
 	http.Handle("/static/",
 		http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
+
+	// Start FE server and block on it forever.
 	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
