@@ -56,13 +56,6 @@ func main() {
 	fe := &FeServiceImpl{}
 
 	// Dispatchers.
-	http.HandleFunc("/prototype", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/prototype" {
-			http.NotFound(w, r)
-			return
-		}
-		http.ServeFile(w, r, "/root/bonsai/static/index.html")
-	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

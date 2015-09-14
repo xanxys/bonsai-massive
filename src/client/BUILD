@@ -4,8 +4,6 @@ genrule(
     name = "static",
     srcs = [
         ":client",
-        ":client_old",
-        "index.html",
         'landing.html',
     ],
     outs = ["static.tar"],
@@ -14,7 +12,7 @@ genrule(
 )
 
 filegroup(
-    name = "client_old",
+    name = "client",
     srcs = glob([
         "*.css",
         "*.js",
@@ -22,11 +20,4 @@ filegroup(
         "svg_icons/*.svg",
         "third_party/*.js",
     ]),
-)
-
-ts_binary(
-    name = "client",
-    srcs = [
-        "main.ts",
-    ],
 )
