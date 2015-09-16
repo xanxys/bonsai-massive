@@ -1,10 +1,100 @@
+/*
+We keep plant-like color scheme for entire bonsai UI.
+
+That is:
+* brown: ground
+
+* green: plants
+* light blue: sky
+* indigo: water
+
+You can see this form Split 1:3.
+
+*/
+
+@import url(https://fonts.googleapis.com/css?family=Alegreya+Sans);
+
 body {
-    background-color: #efebe9; /* brown50 */
+    background-color: #8D6E63;  /* brown 400 */
+    margin: 0px;
+}
+
+.top_sheet {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    background-color: #1A237E; /* indigo 900 */
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    margin-top: 10x;
+    margin-bottom: 16px;
+}
+
+/* The card holder */
+#biospheres {
+    padding-left: 56px;
+    padding-right: 16px;
+    color: #E0E0E0;
+}
+
+#biospheres h1 {
+    font-family: 'Alegreya Sans', sans-serif;
+    font-weight: 400;
+
 }
 
 .card_main {
     box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-    background-color: #fafafa; /* Grey50 */
+    background-color: #EFEBE9;
+
+    height: 160px;
+    width: 640px;
+
+    color: #212121;
+
+    position: relative;
+}
+
+.card_main .content {
+    position: absolute;
+    z-index: 3;
     padding: 16px;
-    margin: 16px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.card_main .content2 {
+    position: absolute;
+    z-index: 2;
+    left: 480px;
+    padding: 16px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.card_main .bg {
+    position: absolute;
+    z-index: 1;
+    overflow: hidden;
+    width: 480px;
+    height: 160px;
+    background: url("/static/card_background.png");
+    -webkit-filter: brightness(1.8) saturate(0.3) blur(5px)  ;
+}
+
+.fab {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    background-color: #29B6F6;  /* light blue 400 */
+    vertical-align: middle;
+    text-align: center;
+}
+
+.fab img {
+    margin-top: 16px;
 }

@@ -15,30 +15,39 @@
 		<script src="/static/landing.js"></script>
 	</head>
 	<body>
-		<div class="logo">
-			<span class="logo-text">Bonsai</span>
-		</div>
+        <div class="top_sheet">
+			<img style="align:left" src="/static/icons/logo_white.svg" width="40px" height="40px"/>
 
-        <div class="card_main">
-			<div>
-            	<image src="/static/biosphere.svg" width="40px" height="40px"/> 3 biosphere
+			<div style="float: right">
+				<img src="/static/svg_icons/person.svg" width="40px" height="40px"/>
 			</div>
-			<div>
-            	<image src="/static/cpu_core.svg" width="40px" height="40px"/> 1,234 cores
-			</div>
-            Active
         </div>
 
-		Biospheres
 		<div id="biospheres">
-			<button v-on="click: update">Update</button>
+			<h1>Biospheres</h1>
 	        <div v-repeat="biospheres" class="card_main">
-	            <image src="/static/biosphere.svg" width="40px" height="40px"/> {{name}}
-	            <ul>
-	                <li>{{num_cores}} cores</li>
-	                <li>{{num_ticks}} ticks</li>
-	            </ul>
+				<div class="bg">
+				</div>
+				<div class="content">
+					<div style="display:inline">
+						<span style="font-size:200%">{{name}}</span>
+						<ul>
+							<li>{{num_ticks}} ticks</li>
+							<li>12332 cells</li>
+						</ul>
+					</div>
+				</div>
+				<div class="content2">
+					<ul>
+						<li>{{num_cores}} cores</li>
+						<li>12.3 GiB</li>
+					</ul>
+				</div>
 	        </div>
+		</div>
+
+		<div class="fab">
+			<img src="/static/icons/ic_add_white_24px.svg"/>
 		</div>
 
 		<!-- %%$$ANALYTICS$$%% -->
