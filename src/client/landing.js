@@ -35,15 +35,16 @@ $(document).ready(() => {
                 create_ready: function() {
                     return this.name != '';
                 }
+            },
+            methods: {
+                create: () => {
+                    console.log('CREATE');
+                    $('#create_biosphere_dialog').hide();
+                },
+                cancel: () => {
+                    $('#create_biosphere_dialog').hide();
+                }
             }
         });
-    })
-
-    $('#create_biosphere_yes').click(() => {
-        console.log('CREATE');
-        $('#create_biosphere_dialog').hide();
-    });
-    $('#create_biosphere_no').click(() => {
-        $('#create_biosphere_dialog').hide();
     });
 });

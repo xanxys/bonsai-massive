@@ -55,13 +55,14 @@
 
 			Name: <input v-model="name"/> <br/>
 			Size: 10m x 10m <br/>
-			Approx Cost: 1.23 USD / hr <br/>
 
-			{{name}} <br/>
+			<div style="background-color: #E1F5FE">
+			1.23 USD / hour
+			</div>
 
 			<div style="float: right">
-				<button id="create_biosphere_no">No</button>
-				<button id="create_biosphere_yes" class="{{create_ready ? 'enabled' : 'disabled'}}">Create</button>
+				<button v-on="click: cancel">No</button>
+				<button v-on="click: create" class="{{create_ready ? 'enabled' : 'disabled'}}">Create</button>
 			</div>
 		</div>
 
