@@ -39,9 +39,15 @@ $(document).ready(() => {
             methods: {
                 create: () => {
                     console.log('CREATE');
+                    var request = {
+                        type: "ADD",
+                        desc: {
+                            name: this.name
+                        }
+                    };
                     $.ajax('/api/biosphere_delta', {
                         "data": {
-                            "pb": "{}"
+                            "pb": JSON.stringify(request)
                         }
                     }).done(data => {
                         console.log(data);
