@@ -39,6 +39,13 @@ $(document).ready(() => {
             methods: {
                 create: () => {
                     console.log('CREATE');
+                    $.ajax('/api/biosphere_delta', {
+                        "data": {
+                            "pb": "{}"
+                        }
+                    }).done(data => {
+                        console.log(data);
+                    })
                     $('#create_biosphere_dialog').hide();
                 },
                 cancel: () => {
