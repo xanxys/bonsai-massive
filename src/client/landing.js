@@ -20,4 +20,17 @@ $(document).ready(() => {
         }
     });
     bs.update();
+
+    $('#create_biosphere').click(() => {
+        $('#create_biosphere_dialog').show();
+
+    })
+
+    $('#create_biosphere_yes').click(() => {
+        console.log('CREATE');
+        $('#create_biosphere_dialog').hide();
+    });
+    $('#create_biosphere_no').click(() => {
+        $('#create_biosphere_dialog').hide();
+    });
 });

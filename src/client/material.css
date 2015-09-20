@@ -113,3 +113,18 @@ body {
 .fab img {
     margin-top: 16px;
 }
+
+.dialog {
+    z-index: 4;
+    box-shadow: 0 9px 18px rgba(0,0,0,0.16), 0 9px 18px rgba(0,0,0,0.23);
+    border-radius: 2px;
+
+    padding: 16px;
+
+    position: fixed;
+    height: 400px;
+    left: 20%;
+    right: 20%;
+    top: 20%;
+    background-color: white;
+}
