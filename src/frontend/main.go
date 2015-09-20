@@ -66,7 +66,14 @@ func main() {
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
 		if q != nil {
-			s := fe.HandleWorlds((*q).(*api.BiospheresQ))
+			s := fe.HandleBiospheres((*q).(*api.BiospheresQ))
+			WriteS(w, r, s)
+		}
+	})
+	http.HandleFunc("/api/biosphere_delta", func(w http.ResponseWriter, r *http.Request) {
+		q := MaybeExtractQ(w, r, &api.BiosphereDeltaQ{})
+		if q != nil {
+			s := fe.HandleBiosphereDelta((*q).(*api.BiosphereDeltaQ))
 			WriteS(w, r, s)
 		}
 	})

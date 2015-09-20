@@ -10,11 +10,11 @@ package api;
 // * failure rate: once in hour
 service FrontendService {
     // Administrative, read-only.
-    // Endpoint: /api/worlds
+    // Endpoint: /api/biospheres
     rpc Biospheres(BiospheresQ) returns (BiospheresS);
 
     // Administrative, write.
-    // Endpoint: /api/world_delta
+    // Endpoint: /api/biosphere_delta
     rpc BiosphereDelta(BiosphereDeltaQ) returns (BiospheresS);
 
     // In-Biosphere fetching
