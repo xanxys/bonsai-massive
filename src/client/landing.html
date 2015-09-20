@@ -53,12 +53,16 @@
 		<div id="create_biosphere_dialog" style="display: none" class="dialog">
 			<h2>Create Biosphere</h2>
 
-
+			Name: <input v-model="name"/> <br/>
 			Size: 10m x 10m <br/>
 			Approx Cost: 1.23 USD / hr <br/>
 
-			<button id="create_biosphere_no">No</button>
-			<button id="create_biosphere_yes">Create</button>
+			{{name}} <br/>
+
+			<div style="float: right">
+				<button id="create_biosphere_no">No</button>
+				<button id="create_biosphere_yes" class="{{create_ready ? 'enabled' : 'disabled'}}">Create</button>
+			</div>
 		</div>
 
 		<!-- %%$$ANALYTICS$$%% -->
