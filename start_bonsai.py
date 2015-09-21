@@ -5,6 +5,7 @@
 # This script is not supposed to be run by root.
 import argparse
 import datetime
+import json
 import http.client
 import http.server
 import os
@@ -12,25 +13,38 @@ import random
 import shutil
 import subprocess
 
+# Google Cloud Platform project id
 PROJECT_NAME = "bonsai-genesis"
 FAKE_PORT = 7000
 LOCAL_PORT = 8000
+
 
 def get_container_tag(container_name):
     label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
     return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, label)
 
-def create_containers(container_name):
+def create_containers(container_name, path_key):
+    """
+    Create a docker container of the given name with docker/frontend file.
+    """
     print("Creating container %s" % container_name)
+    try:
+        json.load(open(path_key, "r"))
+    except (IOError, KeyError) as exc:
+        print("ERROR: JSON key at %s not found. Container won't function properly: %s" %
+            (path_key, exc))
+        raise exc
     # Without clean, bazel somehow won't update
     subprocess.call(["bazel", "clean"], cwd="./src")
     subprocess.call(["bazel", "build", "frontend:server"], cwd="./src")
     subprocess.call(["bazel", "build", "client:static"], cwd="./src")
     shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
+    shutil.copyfile(path_key, "docker/key.json")
     shutil.rmtree("docker/static", ignore_errors=True)
     os.mkdir("docker/static")
     subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
     subprocess.call(["docker", "build", "-t", container_name, "-f", "docker/frontend", "./docker"])
+    os.remove('docker/key.json')
 
 def deploy_containers_local(container_name):
     print("Running containers locally")
@@ -107,6 +121,7 @@ def run_fake_server():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Launch bonsai service or fake server")
+    # Modes
     parser.add_argument("--fake",
         default=False, action='store_const', const=True,
         help="""
@@ -127,13 +142,19 @@ if __name__ == '__main__':
         Create and run a container remotely on Google Container Engine.
         This option starts rolling-update immediately after uploading container.
         """)
+    # Key
+    parser.add_argument("--key",
+        help="""
+        Path of JSON private key of Google Cloud Platform. This will be copied
+        to the created container, so don't upload them to public repository.
+        """)
     args = parser.parse_args()
 
     container_name = get_container_tag('bonsai_frontend')
     if args.fake:
         run_fake_server()
     elif args.local:
-        create_containers(container_name)
+        create_containers(container_name, args.key)
         deploy_containers_local(container_name)
     elif args.remote:
         create_containers(container_name)
