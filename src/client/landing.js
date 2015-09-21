@@ -7,7 +7,8 @@ $(document).ready(() => {
             biospheres: []
         },
         methods: {
-            update: () => {
+            // For some reason, () => doesn't work.
+            update: function() {
                 var biospheres = this.biospheres;
                 $.ajax('/api/biospheres', {
                     "data": {
@@ -37,8 +38,9 @@ $(document).ready(() => {
                 }
             },
             methods: {
-                create: () => {
-                    console.log('CREATE');
+                // For some reason, () => doesn't get this.name properly.
+                create: function() {
+                    console.log('CREATE', this.name);
                     var request = {
                         type: "ADD",
                         desc: {
