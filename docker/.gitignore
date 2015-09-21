@@ -1,3 +1,4 @@
 static/
 frontend-server.bin
 key.json
+ca-bundle.crt

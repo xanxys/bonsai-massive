@@ -40,6 +40,7 @@ def create_containers(container_name, path_key):
     subprocess.call(["bazel", "build", "client:static"], cwd="./src")
     shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
     shutil.copyfile(path_key, "docker/key.json")
+    shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
     shutil.rmtree("docker/static", ignore_errors=True)
     os.mkdir("docker/static")
     subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
