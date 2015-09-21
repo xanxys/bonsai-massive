@@ -35,8 +35,12 @@ func MaybeExtractQ(w http.ResponseWriter, r *http.Request, defaultQ proto.Messag
 }
 
 func WriteS(
-	w http.ResponseWriter, r *http.Request, s proto.Message) {
-
+	w http.ResponseWriter, r *http.Request, s proto.Message, e error) {
+	if e != nil {
+		http.NotFound(w, r)
+		fmt.Fprintf(w, "internal error: %v", e)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	marshaler := jsonpb.Marshaler{
 		EnumsAsString: true,
@@ -66,15 +70,15 @@ func main() {
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
 		if q != nil {
-			s := fe.HandleBiospheres((*q).(*api.BiospheresQ))
-			WriteS(w, r, s)
+			s, e := fe.HandleBiospheres((*q).(*api.BiospheresQ))
+			WriteS(w, r, s, e)
 		}
 	})
 	http.HandleFunc("/api/biosphere_delta", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiosphereDeltaQ{})
 		if q != nil {
-			s := fe.HandleBiosphereDelta((*q).(*api.BiosphereDeltaQ))
-			WriteS(w, r, s)
+			s, e := fe.HandleBiosphereDelta((*q).(*api.BiosphereDeltaQ))
+			WriteS(w, r, s, e)
 		}
 	})
 	http.Handle("/static/",
