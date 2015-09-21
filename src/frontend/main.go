@@ -60,13 +60,6 @@ func main() {
 	fe := &FeServiceImpl{}
 
 	// Dispatchers.
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		fmt.Fprintf(w, "World List\n")
-	})
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
 		if q != nil {
