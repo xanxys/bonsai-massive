@@ -27,12 +27,16 @@ func Auth() *datastore.Client {
 		log.Fatal(err)
 	}
 	ctx := context.Background()
-	client, err := datastore.NewClient(ctx, "project-id", cloud.WithTokenSource(conf.TokenSource(ctx)))
+	client, err := datastore.NewClient(ctx, "bonsai-genesis", cloud.WithTokenSource(conf.TokenSource(ctx)))
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Use the client (see other examples).
 	return client
+}
+
+type BiosphereMeta struct {
+	Name string
 }
 
 func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) *api.BiospheresS {
@@ -59,6 +63,17 @@ func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) *api.Biosp
 	var nTicks uint64
 	nCores = 42
 	nTicks = 38
+
+	ctx := context.Background()
+	client := Auth()
+	key := datastore.NewIncompleteKey(ctx, "BiosphereMeta", nil)
+	_, err := client.Put(ctx, key, &BiosphereMeta{
+		Name: q.GetDesc().GetName(),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &api.BiospheresS{
 		Biospheres: []*api.BiosphereDesc{
 			&api.BiosphereDesc{
