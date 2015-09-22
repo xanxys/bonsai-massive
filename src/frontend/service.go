@@ -4,6 +4,7 @@ import (
 	"./api"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
 	"io/ioutil"
@@ -11,9 +12,10 @@ import (
 )
 
 type FeServiceImpl struct {
+	datastoreCred *jwt.Config
 }
 
-func Auth() (context.Context, *datastore.Client) {
+func NewFeService() *FeServiceImpl {
 	jsonKey, err := ioutil.ReadFile("/root/bonsai/key.json")
 	if err != nil {
 		log.Fatal(err)
@@ -26,12 +28,18 @@ func Auth() (context.Context, *datastore.Client) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx := context.Background()
-	client, err := datastore.NewClient(ctx, "bonsai-genesis", cloud.WithTokenSource(conf.TokenSource(ctx)))
-	if err != nil {
-		log.Fatal(err)
+	return &FeServiceImpl{
+		datastoreCred: conf,
 	}
-	return ctx, client
+}
+
+func (fe *FeServiceImpl) auth(ctx context.Context) (*datastore.Client, error) {
+	client, err := datastore.NewClient(
+		ctx, "bonsai-genesis", cloud.WithTokenSource(fe.datastoreCred.TokenSource(ctx)))
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 type BiosphereMeta struct {
@@ -39,16 +47,21 @@ type BiosphereMeta struct {
 }
 
 func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS, error) {
+	ctx := context.Background()
+
 	var nCores uint32
 	var nTicks uint64
 	nCores = 42
 	nTicks = 38
 
-	ctx, client := Auth()
+	client, err := fe.auth(ctx)
+	if err != nil {
+		return nil, err
+	}
 	dq := datastore.NewQuery("BiosphereMeta")
 
 	var metas []*BiosphereMeta
-	_, err := client.GetAll(ctx, dq, &metas)
+	_, err = client.GetAll(ctx, dq, &metas)
 	if err != nil {
 		return nil, err
 	}
@@ -66,15 +79,20 @@ func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS,
 }
 
 func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.BiospheresS, error) {
+	ctx := context.Background()
+
 	name := "FugaFuga"
 	var nCores uint32
 	var nTicks uint64
 	nCores = 42
 	nTicks = 38
 
-	ctx, client := Auth()
+	client, err := fe.auth(ctx)
+	if err != nil {
+		return nil, err
+	}
 	key := datastore.NewIncompleteKey(ctx, "BiosphereMeta", nil)
-	_, err := client.Put(ctx, key, &BiosphereMeta{
+	_, err = client.Put(ctx, key, &BiosphereMeta{
 		Name: q.GetDesc().GetName(),
 	})
 	if err != nil {

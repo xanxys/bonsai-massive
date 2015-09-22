@@ -57,7 +57,7 @@ func main() {
 	fmt.Printf("Starting frontend server http://localhost:%d\n", port)
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
-	fe := &FeServiceImpl{}
+	fe := NewFeService()
 
 	// Dispatchers.
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
