@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"mime"
 	"net/http"
+	"time"
 )
 
 // MaybeExtractQ extracts proto from HTTP request and returns it.
@@ -58,6 +59,14 @@ func main() {
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
 	fe := NewFeService()
+
+	// Periodic service.
+	go func() {
+		for {
+			fe.HandleApplyChunks()
+			time.Sleep(10 * time.Second)
+		}
+	}()
 
 	// Dispatchers.
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {

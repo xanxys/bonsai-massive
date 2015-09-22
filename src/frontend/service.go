@@ -46,6 +46,14 @@ type BiosphereMeta struct {
 	Name string
 }
 
+// HandleApplyChunks checks chunk servers and commit latest status to datastore
+// when new state is detected. Note that this function can be called on multiple
+// nodes when multiple FeServer are running.
+// Do not mess up datastore.
+func (fe *FeServiceImpl) HandleApplyChunks() error {
+	return nil
+}
+
 func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS, error) {
 	ctx := context.Background()
 
