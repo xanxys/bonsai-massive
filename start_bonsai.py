@@ -54,7 +54,7 @@ def create_containers(container_name, path_key):
 
 def deploy_containers_local(container_name):
     print("Running containers locally")
-    name = "bonsai_fe-%d" % random.randint(0, 1000)
+    name = "bonsai_fe-%d" % random.randint(0, 100000)
     subprocess.call([
         "docker", "run",
         "--tty",
