@@ -1,4 +1,8 @@
-static/
-frontend-server.bin
+# Common
 key.json
 ca-bundle.crt
+# Frontend
+static/
+frontend-server.bin
+# Chunk
+chunk-server.bin

@@ -23,7 +23,7 @@ def get_container_tag(container_name):
     label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
     return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, label)
 
-def create_containers(container_name, path_key):
+def create_fe_container(container_name, path_key):
     """
     Create a docker container of the given name with docker/frontend file.
     """
@@ -52,6 +52,32 @@ def create_containers(container_name, path_key):
     finally:
         os.remove('docker/key.json')
 
+def create_chunk_container(container_name, path_key):
+    """
+    Create a docker container of the given name with docker/chunk file.
+    """
+    print("Creating container %s" % container_name)
+    try:
+        json.load(open(path_key, "r"))
+    except (IOError, KeyError) as exc:
+        print("ERROR: JSON key at %s not found. Container won't function properly: %s" %
+            (path_key, exc))
+        raise exc
+    # Without clean, bazel somehow won't update
+    subprocess.call(["bazel", "clean"], cwd="./src")
+    if subprocess.call(["bazel", "build", "chunk:server"], cwd="./src") != 0:
+        raise RuntimeError("Chunk build failed")
+    shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
+    shutil.copyfile(path_key, "docker/key.json")
+    shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
+    shutil.rmtree("docker/static", ignore_errors=True)
+    os.mkdir("docker/static")
+    try:
+        if subprocess.call(["docker", "build", "-t", container_name, "-f", "docker/chunk", "./docker"]) != 0:
+            raise RuntimeError("Container build failed")
+    finally:
+        os.remove('docker/key.json')
+
 def deploy_containers_local(container_name):
     print("Running containers locally")
     name = "bonsai_fe-%d" % random.randint(0, 100000)
@@ -63,15 +89,16 @@ def deploy_containers_local(container_name):
         "--publish", "%d:8000" % LOCAL_PORT,
         container_name])
 
-def deploy_containers_gke(container_name):
-    print("Pushing containers to GC repository")
+def deploy_containers_gke(container_name, rollout=True):
+    print("Pushing containers to google container repository")
     subprocess.call(['gcloud', 'docker', 'push', container_name])
 
-    print("Rolling out new image %s" % container_name)
-    subprocess.call(['kubectl', 'rolling-update',
-        'dev-fe-rc',
-        '--update-period=10s',
-        '--image=%s' % container_name])
+    if rollout:
+        print("Rolling out new image %s" % container_name)
+        subprocess.call(['kubectl', 'rolling-update',
+            'dev-fe-rc',
+            '--update-period=10s',
+            '--image=%s' % container_name])
 
 def get_local_url():
     return "http://localhost:%d/" % LOCAL_PORT
@@ -156,14 +183,19 @@ if __name__ == '__main__':
         """)
     args = parser.parse_args()
 
-    container_name = get_container_tag('bonsai_frontend')
+    fe_container_name = get_container_tag('bonsai_frontend')
+    chunk_container_name = get_container_tag('bonsai_chunk')
     if args.fake:
         run_fake_server()
     elif args.local:
-        create_containers(container_name, args.key)
-        deploy_containers_local(container_name)
+        create_fe_container(fe_container_name, args.key)
+        create_chunk_container(chunk_container_name, args.key)
+        deploy_containers_gke(chunk_container_name, rollout=False)
+        deploy_containers_local(fe_container_name)
     elif args.remote:
-        create_containers(container_name)
-        deploy_containers_gke(container_name)
+        create_fe_container(fe_container_name)
+        create_chunk_container(chunk_container_name, args.key)
+        deploy_containers_gke(chunk_container_name, rollout=False)
+        deploy_containers_gke(fe_container_name)
     else:
         print("One of {--local, --remote, --fake} required. See --help for details.")
