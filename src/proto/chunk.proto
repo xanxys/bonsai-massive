@@ -1,0 +1,16 @@
+syntax="proto2";
+// Keep proto3 migration in mind:
+// Don't use required.
+// Don't use has***() for primitives.
+package api;
+
+service ChunkService {
+    rpc Test(TestQ) returns (TestS);
+}
+
+message TestQ {
+    optional string a = 1;
+}
+
+message TestS {
+}
