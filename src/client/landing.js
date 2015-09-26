@@ -4,17 +4,20 @@ $(document).ready(() => {
     var bs = new Vue({
         el: '#biospheres',
         data: {
-            biospheres: []
+            biospheres: [],
+            loading: true
         },
         methods: {
             // For some reason, () => doesn't work.
             update: function() {
                 var biospheres = this.biospheres;
+                this.loading = true;
                 $.ajax('/api/biospheres', {
                     "data": {
                         "pb": JSON.stringify({})
                     }
                 }).done(data => {
+                    this.loading = false;
                     bs.$set('biospheres', data.biospheres);
                 });
             }
