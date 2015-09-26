@@ -1,7 +1,4 @@
-syntax="proto2";
-// Keep proto3 migration in mind:
-// Don't use required.
-// Don't use has***() for primitives.
+syntax="proto3";
 package api;
 
 
@@ -28,11 +25,11 @@ message BiospheresQ {
 
 message BiosphereDeltaQ {
     //
-    optional DeltaType type = 1;
+    DeltaType type = 1;
 
     // Default values mean no change.
     // In case of ADD, desc.world_id will be ignored.
-    optional BiosphereDesc desc = 2;
+    BiosphereDesc desc = 2;
 }
 
 enum DeltaType {
@@ -42,6 +39,9 @@ enum DeltaType {
 }
 
 enum BiosphereState {
+    // Should never happen.
+    UNKNOWN = 0;
+
     RUNNING = 1;
     STOPPED = 2;
     // Transition: STOPPED -> RUNNING.
@@ -55,37 +55,37 @@ message BiospheresS {
 }
 
 message BiosphereDesc {
-    optional uint64 biosphere_id = 1;
+    uint64 biosphere_id = 1;
 
     // In UI, it is expected name is single-line, possible descriptive string.
     // e.g. "Biosphere:1/NoBC", "HelloBonsai22 - Guests should use this!"
-    optional string name = 2;
+    string name = 2;
 
     // How many cores this world is currently configured to use.
-    optional uint32 num_cores = 3;
+    uint32 num_cores = 3;
 
     // Current timestamp of the world.
-    optional uint64 num_ticks = 4;
+    uint64 num_ticks = 4;
 }
 
 
 
 message ChunkQ {
-    optional ChunkId cid = 1;
-    optional int32 level = 2;
+    ChunkId cid = 1;
+    int32 level = 2;
 
     // Style option should come here.
 }
 
 // Target size: 100KB
 message ChunkS {
-    optional ChunkId cid = 1;
+    ChunkId cid = 1;
 
-    optional int32 level = 2;
+    int32 level = 2;
 
     // Triangle soup with vertex colors. Lights are tonemapped and
     // baked in. Color is in LDR space, not physically accurate in any way.
-    optional PolySoup soup = 3;
+    PolySoup soup = 3;
 }
 
 message PolySoup {
@@ -95,7 +95,7 @@ message PolySoup {
 // Chunk is 1m * 1m * 10m volume.
 message ChunkId {
     // Biosphere-selector.
-    optional uint64 world_id = 1;
-    optional int32 index_x = 2;
-    optional int32 index_y = 3;
+    uint64 world_id = 1;
+    int32 index_x = 2;
+    int32 index_y = 3;
 }

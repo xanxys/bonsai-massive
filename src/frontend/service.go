@@ -97,9 +97,9 @@ func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS,
 	var bios []*api.BiosphereDesc
 	for _, meta := range metas {
 		bios = append(bios, &api.BiosphereDesc{
-			Name:     &meta.Name,
-			NumCores: &nCores,
-			NumTicks: &nTicks,
+			Name:     meta.Name,
+			NumCores: nCores,
+			NumTicks: nTicks,
 		})
 	}
 	return &api.BiospheresS{
@@ -121,8 +121,9 @@ func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.Bios
 		return nil, err
 	}
 	key := datastore.NewIncompleteKey(ctx, "BiosphereMeta", nil)
+	// TODO: check collision with existing name / empty names etc.
 	_, err = client.Put(ctx, key, &BiosphereMeta{
-		Name: q.GetDesc().GetName(),
+		Name: q.GetDesc().Name,
 	})
 	if err != nil {
 		return nil, err
@@ -137,9 +138,9 @@ func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.Bios
 	return &api.BiospheresS{
 		Biospheres: []*api.BiosphereDesc{
 			&api.BiosphereDesc{
-				Name:     &name,
-				NumCores: &nCores,
-				NumTicks: &nTicks,
+				Name:     name,
+				NumCores: nCores,
+				NumTicks: nTicks,
 			},
 		},
 	}, nil
