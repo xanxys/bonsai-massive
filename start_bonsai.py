@@ -1,8 +1,22 @@
 #!/bin/python3
-#
-# requires docker 1.5+
-# You need to be in docker group to run this script.
-# This script is not supposed to be run by root.
+"""
+Build and/or deploy containers for bonsai.
+
+           HTTP              gRPC
+| Client | ---- | Frontend | ----- | Chunk |
+
+
+frontend can be 2, 3, 1+2, or 1+3:
+1. fake server (which proxies all API requests to more serious frontend)
+2. local server (directly running docker container)
+3. remote service (on GKE, managed by kubernetes under replication controller / load balancer)
+
+chunk always runs on GCE (not GKE), launched by frontend.
+
+Requires docker 1.5+
+You need to be in docker group to run this script.
+This script is not supposed to be run by root.
+"""
 import argparse
 import datetime
 import json
