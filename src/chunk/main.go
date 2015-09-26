@@ -1,9 +1,20 @@
 package main
 
 import (
-	"fmt"
+	"./api"
+	"google.golang.org/grpc"
+	"log"
+	"net"
 )
 
 func main() {
-	fmt.Printf("Starting chunk server")
+	log.Println("Starting chunk server at :8000 (gRPC)")
+	lis, err := net.Listen("tcp", ":8000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	server := grpc.NewServer()
+
+	api.RegisterChunkServiceServer(server, new(CkServiceImpl))
+	server.Serve(lis)
 }

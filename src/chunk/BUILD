@@ -3,6 +3,7 @@ genrule(
     name="server",
     srcs=[
         "main.go",
+        "service.go",
         "//proto:proto_go_src",
     ],
     outs=[
