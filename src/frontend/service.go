@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	WorkerContainerName   = "docker.io/xanxys/bonsai-chunk"
+	WorkerContainerName   = "gcr.io/bonsai-genesis/bonsai_chunk:20150926-1932"
 	WorkerPathInContainer = "/root/pentatope/worker"
 )
 
@@ -143,7 +143,7 @@ func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.Bios
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	const name = "chunk-server-0"
 	const zone = "us-central1-b"
-	const machineType = "n1-standard-8"
+	const machineType = "n1-standard-4"
 	const projectId = "bonsai-genesis"
 
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + projectId
@@ -155,6 +155,10 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			`apt-get update`,
 			`apt-get -y install docker.io`,
 			`service docker start`,
+			`METADATA=http://metadata.google.internal./computeMetadata/v1`,
+			`SVC_ACCT=$METADATA/instance/service-accounts/default`,
+			`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
+			`docker login -e dummy@example.com -u _token -p $ACCESS_TOKEN https://gcr.io`,
 			fmt.Sprintf(`docker pull %s`, WorkerContainerName),
 			fmt.Sprintf(`docker run --publish 8000:8000 %s`, WorkerContainerName),
 		}, "\n")
