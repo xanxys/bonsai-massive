@@ -1,6 +1,7 @@
 # Common
 key.json
 ca-bundle.crt
+config.chunk-container
 # Frontend
 static/
 frontend-server.bin

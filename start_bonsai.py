@@ -23,7 +23,7 @@ def get_container_tag(container_name):
     label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
     return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, label)
 
-def create_fe_container(container_name, path_key):
+def create_fe_container(container_name, path_key, chunk_container_name):
     """
     Create a docker container of the given name with docker/frontend file.
     """
@@ -44,6 +44,7 @@ def create_fe_container(container_name, path_key):
     shutil.copyfile(path_key, "docker/key.json")
     shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
     shutil.rmtree("docker/static", ignore_errors=True)
+    open('docker/config.chunk-container', 'w').write(chunk_container_name)
     os.mkdir("docker/static")
     try:
         subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
@@ -187,15 +188,16 @@ if __name__ == '__main__':
     chunk_container_name = get_container_tag('bonsai_chunk')
     if args.fake:
         run_fake_server()
-    elif args.local:
-        create_fe_container(fe_container_name, args.key)
+
+    if args.local:
+        create_fe_container(fe_container_name, args.key, chunk_container_name)
         create_chunk_container(chunk_container_name, args.key)
         deploy_containers_gke(chunk_container_name, rollout=False)
         deploy_containers_local(fe_container_name)
     elif args.remote:
-        create_fe_container(fe_container_name)
+        create_fe_container(fe_container_name, chunk_container_name)
         create_chunk_container(chunk_container_name, args.key)
         deploy_containers_gke(chunk_container_name, rollout=False)
         deploy_containers_gke(fe_container_name)
     else:
-        print("One of {--local, --remote, --fake} required. See --help for details.")
+        print("At least one of {--local, --remote, --fake} required. See --help for details.")

@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	WorkerContainerName   = "gcr.io/bonsai-genesis/bonsai_chunk:20150926-1932"
 	WorkerPathInContainer = "/root/pentatope/worker"
 )
 
 type FeServiceImpl struct {
-	cred *jwt.Config
+	cred               *jwt.Config
+	chunkContainerName string
 }
 
 func NewFeService() *FeServiceImpl {
@@ -38,8 +38,13 @@ func NewFeService() *FeServiceImpl {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cont, err := ioutil.ReadFile("/root/bonsai/config.chunk-container")
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &FeServiceImpl{
-		cred: conf,
+		cred:               conf,
+		chunkContainerName: string(cont),
 	}
 }
 
@@ -159,8 +164,8 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			`SVC_ACCT=$METADATA/instance/service-accounts/default`,
 			`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
 			`docker login -e dummy@example.com -u _token -p $ACCESS_TOKEN https://gcr.io`,
-			fmt.Sprintf(`docker pull %s`, WorkerContainerName),
-			fmt.Sprintf(`docker run --publish 8000:8000 %s`, WorkerContainerName),
+			fmt.Sprintf(`docker pull %s`, fe.chunkContainerName),
+			fmt.Sprintf(`docker run --publish 8000:8000 %s`, fe.chunkContainerName),
 		}, "\n")
 
 	instance := &compute.Instance{
