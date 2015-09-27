@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	WorkerPathInContainer = "/root/pentatope/worker"
+	ProjectId = "bonsai-genesis"
+	zone      = "us-central1-b"
 )
 
 type FeServiceImpl struct {
@@ -50,7 +51,7 @@ func NewFeService() *FeServiceImpl {
 
 func (fe *FeServiceImpl) authDatastore(ctx context.Context) (*datastore.Client, error) {
 	client, err := datastore.NewClient(
-		ctx, "bonsai-genesis", cloud.WithTokenSource(fe.cred.TokenSource(ctx)))
+		ctx, ProjectId, cloud.WithTokenSource(fe.cred.TokenSource(ctx)))
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +73,30 @@ type BiosphereMeta struct {
 // nodes when multiple FeServer are running.
 // Do not mess up datastore.
 func (fe *FeServiceImpl) HandleApplyChunks() error {
+	ctx := context.Background()
+
+	service, err := fe.authCompute(ctx)
+	if err != nil {
+		return err
+	}
+
+	list, err := service.Instances.List(ProjectId, zone).Do()
+	if err != nil {
+		log.Printf("Failed to get instance list: %#v", err)
+	}
+
+	log.Println("== Chunks")
+	for _, instance := range list.Items {
+		metadata := make(map[string]string)
+		for _, item := range instance.Metadata.Items {
+			metadata[item.Key] = *item.Value
+		}
+		ty, ok := metadata["bonsai-type"]
+		if ok && ty == "chunk" {
+			log.Println(instance)
+		}
+	}
+
 	return nil
 }
 
@@ -148,11 +173,9 @@ func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.Bios
 
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	const name = "chunk-server-0"
-	const zone = "us-central1-b"
 	const machineType = "n1-standard-4"
-	const projectId = "bonsai-genesis"
 
-	prefix := "https://www.googleapis.com/compute/v1/projects/" + projectId
+	prefix := "https://www.googleapis.com/compute/v1/projects/" + ProjectId
 	imageURL := "https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1504-vivid-v20150422"
 
 	startupScript := strings.Join(
@@ -168,6 +191,8 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			fmt.Sprintf(`docker pull %s`, fe.chunkContainerName),
 			fmt.Sprintf(`docker run --publish 8000:8000 %s`, fe.chunkContainerName),
 		}, "\n")
+
+	bonsaiType := "chunk"
 
 	instance := &compute.Instance{
 		Name:        name,
@@ -214,11 +239,15 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 					Key:   "startup-script",
 					Value: &startupScript,
 				},
+				{
+					Key:   "bonsai-type",
+					Value: &bonsaiType,
+				},
 			},
 		},
 	}
 
-	op, err := service.Instances.Insert(projectId, zone, instance).Do()
+	op, err := service.Instances.Insert(ProjectId, zone, instance).Do()
 	log.Printf("Op: %#v   Err:%#v\n", op, err)
 	if op != nil {
 		if op.Error != nil {
