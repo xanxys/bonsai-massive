@@ -142,23 +142,27 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 file_path_cs = path_components[1:]
             file_path = os.path.join(base_dir, *file_path_cs)
-
-            ctype = self.guess_type(file_path)
-
-            try:
-                f = open(file_path, 'rb')
-                self.send_response(200)
-                self.send_header('Content-Type', ctype)
-                self.end_headers()
-                shutil.copyfileobj(f, self.wfile)
-                f.close()
-            except IOError:
-                print('->PROXY')
-                self.do_get_proxy()
+            self.do_get_static_with_fallback(file_path)
+        elif path_components[0] == 'biosphere':
+            print('STATIC (/biosphere -> /static/biosphere.html)')
+            file_path = os.path.join(base_dir, 'biosphere.html')
+            self.do_get_static_with_fallback(file_path)
         else:
             print('PROXY')
             self.do_get_proxy()
 
+    def do_get_static_with_fallback(self, file_path):
+        ctype = self.guess_type(file_path)
+        try:
+            f = open(file_path, 'rb')
+            self.send_response(200)
+            self.send_header('Content-Type', ctype)
+            self.end_headers()
+            shutil.copyfileobj(f, self.wfile)
+            f.close()
+        except IOError:
+            print('->PROXY')
+            self.do_get_proxy()
 
     def do_get_proxy(self):
         conn = http.client.HTTPConnection('localhost', LOCAL_PORT)
@@ -210,22 +214,16 @@ if __name__ == '__main__':
         """)
     args = parser.parse_args()
 
-    factory = ContainerFactory(args.key)
-
-    fe_container_name = factory.get_container_path('bonsai_frontend')
-    chunk_container_name = factory.get_container_path('bonsai_chunk')
     if args.fake:
         run_fake_server()
 
-    if args.local:
-        factory.create_fe_container()
-        factory.create_chunk_container()
-        deploy_containers_gke(chunk_container_name, rollout=False)
-        deploy_containers_local(fe_container_name)
-    elif args.remote:
-        factory.create_fe_container()
-        factory.create_chunk_container()
-        deploy_containers_gke(chunk_container_name, rollout=False)
-        deploy_containers_gke(fe_container_name)
-    else:
-        print("At least one of {--local, --remote, --fake} required. See --help for details.")
+    if args.local or args.remote:
+        factory = ContainerFactory(args.key)
+        fe_container_name = factory.create_fe_container()
+        chunk_container_name = factory.create_chunk_container()
+        if args.local:
+            deploy_containers_gke(chunk_container_name, rollout=False)
+            deploy_containers_local(fe_container_name)
+        elif args.remote:
+            deploy_containers_gke(chunk_container_name, rollout=False)
+            deploy_containers_gke(fe_container_name)
