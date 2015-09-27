@@ -37,69 +37,73 @@ class ContainerFactory:
     """
     A minutely tag is created on creation of ContainerFactory, and all
     containers created with the instance will carry the same tag.
+
+    Note that this factory is tailored for containers in bosai, and not trying
+    to be generic.
     """
-    def __init__(self):
+    def __init__(self, path_key):
+        try:
+            json.load(open(path_key, "r"))
+        except (IOError, KeyError) as exc:
+            print("ERROR: JSON key at %s not found. Aborting container build. %s" %
+                (path_key, exc))
+            raise exc
         self.tag = datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        self.path_key = path_key
+        self._setup_shared_context()
+
+    def __del__(self):
+        os.remove('docker/key.json')
 
     def get_container_path(self, container_name):
         return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, self.tag)
 
+    def _setup_shared_context(self):
+        chunk_container_name = self.get_container_path('bonsai_chunk')
+        shutil.copyfile(self.path_key, "docker/key.json")
+        shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
+        open('docker/config.chunk-container', 'w').write(chunk_container_name)
 
-def create_fe_container(container_name, path_key, chunk_container_name):
-    """
-    Create a docker container of the given name with docker/frontend file.
-    """
-    print("Creating container %s" % container_name)
-    try:
-        json.load(open(path_key, "r"))
-    except (IOError, KeyError) as exc:
-        print("ERROR: JSON key at %s not found. Container won't function properly: %s" %
-            (path_key, exc))
-        raise exc
-    # Without clean, bazel somehow won't update
-    subprocess.call(["bazel", "clean"], cwd="./src")
-    if subprocess.call(["bazel", "build", "frontend:server"], cwd="./src") != 0:
-        raise RuntimeError("Frontend build failed")
-    if subprocess.call(["bazel", "build", "client:static"], cwd="./src") != 0:
-        raise RuntimeError("Client build failed")
-    shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
-    shutil.copyfile(path_key, "docker/key.json")
-    shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
-    shutil.rmtree("docker/static", ignore_errors=True)
-    open('docker/config.chunk-container', 'w').write(chunk_container_name)
-    os.mkdir("docker/static")
-    try:
-        subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
-        if subprocess.call(["docker", "build", "-t", container_name, "-f", "docker/frontend", "./docker"]) != 0:
+    def _create_container(self, dockerfile_path, container_path, internal_f):
+        print("Creating container %s" % container_path)
+        internal_f()
+        if subprocess.call(["docker", "build", "-t", container_path, "-f", dockerfile_path, "./docker"]) != 0:
             raise RuntimeError("Container build failed")
-    finally:
-        os.remove('docker/key.json')
+        return container_path
 
-def create_chunk_container(container_name, path_key):
-    """
-    Create a docker container of the given name with docker/chunk file.
-    """
-    print("Creating container %s" % container_name)
-    try:
-        json.load(open(path_key, "r"))
-    except (IOError, KeyError) as exc:
-        print("ERROR: JSON key at %s not found. Container won't function properly: %s" %
-            (path_key, exc))
-        raise exc
-    # Without clean, bazel somehow won't update
-    subprocess.call(["bazel", "clean"], cwd="./src")
-    if subprocess.call(["bazel", "build", "chunk:server"], cwd="./src") != 0:
-        raise RuntimeError("Chunk build failed")
-    shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
-    shutil.copyfile(path_key, "docker/key.json")
-    shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
-    shutil.rmtree("docker/static", ignore_errors=True)
-    os.mkdir("docker/static")
-    try:
-        if subprocess.call(["docker", "build", "-t", container_name, "-f", "docker/chunk", "./docker"]) != 0:
-            raise RuntimeError("Container build failed")
-    finally:
-        os.remove('docker/key.json')
+    def create_fe_container(self):
+        """
+        Create a docker container using docker/frontend Dockerfile.
+        """
+        def internal():
+            # Without clean, bazel somehow won't update
+            subprocess.call(["bazel", "clean"], cwd="./src")
+            if subprocess.call(["bazel", "build", "frontend:server"], cwd="./src") != 0:
+                raise RuntimeError("Frontend build failed")
+            if subprocess.call(["bazel", "build", "client:static"], cwd="./src") != 0:
+                raise RuntimeError("Client build failed")
+            shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
+            shutil.rmtree("docker/static", ignore_errors=True)
+            os.mkdir("docker/static")
+            subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
+
+        return self._create_container(
+            'docker/frontend', self.get_container_path('bonsai_frontend'), internal)
+
+    def create_chunk_container(self):
+        """
+        Create a docker container of the given name with docker/chunk file.
+        """
+        def internal():
+            # Without clean, bazel somehow won't update
+            subprocess.call(["bazel", "clean"], cwd="./src")
+            if subprocess.call(["bazel", "build", "chunk:server"], cwd="./src") != 0:
+                raise RuntimeError("Chunk build failed")
+            shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
+
+        return self._create_container(
+            'docker/chunk', self.get_container_path('bonsai_chunk'), internal)
+
 
 def deploy_containers_local(container_name):
     print("Running containers locally")
@@ -206,7 +210,7 @@ if __name__ == '__main__':
         """)
     args = parser.parse_args()
 
-    factory = ContainerFactory()
+    factory = ContainerFactory(args.key)
 
     fe_container_name = factory.get_container_path('bonsai_frontend')
     chunk_container_name = factory.get_container_path('bonsai_chunk')
@@ -214,13 +218,13 @@ if __name__ == '__main__':
         run_fake_server()
 
     if args.local:
-        create_fe_container(fe_container_name, args.key, chunk_container_name)
-        create_chunk_container(chunk_container_name, args.key)
+        factory.create_fe_container()
+        factory.create_chunk_container()
         deploy_containers_gke(chunk_container_name, rollout=False)
         deploy_containers_local(fe_container_name)
     elif args.remote:
-        create_fe_container(fe_container_name, chunk_container_name)
-        create_chunk_container(chunk_container_name, args.key)
+        factory.create_fe_container()
+        factory.create_chunk_container()
         deploy_containers_gke(chunk_container_name, rollout=False)
         deploy_containers_gke(fe_container_name)
     else:
