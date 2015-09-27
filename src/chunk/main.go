@@ -14,7 +14,7 @@ func main() {
 		log.Fatal(err)
 	}
 	server := grpc.NewServer()
-
-	api.RegisterChunkServiceServer(server, new(CkServiceImpl))
+	ck := NewCkService()
+	api.RegisterChunkServiceServer(server, ck)
 	server.Serve(lis)
 }
