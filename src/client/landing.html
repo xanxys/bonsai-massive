@@ -25,7 +25,7 @@
 
 		<div id="biospheres">
 			<h1>Biospheres</h1>
-	        <div v-repeat="biospheres" class="card_main">
+	        <div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
 				<div class="bg">
 				</div>
 				<div class="content">

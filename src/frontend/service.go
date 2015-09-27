@@ -116,16 +116,17 @@ func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS,
 	dq := datastore.NewQuery("BiosphereMeta")
 
 	var metas []*BiosphereMeta
-	_, err = client.GetAll(ctx, dq, &metas)
+	keys, err := client.GetAll(ctx, dq, &metas)
 	if err != nil {
 		return nil, err
 	}
 	var bios []*api.BiosphereDesc
-	for _, meta := range metas {
+	for ix, meta := range metas {
 		bios = append(bios, &api.BiosphereDesc{
-			Name:     meta.Name,
-			NumCores: nCores,
-			NumTicks: nTicks,
+			BiosphereId: uint64(keys[ix].ID()),
+			Name:        meta.Name,
+			NumCores:    nCores,
+			NumTicks:    nTicks,
 		})
 	}
 	return &api.BiospheresS{

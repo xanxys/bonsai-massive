@@ -20,6 +20,10 @@ $(document).ready(() => {
                     this.loading = false;
                     bs.$set('biospheres', data.biospheres);
                 });
+            },
+            enter: function(biosphere) {
+                console.log('entering', biosphere.biosphere_id);
+                window.location.href = '/biosphere/' + biosphere.biosphere_id;
             }
         }
     });
