@@ -12,6 +12,7 @@ import (
 	"google.golang.org/cloud/datastore"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"strings"
 )
 
@@ -172,7 +173,7 @@ func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.Bios
 }
 
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
-	const name = "chunk-server-0"
+	name := fmt.Sprintf("chunk-server-%d", rand.Int63n(1000000000))
 	const machineType = "n1-standard-4"
 
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + ProjectId
