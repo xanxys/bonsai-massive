@@ -33,9 +33,17 @@ FAKE_PORT = 7000
 LOCAL_PORT = 8000
 
 
-def get_container_tag(container_name):
-    label = datetime.datetime.now().strftime('%Y%m%d-%H%M')
-    return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, label)
+class ContainerFactory:
+    """
+    A minutely tag is created on creation of ContainerFactory, and all
+    containers created with the instance will carry the same tag.
+    """
+    def __init__(self):
+        self.tag = datetime.datetime.now().strftime('%Y%m%d-%H%M')
+
+    def get_container_path(self, container_name):
+        return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, self.tag)
+
 
 def create_fe_container(container_name, path_key, chunk_container_name):
     """
@@ -198,8 +206,10 @@ if __name__ == '__main__':
         """)
     args = parser.parse_args()
 
-    fe_container_name = get_container_tag('bonsai_frontend')
-    chunk_container_name = get_container_tag('bonsai_chunk')
+    factory = ContainerFactory()
+
+    fe_container_name = factory.get_container_path('bonsai_frontend')
+    chunk_container_name = factory.get_container_path('bonsai_chunk')
     if args.fake:
         run_fake_server()
 
