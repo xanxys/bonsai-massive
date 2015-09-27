@@ -4,7 +4,8 @@ genrule(
     name = "static",
     srcs = [
         ":client",
-        'landing.html',
+        "biosphere.html",
+        "landing.html",
     ],
     outs = ["static.tar"],
     cmd = "tar -c --xform s:^.*/:: $(SRCS) > $@",
