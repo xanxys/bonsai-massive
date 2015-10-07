@@ -11,3 +11,63 @@ message TestQ {
 
 message TestS {
 }
+
+// Snapshot of a chunk at given timestamp.
+// This contains enough and just enough information for reconstructing it
+// on memory.
+// Do not include optimization structures in this, since we don't want to break
+// compatibility every time we optimize implemenetation.
+//
+// Serialization acts as validation of internal state.
+//
+// Coordinates are stored by chunk-local coordinates.
+message ChunkSnapshot {
+    // Should be negative for normal gravity.
+    int32 gravity_z = 1;
+    
+    repeated Cell cells = 1;
+}
+
+// Self-replicating blackbox. It has fuzzy sphere-like shape.
+// Cell doesn't have rotation or angular velocity.
+//
+// Mass is derived property.
+message Cell {
+    // Location of the center of the cell.
+    CkPosition pos = 1;
+
+    // Chemical compounds contained in the cell.
+    // This must be treated like MultiSet ParticleType.
+    message ParticleCount {
+        ParticleType type = 1;
+        // Must be > 0.
+        int32 count = 2;
+    }
+    repeated ParticleCount = 2;
+
+    // Division cycle.
+    // N: neutral
+    // D: dividing
+    // N -> D is triggered by presence of:
+    // D -> N: happens automatically as division_count increases.
+    message Cycle {
+        bool is_dividing = 1;
+        // Only present when is_dividing.
+        int32 division_count = 2;
+    }
+    Cycle cycle = 3;
+}
+
+
+message ParticleType {
+    // e.g. "abzf"
+    string composition = 1;
+}
+
+// Unit: 0.1mm
+// which means, each can be about [-200km, 200km].
+message CkPosition {
+    int32 x = 1;
+    int32 y = 2;
+    int32 z = 3;
+}
