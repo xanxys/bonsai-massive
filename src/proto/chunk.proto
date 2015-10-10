@@ -24,8 +24,8 @@ message TestS {
 message ChunkSnapshot {
     // Should be negative for normal gravity.
     int32 gravity_z = 1;
-    
-    repeated Cell cells = 1;
+
+    repeated Cell cells = 2;
 }
 
 // Self-replicating blackbox. It has fuzzy sphere-like shape.
@@ -43,7 +43,7 @@ message Cell {
         // Must be > 0.
         int32 count = 2;
     }
-    repeated ParticleCount = 2;
+    repeated ParticleCount particles = 2;
 
     // Division cycle.
     // N: neutral
