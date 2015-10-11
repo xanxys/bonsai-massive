@@ -1,5 +1,14 @@
 "use strict";
 
+// Experimental grain interaction
+class Grain {
+    constructor() {
+        this.position = new THREE.Vector3(
+            Math.random(), Math.random(), Math.random() * 0.3);
+        this.velocity = new THREE.Vector3(0, 0, 0);
+    }
+}
+
 // Separate into
 // 1. master class (holds chunk worker)
 // 1': 3D GUI class
@@ -7,6 +16,9 @@
 class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
+        this.grains = _.map(_.range(100), () => {
+            return new Grain();
+        });
     	this.init();
     }
 
@@ -35,6 +47,17 @@ class Client {
     		}));
     	this.scene.add(bg);
 
+        this.grains_objects = _.map(this.grains, (grain) => {
+            var ball = new THREE.Mesh(
+                new THREE.IcosahedronGeometry(0.01),
+        		new THREE.MeshBasicMaterial({
+        			color: '#ccf'
+    		}));
+            this.scene.add(ball);
+            return ball;
+        }, this);
+        this.apply_grains();
+
     	// new, web worker API
     	// Selection
     	this.inspect_plant_id = null;
@@ -62,8 +85,34 @@ class Client {
     	var _this = this;
     	requestAnimationFrame(function(){_this.animate();});
         this.controls.update();
+        this.update_grains();
+        this.apply_grains();
     	this.renderer.render(this.scene, this.camera);
-    };
+    }
+
+    // Position-based dynamics.
+    update_grains() {
+        var dt = 1/30;
+        var accel = new THREE.Vector3(0, 0, -0.01);
+        var new_pos = new THREE.Vector3();
+        _.each(this.grains, (grain) => {
+            new_pos.copy(grain.position);
+            new_pos.add(grain.velocity.clone().multiplyScalar(dt));
+            new_pos.add(accel.clone().multiplyScalar(0.5 * dt * dt));
+
+            // Resolve collisions.
+
+            // Update.
+            grain.velocity.copy(new_pos.clone().sub(grain.position).divideScalar(dt));
+            grain.position.copy(new_pos);
+        });
+    }
+
+    apply_grains() {
+        _.each(this.grains_objects, (go, ix) => {
+            go.position.copy(this.grains[ix].position);
+        }, this);
+    }
 }
 
 // run app
