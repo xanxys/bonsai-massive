@@ -39,7 +39,7 @@ function sph_kernel_grad(dp, h) {
 class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
-        this.grains = _.map(_.range(50), () => {
+        this.grains = _.map(_.range(150), () => {
             return new Grain();
         });
     	this.init();
@@ -84,10 +84,9 @@ class Client {
 
         this.grains_objects = _.map(this.grains, (grain) => {
             var ball = new THREE.Mesh(
-                new THREE.IcosahedronGeometry(0.03),
-        		new THREE.MeshBasicMaterial({
-        			color: '#ccf'
-    		}));
+                new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
+        		new THREE.MeshNormalMaterial()
+            );
             this.scene.add(ball);
             return ball;
         }, this);
@@ -132,10 +131,12 @@ class Client {
         var accel = new THREE.Vector3(0, 0, -1);
 
         // Global water config.
+        var reflection_coeff = 0.5; // Must be in (0, 1)
         var density_base = 1000.0;  // kg/m^3
         var h = 0.1;
         var mass_grain = 0.1 * 113 / 27;  // V_sphere(h) * density_base
         var cfm_epsilon = 1e-3;
+        var num_iter = 3;
 
         var grains = this.grains;
 
@@ -146,9 +147,22 @@ class Client {
             grain.position_new.add(accel.clone().multiplyScalar(0.5 * dt * dt));
         });
 
+        // Calculate closest neighbors.
+        var neighbors = _.map(grains, (grain, ix) => {
+            return _.filter(
+                _.map(grains, (grain_other, ix_other) => {
+                    if (grain.position_new.distanceTo(grain_other.position_new) < h) {
+                        return ix_other;
+                    } else {
+                        return null;
+                    }
+                }),
+                _.isNumber);
+        });
+
         var density = function(ix_target) {
-            return _.reduce(grains, (acc, grain) => {
-                var weight = sph_kernel(grains[ix_target].position_new.clone().sub(grain.position_new), h);
+            return _.reduce(neighbors[ix_target], (acc, ix_other) => {
+                var weight = sph_kernel(grains[ix_target].position_new.clone().sub(grains[ix_other].position_new), h);
                 return acc + weight * mass_grain;
             }, 0);
         };
@@ -169,15 +183,15 @@ class Client {
         };
 
         // Iteratively resolve collisions & fluid constraints.
-        _.each(_.range(3), () => {
+        _.each(_.range(num_iter), () => {
             var lambdas = _.map(grains, (grain, ix) => {
-                return -constraint(ix) / (_.reduce(grains, (acc, grain, ix_other) => {
+                return -constraint(ix) / (_.reduce(neighbors[ix], (acc, grain, ix_other) => {
                     return acc + grad_constraint(ix_other, ix).lengthSq();
                 }, 0) + cfm_epsilon);
             });
 
             _.each(grains, (grain, ix) => {
-                var delta_p = _.reduce(grains, (acc, grain_other, ix_other) => {
+                var delta_p = _.reduce(neighbors[ix], (acc, grain_other, ix_other) => {
                     return acc.add(
                         grad_constraint(ix_other, ix).multiplyScalar(
                             lambdas[ix] + lambdas[ix_other]));
@@ -187,17 +201,17 @@ class Client {
 
                 // Box collision.
                 if (grain.position_new.x < 0) {
-                    grain.position_new.x *= -0.5;
+                    grain.position_new.x *= -reflection_coeff;
                 } else if (grain.position_new.x > 1) {
-                    grain.position_new.x = 1 + (grain.position_new.x - 1) * -0.5;
+                    grain.position_new.x = 1 + (grain.position_new.x - 1) * -reflection_coeff;
                 }
                 if (grain.position_new.y < 0) {
-                    grain.position_new.y *= -0.5;
+                    grain.position_new.y *= -reflection_coeff;
                 } else if (grain.position_new.y > 1) {
-                    grain.position_new.y = 1 + (grain.position_new.y - 1) * -0.5;
+                    grain.position_new.y = 1 + (grain.position_new.y - 1) * -reflection_coeff;
                 }
                 if (grain.position_new.z < 0) {
-                    grain.position_new.z *= -0.5;
+                    grain.position_new.z *= -reflection_coeff;
                 }
             });
         });
