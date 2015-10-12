@@ -133,8 +133,8 @@ class Client {
 
         // Global water config.
         var density_base = 1000.0;  // kg/m^3
-        var h = 0.1;
-        var mass_grain = 113 / 27;  // V_sphere(h) * density_base
+        var h = 0.05;
+        var mass_grain = 113 / 27 / 8;  // V_sphere(h) * density_base
         var cfm_epsilon = 1e-3;
 
         var grains = this.grains;
@@ -169,7 +169,7 @@ class Client {
         };
 
         // Iteratively resolve collisions & fluid constraints.
-        _.each(_.range(1), () => {
+        _.each(_.range(3), () => {
             var lambdas = _.map(grains, (grain, ix) => {
                 return -constraint(ix) / (_.reduce(grains, (acc, grain, ix_other) => {
                     return acc + grad_constraint(ix_other, ix).lengthSq();
@@ -186,9 +186,19 @@ class Client {
                 grain.position_new.add(delta_p);
 
                 // Box collision.
-                grain.position_new.x = Math.min(Math.max(grain.position_new.x, 0), 1);
-                grain.position_new.y = Math.min(Math.max(grain.position_new.y, 0), 1);
-                grain.position_new.z = Math.max(grain.position_new.z, 0);
+                if (grain.position_new.x < 0) {
+                    grain.position_new.x *= -0.5;
+                } else if (grain.position_new.x > 1) {
+                    grain.position_new.x = 1 + (grain.position_new.x - 1) * -0.5;
+                }
+                if (grain.position_new.y < 0) {
+                    grain.position_new.y *= -0.5;
+                } else if (grain.position_new.y > 1) {
+                    grain.position_new.y = 1 + (grain.position_new.y - 1) * -0.5;
+                }
+                if (grain.position_new.z < 0) {
+                    grain.position_new.z *= -0.5;
+                }
             });
         });
 
