@@ -47,7 +47,7 @@ class Client {
 
     // return :: ()
     init() {
-    	this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.005, 15);
+    	this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.005, 18);
     	this.camera.up = new THREE.Vector3(0, 0, 1);
         this.camera.position.x = 0.3;
         this.camera.position.y = 0.3;
@@ -111,7 +111,7 @@ class Client {
         this.controls.noZoom = false;
 		this.controls.noPan = false;
         var _this = this;
-    	this.controls.maxDistance = 10;
+    	this.controls.maxDistance = 8;
     }
 
     /* UI Utils */
