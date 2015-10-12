@@ -6,6 +6,29 @@ class Grain {
         this.position = new THREE.Vector3(
             Math.random(), Math.random(), Math.random() * 0.3);
         this.velocity = new THREE.Vector3(0, 0, 0);
+
+        // Temporary buffer for calculating new position.
+        this.position_new = new THREE.Vector3();
+    }
+}
+
+// Poly6 kernel
+function sph_kernel(dp, h) {
+    var dp_sq = dp.lengthSq();
+    if (dp_sq < h * h) {
+        return Math.pow(h * h - dp_sq, 3) * (315 / 64 / Math.PI / Math.pow(h, 9));
+    } else {
+        return 0;
+    }
+}
+
+// Spiky kernel
+function sph_kernel_grad(dp, h) {
+    var dp_len = dp.length();
+    if (0 < dp_len && dp_len < h) {
+        return dp.clone().multiplyScalar(Math.pow(h - dp_len, 2) / dp_len);
+    } else {
+        return new THREE.Vector3(0, 0, 0);
     }
 }
 
@@ -16,7 +39,7 @@ class Grain {
 class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
-        this.grains = _.map(_.range(100), () => {
+        this.grains = _.map(_.range(50), () => {
             return new Grain();
         });
     	this.init();
@@ -49,7 +72,7 @@ class Client {
 
         this.grains_objects = _.map(this.grains, (grain) => {
             var ball = new THREE.Mesh(
-                new THREE.IcosahedronGeometry(0.01),
+                new THREE.IcosahedronGeometry(0.03),
         		new THREE.MeshBasicMaterial({
         			color: '#ccf'
     		}));
@@ -92,20 +115,75 @@ class Client {
 
     // Position-based dynamics.
     update_grains() {
+        // Global world config.
         var dt = 1/30;
-        var accel = new THREE.Vector3(0, 0, -0.01);
-        var new_pos = new THREE.Vector3();
-        _.each(this.grains, (grain) => {
-            new_pos.copy(grain.position);
-            new_pos.add(grain.velocity.clone().multiplyScalar(dt));
-            new_pos.add(accel.clone().multiplyScalar(0.5 * dt * dt));
+        var accel = new THREE.Vector3(0, 0, -0.3);
 
-            // Resolve collisions.
+        // Global water config.
+        var density_base = 1.0;
+        var mass_grain = 0.01;
+        var h = 0.3;
+        var cfm_epsilon = 1e-3;
 
-            // Update.
-            grain.velocity.copy(new_pos.clone().sub(grain.position).divideScalar(dt));
-            grain.position.copy(new_pos);
+        var grains = this.grains;
+
+        // Apply gravity & velocity.
+        _.each(grains, (grain) => {
+            grain.position_new.copy(grain.position);
+            grain.position_new.add(grain.velocity.clone().multiplyScalar(dt));
+            grain.position_new.add(accel.clone().multiplyScalar(0.5 * dt * dt));
         });
+
+        var density = function(ix_target) {
+            return _.reduce(grains, (acc, grain) => {
+                var weight = sph_kernel(grains[ix_target].position_new.clone().sub(grain.position_new), h);
+                return acc + weight * mass_grain;
+            }, 0);
+        };
+
+        var constraint = function(ix_target) {
+            return density(ix_target) / density_base - 1;
+        };
+
+        var grad_constraint = function(ix_deriv, ix_target) {
+            var result = new THREE.Vector3(0, 0, 0);
+            _.each(grains, (grain) => {
+                result.add(
+                    sph_kernel_grad(
+                        grains[ix_target].position_new.clone().sub(grain.position_new),
+                        h));
+            });
+            return result.divideScalar(density_base);
+        };
+
+        // Iteratively resolve collisions & fluid constraints.
+        _.each(_.range(3), () => {
+            var lambdas = _.map(grains, (grain, ix) => {
+                return -constraint(ix) / (_.reduce(grains, (acc, grain, ix_other) => {
+                    return acc + grad_constraint(ix_other, ix).lengthSq();
+                }, 0) + cfm_epsilon);
+            });
+
+            _.each(grains, (grain, ix) => {
+                var delta_p = _.reduce(grains, (acc, grain_other, ix_other) => {
+                    return acc.add(
+                        grad_constraint(ix_other, ix).multiplyScalar(
+                            lambdas[ix] + lambdas[ix_other]));
+                }, new THREE.Vector3(0, 0, 0));
+
+                grain.position_new.add(delta_p);
+
+                // Floor collision.
+                //grain.position_new.z = Math.max(grain.position_new.z, 0);
+            });
+        });
+
+        // Actually update velocity & position.
+        // position_new is destroyed after this.
+        _.each(this.grains, (grain) => {
+            grain.position.copy(grain.position_new);
+            grain.velocity.copy(grain.position_new.sub(grain.position).divideScalar(dt));
+        }, this);
     }
 
     apply_grains() {
