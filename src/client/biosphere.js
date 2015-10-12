@@ -133,8 +133,8 @@ class Client {
 
         // Global water config.
         var density_base = 1000.0;  // kg/m^3
-        var h = 0.05;
-        var mass_grain = 113 / 27 / 8;  // V_sphere(h) * density_base
+        var h = 0.1;
+        var mass_grain = 0.1 * 113 / 27;  // V_sphere(h) * density_base
         var cfm_epsilon = 1e-3;
 
         var grains = this.grains;
