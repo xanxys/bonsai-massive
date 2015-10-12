@@ -39,7 +39,7 @@ function sph_kernel_grad(dp, h) {
 class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
-        this.grains = _.map(_.range(150), () => {
+        this.grains = _.map(_.range(300), () => {
             return new Grain();
         });
     	this.init();
@@ -171,12 +171,21 @@ class Client {
             return density(ix_target) / density_base - 1;
         };
 
+        // == Derive[constraint(ix_target), pos(ix_deriv)]
         var grad_constraint = function(ix_deriv, ix_target) {
+            // What is this ix_deriv? In theory, the below if should have no effect.
+            // But it will explode the simulation.
+            // Something very fishy is going on...
+            /*
+            if (!_.contains(neighbors[ix_target], ix_deriv)) {
+                return new THREE.Vector3(0, 0, 0);
+            }
+            */
             var result = new THREE.Vector3(0, 0, 0);
-            _.each(grains, (grain) => {
+            _.each(neighbors[ix_target], (ix_other) => {
                 result.add(
                     sph_kernel_grad(
-                        grains[ix_target].position_new.clone().sub(grain.position_new),
+                        grains[ix_target].position_new.clone().sub(grains[ix_other].position_new),
                         h));
             });
             return result.divideScalar(density_base);
