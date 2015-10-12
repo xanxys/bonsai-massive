@@ -70,6 +70,18 @@ class Client {
     		}));
     	this.scene.add(bg);
 
+        var box = new THREE.Mesh(
+    		new THREE.CubeGeometry(1, 1, 2),
+    		new THREE.MeshBasicMaterial({
+    			wireframe: true,
+    			color: '#fcc'
+    		}));
+        box.position.x = 0.5;
+        box.position.y = 0.5;
+        box.position.z = 1;
+    	this.scene.add(box);
+
+
         this.grains_objects = _.map(this.grains, (grain) => {
             var ball = new THREE.Mesh(
                 new THREE.IcosahedronGeometry(0.03),
@@ -117,12 +129,12 @@ class Client {
     update_grains() {
         // Global world config.
         var dt = 1/30;
-        var accel = new THREE.Vector3(0, 0, -0.3);
+        var accel = new THREE.Vector3(0, 0, -1);
 
         // Global water config.
-        var density_base = 1.0;
-        var mass_grain = 0.01;
-        var h = 0.3;
+        var density_base = 1000.0;  // kg/m^3
+        var h = 0.1;
+        var mass_grain = 113 / 27;  // V_sphere(h) * density_base
         var cfm_epsilon = 1e-3;
 
         var grains = this.grains;
@@ -157,7 +169,7 @@ class Client {
         };
 
         // Iteratively resolve collisions & fluid constraints.
-        _.each(_.range(3), () => {
+        _.each(_.range(1), () => {
             var lambdas = _.map(grains, (grain, ix) => {
                 return -constraint(ix) / (_.reduce(grains, (acc, grain, ix_other) => {
                     return acc + grad_constraint(ix_other, ix).lengthSq();
@@ -173,16 +185,22 @@ class Client {
 
                 grain.position_new.add(delta_p);
 
-                // Floor collision.
-                //grain.position_new.z = Math.max(grain.position_new.z, 0);
+                // Box collision.
+                grain.position_new.x = Math.min(Math.max(grain.position_new.x, 0), 1);
+                grain.position_new.y = Math.min(Math.max(grain.position_new.y, 0), 1);
+                grain.position_new.z = Math.max(grain.position_new.z, 0);
             });
         });
 
         // Actually update velocity & position.
         // position_new is destroyed after this.
         _.each(this.grains, (grain) => {
+            grain.velocity
+                .copy(grain.position_new)
+                .sub(grain.position)
+                .divideScalar(dt);
+
             grain.position.copy(grain.position_new);
-            grain.velocity.copy(grain.position_new.sub(grain.position).divideScalar(dt));
         }, this);
     }
 
