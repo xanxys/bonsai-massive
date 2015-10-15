@@ -39,7 +39,7 @@ function sph_kernel_grad(dp, h) {
 class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
-        this.grains = _.map(_.range(300), () => {
+        this.grains = _.map(_.range(500), () => {
             return new Grain();
         });
     	this.init();
@@ -148,16 +148,47 @@ class Client {
         });
 
         // Calculate closest neighbors.
-        var neighbors = _.map(grains, (grain, ix) => {
-            return _.filter(
-                _.map(grains, (grain_other, ix_other) => {
-                    if (grain.position_new.distanceTo(grain_other.position_new) < h) {
-                        return ix_other;
-                    } else {
-                        return null;
+        var bins = new Map();
+        var pos_to_key = (position) => {
+            return Math.floor(position.x / h) + ":" + Math.floor(position.y / h) + ":" + Math.floor(position.z / h);
+        };
+        var pos_to_neighbor_keys = (position) => {
+            var ix = Math.floor(position.x / h);
+            var iy = Math.floor(position.y / h);
+            var iz = Math.floor(position.z / h);
+            var result = [];
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        result.push((ix + dx) + ":" + (iy + dy) + ":" + (iz + dz));
                     }
-                }),
-                _.isNumber);
+                }
+            }
+            return result;
+        };
+
+        _.each(grains, (grain, ix) => {
+            var key = pos_to_key(grain.position_new);
+            var val = {pos: grain.position_new, data: ix};
+            if (bins.has(key)) {
+                bins.get(key).push(val);
+            } else {
+                bins.set(key, [val]);
+            }
+        });
+        var neighbors = _.map(grains, (grain) => {
+            var ns = [];
+            _.each(pos_to_neighbor_keys(grain.position_new), (key) => {
+                if (!bins.has(key)) {
+                    return;
+                }
+                _.each(bins.get(key), (val) => {
+                    if (grain.position_new.distanceTo(val.pos) < h) {
+                        ns.push(val.data);
+                    }
+                });
+            });
+            return ns;
         });
 
         var density = function(ix_target) {
