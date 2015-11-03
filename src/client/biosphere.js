@@ -53,7 +53,7 @@ class Client {
         }, this);
         */
         _.each(_.range(300), () => {
-            this.grains.push(new Grain(true));
+            this.grains.push(new Grain(false));
         }, this);
     	this.init();
     }
@@ -257,42 +257,30 @@ class Client {
                     gradients: density_constraint_deriv(ix_target)
                 });
             } else {
-                _.reduce(neighbors[ix_target], (acc, ix_other) => {
-                    if (grains[ix_other].is_water) {
-                        // No water-sand interaction for now.
-                        return acc;
-                    } else {
-                        var dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
-                        var penetration = sand_radius * 2 - dp.length();
-                        return acc + Math.max(0, penetration);
+                // This will result in 2 same constraints per particle pair,
+                // but there's no problem (other than performance) for repeating
+                // same constraint.
+                _.each(neighbors[ix_target], (ix_other) => {
+                    if (ix_target === ix_other) {
+                        return; // no collision with self
                     }
-                }, 0);
-            }
-            return cs;
-        };
-
-        // == Derive[constraint(ix_target), pos(ix_deriv)]
-        var grad_constraint = function(ix_deriv, ix_target) {
-            console.assert(_.contains(neighbors[ix_target], ix_deriv));
-
-            if (grains[ix_deriv].is_water) {
-
-            } else {
-                var result = new THREE.Vector3(0, 0, 0);
-                _.each(neighbors[ix_target], (acc, ix_other) => {
                     if (grains[ix_other].is_water) {
-                        // No water-sand interaction for now.
-                        return;
+                        return; // No water-sand interaction for now.
                     }
                     var dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
                     var penetration = sand_radius * 2 - dp.length();
-                    if (penetration > 0) {
-
-                        result.add(dp);
+                    if (penetration <= 0) {
+                        return;  // not colliding
                     }
+                    var grads = new Map();
+                    grads.set(ix_other, dp);
+                    cs.push({
+                        constraint: Math.max(0, penetration),
+                        gradients: grads
+                    });
                 });
-                return result;
             }
+            return cs;
         };
 
         // Iteratively resolve collisions & constraints.
