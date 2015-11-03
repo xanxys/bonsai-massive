@@ -21,7 +21,7 @@ class Grain {
 
 // Poly6 kernel
 function sph_kernel(dp, h) {
-    var dp_sq = dp.lengthSq();
+    let dp_sq = dp.lengthSq();
     if (dp_sq < h * h) {
         return Math.pow(h * h - dp_sq, 3) * (315 / 64 / Math.PI / Math.pow(h, 9));
     } else {
@@ -31,7 +31,7 @@ function sph_kernel(dp, h) {
 
 // Spiky kernel
 function sph_kernel_grad(dp, h) {
-    var dp_len = dp.length();
+    let dp_len = dp.length();
     if (0 < dp_len && dp_len < h) {
         return dp.clone().multiplyScalar(Math.pow(h - dp_len, 2) / dp_len);
     } else {
@@ -69,13 +69,13 @@ class Client {
 
     	this.scene = new THREE.Scene();
 
-    	var sunlight = new THREE.DirectionalLight(0xcccccc);
+    	let sunlight = new THREE.DirectionalLight(0xcccccc);
     	sunlight.position.set(0, 0, 1).normalize();
     	this.scene.add(sunlight);
 
     	this.scene.add(new THREE.AmbientLight(0x333333));
 
-    	var bg = new THREE.Mesh(
+    	let bg = new THREE.Mesh(
     		new THREE.IcosahedronGeometry(8, 1),
     		new THREE.MeshBasicMaterial({
     			wireframe: true,
@@ -83,7 +83,7 @@ class Client {
     		}));
     	this.scene.add(bg);
 
-        var box = new THREE.Mesh(
+        let box = new THREE.Mesh(
     		new THREE.CubeGeometry(1, 1, 2),
     		new THREE.MeshBasicMaterial({
     			wireframe: true,
@@ -96,7 +96,7 @@ class Client {
 
 
         this.grains_objects = _.map(this.grains, (grain) => {
-            var ball = new THREE.Mesh(
+            let ball = new THREE.Mesh(
                 new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
                 new THREE.MeshNormalMaterial()
                 // grain.is_water ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
@@ -109,7 +109,7 @@ class Client {
     	// new, web worker API
     	// Selection
     	this.inspect_plant_id = null;
-    	var curr_selection = null;
+    	let curr_selection = null;
 
     	// start canvas
     	this.renderer = new THREE.WebGLRenderer({
@@ -123,14 +123,14 @@ class Client {
     	this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
         this.controls.noZoom = false;
 		this.controls.noPan = false;
-        var _this = this;
+        let _this = this;
     	this.controls.maxDistance = 8;
     }
 
     /* UI Utils */
     animate() {
     	// note: three.js includes requestAnimationFrame shim
-    	var _this = this;
+    	let _this = this;
     	requestAnimationFrame(function(){_this.animate();});
         this.controls.update();
         this.update_grains();
@@ -141,23 +141,23 @@ class Client {
     // Position-based dynamics.
     update_grains() {
         // Global world config.
-        var dt = 1/30;
-        var accel = new THREE.Vector3(0, 0, -1);
+        const dt = 1/30;
+        const accel = new THREE.Vector3(0, 0, -1);
 
         // Global simulation config.
-        var cfm_epsilon = 1e-3;
+        const cfm_epsilon = 1e-3;
 
         // Global water config.
-        var reflection_coeff = 0.5; // Must be in (0, 1)
-        var density_base = 1000.0;  // kg/m^3
-        var h = 0.1;
-        var mass_grain = 0.1 * 113 / 20;  // V_sphere(h) * density_base
-        var num_iter = 3;
+        const reflection_coeff = 0.5; // Must be in (0, 1)
+        const density_base = 1000.0;  // kg/m^3
+        const h = 0.1;
+        const mass_grain = 0.1 * 113 / 20;  // V_sphere(h) * density_base
+        const num_iter = 3;
 
         // Sand config.
-        var sand_radius = 0.04;
+        const sand_radius = 0.04;
 
-        var grains = this.grains;
+        let grains = this.grains;
 
         // Apply gravity & velocity.
         _.each(grains, (grain) => {
@@ -167,15 +167,15 @@ class Client {
         });
 
         // Calculate closest neighbors.
-        var bins = new Map();
-        var pos_to_key = (position) => {
+        let bins = new Map();
+        let pos_to_key = (position) => {
             return Math.floor(position.x / h) + ":" + Math.floor(position.y / h) + ":" + Math.floor(position.z / h);
         };
-        var pos_to_neighbor_keys = (position) => {
-            var ix = Math.floor(position.x / h);
-            var iy = Math.floor(position.y / h);
-            var iz = Math.floor(position.z / h);
-            var result = [];
+        let pos_to_neighbor_keys = (position) => {
+            const ix = Math.floor(position.x / h);
+            const iy = Math.floor(position.y / h);
+            const iz = Math.floor(position.z / h);
+            let result = [];
             for (let dx = -1; dx <= 1; dx++) {
                 for (let dy = -1; dy <= 1; dy++) {
                     for (let dz = -1; dz <= 1; dz++) {
@@ -187,16 +187,16 @@ class Client {
         };
 
         _.each(grains, (grain, ix) => {
-            var key = pos_to_key(grain.position_new);
-            var val = {pos: grain.position_new, data: ix};
+            let key = pos_to_key(grain.position_new);
+            let val = {pos: grain.position_new, data: ix};
             if (bins.has(key)) {
                 bins.get(key).push(val);
             } else {
                 bins.set(key, [val]);
             }
         });
-        var neighbors = _.map(grains, (grain) => {
-            var ns = [];
+        let neighbors = _.map(grains, (grain) => {
+            let ns = [];
             _.each(pos_to_neighbor_keys(grain.position_new), (key) => {
                 if (!bins.has(key)) {
                     return;
@@ -210,14 +210,14 @@ class Client {
             return ns;
         });
 
-        var density = function(ix_target) {
+        let density = function(ix_target) {
             return _.reduce(neighbors[ix_target], (acc, ix_other) => {
-                var weight = sph_kernel(grains[ix_target].position_new.clone().sub(grains[ix_other].position_new), h);
+                let weight = sph_kernel(grains[ix_target].position_new.clone().sub(grains[ix_other].position_new), h);
                 return acc + weight * mass_grain;
             }, 0);
         };
 
-        var density_constraint_deriv = function(ix_target) {
+        let density_constraint_deriv = function(ix_target) {
             return _.reduce(neighbors[ix_target], (m, ix_deriv) => {
                 return m.set(ix_deriv,
                     _.reduce(neighbors[ix_target], (acc, ix_other) => {
@@ -249,8 +249,8 @@ class Client {
         // Result can be empty when there's no active constraint for given
         // particle.
         // gradient(ix) == Deriv[constraint, pos[ix]]
-        var constraints_with_deriv = function(ix_target) {
-            var cs = [];
+        let constraints_with_deriv = function(ix_target) {
+            let cs = [];
             if (grains[ix_target].is_water) {
                 cs.push({
                     constraint: density(ix_target) / density_base - 1,
@@ -267,12 +267,12 @@ class Client {
                     if (grains[ix_other].is_water) {
                         return; // No water-sand interaction for now.
                     }
-                    var dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
-                    var penetration = sand_radius * 2 - dp.length();
+                    let dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
+                    let penetration = sand_radius * 2 - dp.length();
                     if (penetration <= 0) {
                         return;  // not colliding
                     }
-                    var grads = new Map();
+                    let grads = new Map();
                     grads.set(ix_other, dp);
                     cs.push({
                         constraint: Math.max(0, penetration),
@@ -287,7 +287,7 @@ class Client {
         _.each(_.range(num_iter), () => {
             _.each(grains, (grain, ix) => {
                 _.each(constraints_with_deriv(ix), (constraint) => {
-                    var scale = - constraint.constraint / _.reduce(constraint.gradients.values(), (acc, grad) => {
+                    let scale = - constraint.constraint / _.reduce(constraint.gradients.values(), (acc, grad) => {
                         return acc + grad.lengthSq();
                     }, cfm_epsilon);
 
