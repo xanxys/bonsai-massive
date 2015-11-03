@@ -9,7 +9,7 @@ class Grain {
                 Math.random(), Math.random(), Math.random() * 0.3 + 0.3);
         } else {
             this.position = new THREE.Vector3(
-                Math.random() * 0.5 + 0.5, Math.random(), Math.random() * 0.3);
+                Math.random() * 0.3 + 0.2, Math.random() * 0.3 + 0.2, Math.random() * 3);
         }
 
         this.velocity = new THREE.Vector3(0, 0, 0);
@@ -56,11 +56,13 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         // Water
+        /*
         _.each(_.range(500), () => {
             this.grains.push(new Grain(true));
         }, this);
+        */
         // Sand
-        _.each(_.range(300), () => {
+        _.each(_.range(50), () => {
             this.grains.push(new Grain(false));
         }, this);
     	this.init();
