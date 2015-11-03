@@ -3,7 +3,7 @@
 // Experimental grain interaction
 class Grain {
     constructor(is_water) {
-        this.is_water = is_water;
+        this.type_is_water = is_water;
         if (is_water) {
             this.position = new THREE.Vector3(
                 Math.random(), Math.random(), Math.random() * 0.3 + 0.3);
@@ -16,6 +16,14 @@ class Grain {
 
         // Temporary buffer for calculating new position.
         this.position_new = new THREE.Vector3();
+    }
+
+    is_water() {
+        return this.type_is_water;
+    }
+
+    is_sand() {
+        return !this.type_is_water;
     }
 }
 
@@ -47,11 +55,11 @@ class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
         this.grains = [];
-        /*
+        // Water
         _.each(_.range(500), () => {
             this.grains.push(new Grain(true));
         }, this);
-        */
+        // Sand
         _.each(_.range(300), () => {
             this.grains.push(new Grain(false));
         }, this);
@@ -98,8 +106,8 @@ class Client {
         this.grains_objects = _.map(this.grains, (grain) => {
             let ball = new THREE.Mesh(
                 new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
-                new THREE.MeshNormalMaterial()
-                // grain.is_water ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
+                //new THREE.MeshNormalMaterial()
+                grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
             );
             this.scene.add(ball);
             return ball;
@@ -213,6 +221,9 @@ class Client {
 
         let density = function(ix_target) {
             return _.reduce(neighbors[ix_target], (acc, ix_other) => {
+                if (!grains[ix_other].is_water()) {
+                    return acc;
+                }
                 let weight = sph_kernel(grains[ix_target].position_new.clone().sub(grains[ix_other].position_new), h);
                 return acc + weight * mass_grain;
             }, 0);
@@ -220,6 +231,9 @@ class Client {
 
         let density_constraint_deriv = function(ix_target) {
             return _.reduce(neighbors[ix_target], (m, ix_deriv) => {
+                if (!grains[ix_deriv].is_water()) {
+                    return m;
+                }
                 return m.set(ix_deriv,
                     _.reduce(neighbors[ix_target], (acc, ix_other) => {
                         if (ix_other === ix_target) {
@@ -252,12 +266,13 @@ class Client {
         // gradient(ix) == Deriv[constraint, pos[ix]]
         let constraints_with_deriv = function(ix_target) {
             let cs = [];
-            if (grains[ix_target].is_water) {
+            if (grains[ix_target].is_water()) {
                 cs.push({
                     constraint: density(ix_target) / density_base - 1,
                     gradients: density_constraint_deriv(ix_target)
                 });
-            } else {
+            }
+            if (grains[ix_target].is_sand()) {
                 // This will result in 2 same constraints per particle pair,
                 // but there's no problem (other than performance) for repeating
                 // same constraint.
@@ -265,8 +280,8 @@ class Client {
                     if (ix_target === ix_other) {
                         return; // no collision with self
                     }
-                    if (grains[ix_other].is_water) {
-                        return; // No water-sand interaction for now.
+                    if (!grains[ix_other].is_sand()) {
+                        return; // No sand-other interaction for now.
                     }
                     let dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
                     let penetration = sand_radius * 2 - dp.length();
