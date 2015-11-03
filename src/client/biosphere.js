@@ -62,7 +62,7 @@ class Client {
         }, this);
         */
         // Sand
-        _.each(_.range(50), () => {
+        _.each(_.range(300), () => {
             this.grains.push(new Grain(false));
         }, this);
     	this.init();
@@ -167,6 +167,7 @@ class Client {
         // Sand config.
         const sand_radius = 0.04;
         const sand_stiffness = 1e-3;
+        const dyn_friction = 0.5; // must be in [0, 1)
 
         let grains = this.grains;
 
@@ -287,17 +288,35 @@ class Client {
                     }
                     let dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
                     let penetration = sand_radius * 2 - dp.length();
-                    if (penetration <= 0) {
-                        return;  // not colliding
+                    if (penetration > 0) {
+                        // Collision (no penetration) constraint.
+                        dp.normalize();
+                        let grads = new Map();
+                        grads.set(ix_other, dp.clone().multiplyScalar(sand_stiffness));
+                        grads.set(ix_target, dp.clone().multiplyScalar(-sand_stiffness));
+                        cs.push({
+                            constraint: penetration,
+                            gradients: grads
+                        });
+
+                        // Tangential friction constraint.
+                        let dv = grains[ix_target].position_new.clone().sub(grains[ix_target].position).sub(
+                            grains[ix_other].position_new.clone().sub(grains[ix_other].position));
+                        let d_tangent = dv.clone().projectOnPlane(dp).normalize();
+
+                        // Both max static friction & dynamic friction are proportional to
+                        // force along normal (collision).
+                        if (dv.length() > 0) {
+                            let sand_fric = dyn_friction * sand_stiffness;
+                            let grads_t = new Map();
+                            grads_t.set(ix_other, d_tangent.clone().multiplyScalar(-sand_fric));
+                            grads_t.set(ix_target, d_tangent.clone().multiplyScalar(sand_fric));
+                            cs.push({
+                                constraint: dv.length(),
+                                gradients: grads_t
+                            });
+                        }
                     }
-                    dp.normalize().multiplyScalar(sand_stiffness);
-                    let grads = new Map();
-                    grads.set(ix_other, dp);
-                    grads.set(ix_target, dp.clone().multiplyScalar(-1));
-                    cs.push({
-                        constraint: penetration,
-                        gradients: grads
-                    });
                 });
             }
             return cs;
