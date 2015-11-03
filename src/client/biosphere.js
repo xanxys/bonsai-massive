@@ -217,15 +217,47 @@ class Client {
             }, 0);
         };
 
-        // There can be multiple (or zero) constraints per particle, or
-        // they can be created totally independent of each particle (e.g. sum of
-        // all particles must satisfy something), but for now, there is
-        // 1 constraint / particle.
-        var constraint = function(ix_target) {
+        var density_constraint_deriv = function(ix_target) {
+            return _.reduce(neighbors[ix_target], (m, ix_deriv) => {
+                return m.set(ix_deriv,
+                    _.reduce(neighbors[ix_target], (acc, ix_other) => {
+                        if (ix_other === ix_target) {
+                            return acc;
+                        }
+                        if (ix_deriv === ix_other) {
+                            return acc.add(
+                                sph_kernel_grad(
+                                    grains[ix_other].position_new.clone().sub(grains[ix_target].position_new),
+                                    h));
+                        } else if (ix_deriv === ix_target) {
+                            return acc.add(
+                                sph_kernel_grad(
+                                    grains[ix_target].position_new.clone().sub(grains[ix_other].position_new),
+                                    h));
+                        } else {
+                            return acc;
+                        }
+                    }, new THREE.Vector3(0, 0, 0)).divideScalar(density_base * -1));
+            }, new Map());
+        };
+
+        // :: [{
+        //    constraint: number,
+        //    gradient: Map Index Vector3
+        // }]
+        // Typically, gradient contains ix_target.
+        // Result can be empty when there's no active constraint for given
+        // particle.
+        // gradient(ix) == Deriv[constraint, pos[ix]]
+        var constraints_with_deriv = function(ix_target) {
+            var cs = [];
             if (grains[ix_target].is_water) {
-                return density(ix_target) / density_base - 1;
+                cs.push({
+                    constraint: density(ix_target) / density_base - 1,
+                    gradients: density_constraint_deriv(ix_target)
+                });
             } else {
-                return _.reduce(neighbors[ix_target], (acc, ix_other) => {
+                _.reduce(neighbors[ix_target], (acc, ix_other) => {
                     if (grains[ix_other].is_water) {
                         // No water-sand interaction for now.
                         return acc;
@@ -236,6 +268,7 @@ class Client {
                     }
                 }, 0);
             }
+            return cs;
         };
 
         // == Derive[constraint(ix_target), pos(ix_deriv)]
@@ -243,25 +276,7 @@ class Client {
             console.assert(_.contains(neighbors[ix_target], ix_deriv));
 
             if (grains[ix_deriv].is_water) {
-                var result = _.reduce(neighbors[ix_target], (acc, ix_other) => {
-                    if (ix_other === ix_target) {
-                        return acc;
-                    }
-                    if (ix_deriv === ix_other) {
-                        return acc.add(
-                            sph_kernel_grad(
-                                grains[ix_other].position_new.clone().sub(grains[ix_target].position_new),
-                                h));
-                    } else if (ix_deriv === ix_target) {
-                        return acc.add(
-                            sph_kernel_grad(
-                                grains[ix_target].position_new.clone().sub(grains[ix_other].position_new),
-                                h));
-                    } else {
-                        return acc;
-                    }
-                }, new THREE.Vector3(0, 0, 0));
-                return result.divideScalar(density_base * -1);
+
             } else {
                 var result = new THREE.Vector3(0, 0, 0);
                 _.each(neighbors[ix_target], (acc, ix_other) => {
@@ -282,22 +297,16 @@ class Client {
 
         // Iteratively resolve collisions & constraints.
         _.each(_.range(num_iter), () => {
-            // This loop is actually over constraints, not particles.
-            // It's a conincidence that #grains == #constraints.
             _.each(grains, (grain, ix) => {
-                var c = constraint(ix);
-                var gs = _.map(neighbors[ix], (other_ix) => {
-                    return grad_constraint(other_ix, ix);
-                });
-                var scale = - c / _.reduce(gs, (acc, grad) => {
-                    return acc + grad.lengthSq();
-                }, cfm_epsilon);
+                _.each(constraints_with_deriv(ix), (constraint) => {
+                    var scale = - constraint.constraint / _.reduce(constraint.gradients.values(), (acc, grad) => {
+                        return acc + grad.lengthSq();
+                    }, cfm_epsilon);
 
-                _.each(_.zip(gs, neighbors[ix]), (args) => {
-                    var grad = args[0];
-                    var ix_feedback = args[1];
-                    grains[ix_feedback].position_new.add(
-                        grad.multiplyScalar(scale));
+                    constraint.gradients.forEach((grad, ix_feedback) => {
+                        grains[ix_feedback].position_new.add(
+                            grad.multiplyScalar(scale));
+                    });
                 });
             });
 
