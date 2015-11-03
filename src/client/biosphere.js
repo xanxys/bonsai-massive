@@ -9,7 +9,7 @@ class Grain {
                 Math.random(), Math.random(), Math.random() * 0.3 + 0.3);
         } else {
             this.position = new THREE.Vector3(
-                Math.random() * 0.3 + 0.2, Math.random() * 0.3 + 0.2, Math.random() * 3);
+                Math.random() * 0.3, Math.random() * 0.3, Math.random() * 3);
         }
 
         this.velocity = new THREE.Vector3(0, 0, 0);
@@ -62,7 +62,7 @@ class Client {
         }, this);
         */
         // Sand
-        _.each(_.range(300), () => {
+        _.each(_.range(100), () => {
             this.grains.push(new Grain(false));
         }, this);
     	this.init();
@@ -166,7 +166,7 @@ class Client {
 
         // Sand config.
         const sand_radius = 0.04;
-        const sand_stiffness = 1e-3;
+        const sand_stiffness = 2e-2;
         const friction_static = 0.5; // must be in [0, 1)
         const friction_dynamic = 0.3; // must be in [0, friction_static)
 
@@ -291,29 +291,39 @@ class Client {
                     let penetration = sand_radius * 2 - dp.length();
                     if (penetration > 0) {
                         // Collision (no penetration) constraint.
+                        var f_normal = penetration * sand_stiffness;
                         dp.normalize();
                         let grads = new Map();
                         grads.set(ix_other, dp.clone().multiplyScalar(sand_stiffness));
                         grads.set(ix_target, dp.clone().multiplyScalar(-sand_stiffness));
                         cs.push({
-                            constraint: penetration,
+                            constraint: f_normal,
                             gradients: grads
                         });
 
                         // Tangential friction constraint.
                         let dv = grains[ix_target].position_new.clone().sub(grains[ix_target].position).sub(
                             grains[ix_other].position_new.clone().sub(grains[ix_other].position));
-                        let d_tangent = dv.clone().projectOnPlane(dp).normalize();
+                        let dir_tangent = dv.clone().projectOnPlane(dp).normalize();
 
                         // Both max static friction & dynamic friction are proportional to
                         // force along normal (collision).
                         if (dv.length() > 0) {
-                            let sand_fric = friction_static * sand_stiffness;
                             let grads_t = new Map();
-                            grads_t.set(ix_other, d_tangent.clone().multiplyScalar(-sand_fric));
-                            grads_t.set(ix_target, d_tangent.clone().multiplyScalar(sand_fric));
+                            let f_tangent = dv.length();
+                            if (f_tangent < f_normal * friction_static) {
+                                // Static friction.
+                                grads_t.set(ix_other, dir_tangent.clone().multiplyScalar(-f_tangent));
+                                grads_t.set(ix_target, dir_tangent.clone().multiplyScalar(f_tangent));
+                            } else {
+                                // Dynamic friction.
+                                f_tangent = f_normal * friction_dynamic;
+                                console.assert(f_tangent < dv.length());
+                                grads_t.set(ix_other, dir_tangent.clone().multiplyScalar(-f_tangent));
+                                grads_t.set(ix_target, dir_tangent.clone().multiplyScalar(f_tangent));
+                            }
                             cs.push({
-                                constraint: dv.length(),
+                                constraint: f_tangent,
                                 gradients: grads_t
                             });
                         }
