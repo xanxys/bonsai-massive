@@ -2,9 +2,16 @@
 
 // Experimental grain interaction
 class Grain {
-    constructor() {
-        this.position = new THREE.Vector3(
-            Math.random(), Math.random(), Math.random() * 0.3);
+    constructor(is_water) {
+        this.is_water = is_water;
+        if (is_water) {
+            this.position = new THREE.Vector3(
+                Math.random(), Math.random(), Math.random() * 0.3 + 0.3);
+        } else {
+            this.position = new THREE.Vector3(
+                Math.random() * 0.5 + 0.5, Math.random(), Math.random() * 0.3);
+        }
+
         this.velocity = new THREE.Vector3(0, 0, 0);
 
         // Temporary buffer for calculating new position.
@@ -39,9 +46,15 @@ function sph_kernel_grad(dp, h) {
 class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
-        this.grains = _.map(_.range(500), () => {
-            return new Grain();
-        });
+        this.grains = [];
+        /*
+        _.each(_.range(500), () => {
+            this.grains.push(new Grain(true));
+        }, this);
+        */
+        _.each(_.range(300), () => {
+            this.grains.push(new Grain(true));
+        }, this);
     	this.init();
     }
 
@@ -85,7 +98,8 @@ class Client {
         this.grains_objects = _.map(this.grains, (grain) => {
             var ball = new THREE.Mesh(
                 new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
-        		new THREE.MeshNormalMaterial()
+                new THREE.MeshNormalMaterial()
+                // grain.is_water ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
             );
             this.scene.add(ball);
             return ball;
@@ -130,13 +144,18 @@ class Client {
         var dt = 1/30;
         var accel = new THREE.Vector3(0, 0, -1);
 
+        // Global simulation config.
+        var cfm_epsilon = 1e-3;
+
         // Global water config.
         var reflection_coeff = 0.5; // Must be in (0, 1)
         var density_base = 1000.0;  // kg/m^3
         var h = 0.1;
-        var mass_grain = 0.1 * 113 / 27;  // V_sphere(h) * density_base
-        var cfm_epsilon = 1e-3;
+        var mass_grain = 0.1 * 113 / 20;  // V_sphere(h) * density_base
         var num_iter = 3;
+
+        // Sand config.
+        var sand_radius = 0.04;
 
         var grains = this.grains;
 
@@ -198,48 +217,92 @@ class Client {
             }, 0);
         };
 
+        // There can be multiple (or zero) constraints per particle, or
+        // they can be created totally independent of each particle (e.g. sum of
+        // all particles must satisfy something), but for now, there is
+        // 1 constraint / particle.
         var constraint = function(ix_target) {
-            return density(ix_target) / density_base - 1;
+            if (grains[ix_target].is_water) {
+                return density(ix_target) / density_base - 1;
+            } else {
+                return _.reduce(neighbors[ix_target], (acc, ix_other) => {
+                    if (grains[ix_other].is_water) {
+                        // No water-sand interaction for now.
+                        return acc;
+                    } else {
+                        var dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
+                        var penetration = sand_radius * 2 - dp.length();
+                        return acc + Math.max(0, penetration);
+                    }
+                }, 0);
+            }
         };
 
         // == Derive[constraint(ix_target), pos(ix_deriv)]
         var grad_constraint = function(ix_deriv, ix_target) {
-            // What is this ix_deriv? In theory, the below if should have no effect.
-            // But it will explode the simulation.
-            // Something very fishy is going on...
-            /*
-            if (!_.contains(neighbors[ix_target], ix_deriv)) {
-                return new THREE.Vector3(0, 0, 0);
+            console.assert(_.contains(neighbors[ix_target], ix_deriv));
+
+            if (grains[ix_deriv].is_water) {
+                var result = _.reduce(neighbors[ix_target], (acc, ix_other) => {
+                    if (ix_other === ix_target) {
+                        return acc;
+                    }
+                    if (ix_deriv === ix_other) {
+                        return acc.add(
+                            sph_kernel_grad(
+                                grains[ix_other].position_new.clone().sub(grains[ix_target].position_new),
+                                h));
+                    } else if (ix_deriv === ix_target) {
+                        return acc.add(
+                            sph_kernel_grad(
+                                grains[ix_target].position_new.clone().sub(grains[ix_other].position_new),
+                                h));
+                    } else {
+                        return acc;
+                    }
+                }, new THREE.Vector3(0, 0, 0));
+                return result.divideScalar(density_base * -1);
+            } else {
+                var result = new THREE.Vector3(0, 0, 0);
+                _.each(neighbors[ix_target], (acc, ix_other) => {
+                    if (grains[ix_other].is_water) {
+                        // No water-sand interaction for now.
+                        return;
+                    }
+                    var dp = grains[ix_target].position_new.clone().sub(grains[ix_other].position_new);
+                    var penetration = sand_radius * 2 - dp.length();
+                    if (penetration > 0) {
+
+                        result.add(dp);
+                    }
+                });
+                return result;
             }
-            */
-            var result = new THREE.Vector3(0, 0, 0);
-            _.each(neighbors[ix_target], (ix_other) => {
-                result.add(
-                    sph_kernel_grad(
-                        grains[ix_target].position_new.clone().sub(grains[ix_other].position_new),
-                        h));
-            });
-            return result.divideScalar(density_base);
         };
 
-        // Iteratively resolve collisions & fluid constraints.
+        // Iteratively resolve collisions & constraints.
         _.each(_.range(num_iter), () => {
-            var lambdas = _.map(grains, (grain, ix) => {
-                return -constraint(ix) / (_.reduce(neighbors[ix], (acc, grain, ix_other) => {
-                    return acc + grad_constraint(ix_other, ix).lengthSq();
-                }, 0) + cfm_epsilon);
+            // This loop is actually over constraints, not particles.
+            // It's a conincidence that #grains == #constraints.
+            _.each(grains, (grain, ix) => {
+                var c = constraint(ix);
+                var gs = _.map(neighbors[ix], (other_ix) => {
+                    return grad_constraint(other_ix, ix);
+                });
+                var scale = - c / _.reduce(gs, (acc, grad) => {
+                    return acc + grad.lengthSq();
+                }, cfm_epsilon);
+
+                _.each(_.zip(gs, neighbors[ix]), (args) => {
+                    var grad = args[0];
+                    var ix_feedback = args[1];
+                    grains[ix_feedback].position_new.add(
+                        grad.multiplyScalar(scale));
+                });
             });
 
+            // Box collision.
             _.each(grains, (grain, ix) => {
-                var delta_p = _.reduce(neighbors[ix], (acc, grain_other, ix_other) => {
-                    return acc.add(
-                        grad_constraint(ix_other, ix).multiplyScalar(
-                            lambdas[ix] + lambdas[ix_other]));
-                }, new THREE.Vector3(0, 0, 0));
-
-                grain.position_new.add(delta_p);
-
-                // Box collision.
                 if (grain.position_new.x < 0) {
                     grain.position_new.x *= -reflection_coeff;
                 } else if (grain.position_new.x > 1) {
