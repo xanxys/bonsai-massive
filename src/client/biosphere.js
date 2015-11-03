@@ -108,8 +108,8 @@ class Client {
         this.grains_objects = _.map(this.grains, (grain) => {
             let ball = new THREE.Mesh(
                 new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
-                //new THREE.MeshNormalMaterial()
-                grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
+                new THREE.MeshNormalMaterial()
+                //grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
             );
             this.scene.add(ball);
             return ball;
@@ -167,7 +167,8 @@ class Client {
         // Sand config.
         const sand_radius = 0.04;
         const sand_stiffness = 1e-3;
-        const dyn_friction = 0.5; // must be in [0, 1)
+        const friction_static = 0.5; // must be in [0, 1)
+        const friction_dynamic = 0.3; // must be in [0, friction_static)
 
         let grains = this.grains;
 
@@ -307,7 +308,7 @@ class Client {
                         // Both max static friction & dynamic friction are proportional to
                         // force along normal (collision).
                         if (dv.length() > 0) {
-                            let sand_fric = dyn_friction * sand_stiffness;
+                            let sand_fric = friction_static * sand_stiffness;
                             let grads_t = new Map();
                             grads_t.set(ix_other, d_tangent.clone().multiplyScalar(-sand_fric));
                             grads_t.set(ix_target, d_tangent.clone().multiplyScalar(sand_fric));
