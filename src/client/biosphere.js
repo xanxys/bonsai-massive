@@ -156,6 +156,7 @@ class Client {
 
         // Sand config.
         const sand_radius = 0.04;
+        const sand_stiffness = 1e-3;
 
         let grains = this.grains;
 
@@ -272,10 +273,12 @@ class Client {
                     if (penetration <= 0) {
                         return;  // not colliding
                     }
+                    dp.normalize().multiplyScalar(sand_stiffness);
                     let grads = new Map();
                     grads.set(ix_other, dp);
+                    grads.set(ix_target, dp.clone().multiplyScalar(-1));
                     cs.push({
-                        constraint: Math.max(0, penetration),
+                        constraint: penetration,
                         gradients: grads
                     });
                 });
