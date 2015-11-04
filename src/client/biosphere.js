@@ -56,11 +56,11 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         // Water
-        _.each(_.range(500), () => {
+        _.each(_.range(0), () => {
             this.grains.push(new Grain(true));
         }, this);
         // Sand
-        _.each(_.range(0), () => {
+        _.each(_.range(30), () => {
             this.grains.push(new Grain(false));
         }, this);
     	this.init();
@@ -153,11 +153,12 @@ class Client {
         const accel = new THREE.Vector3(0, 0, -1);
 
         // Global simulation config.
-        const floor_damping = 5.0;
+        const floor_static = 0.7;
+        const floor_dynamic = 0.5;
         const cfm_epsilon = 1e-3;
 
         // Global water config.
-        const reflection_coeff = 0.5; // Must be in (0, 1)
+        const reflection_coeff = 0.3; // Must be in (0, 1)
         const density_base = 1000.0;  // kg/m^3
         const h = 0.1;
         const mass_grain = 0.1 * 113 / 20;  // V_sphere(h) * density_base
@@ -362,9 +363,17 @@ class Client {
                 if (grain.position_new.z < 0) {
                     let dz = -grain.position_new.z * (1 + reflection_coeff);
                     grain.position_new.z += dz;
-                    // Ad hoc friction.
-                    grain.position_new.x = grain.position.x + (grain.position_new.x - grain.position.x) * Math.exp(-floor_damping * dt);
-                    grain.position_new.y = grain.position.y + (grain.position_new.y - grain.position.y) * Math.exp(-floor_damping * dt);
+
+                    let dxy = grain.position_new.clone().sub(grain.position).projectOnPlane(new THREE.Vector3(0, 0, 1));
+                    if (dxy.length() < dz * floor_static) {
+                        // Static friction.
+                        grain.position_new.x = grain.position.x;
+                        grain.position_new.y = grain.position.y;
+                    } else {
+                        // Dynamic friction.
+                        let dxy_capped = Math.min(dxy.length(), dz * floor_dynamic);
+                        grain.position_new.sub(dxy.normalize().multiplyScalar(dxy_capped));
+                    }
                 }
             });
         });
