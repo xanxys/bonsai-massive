@@ -56,13 +56,11 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         // Water
-        /*
         _.each(_.range(500), () => {
             this.grains.push(new Grain(true));
         }, this);
-        */
         // Sand
-        _.each(_.range(100), () => {
+        _.each(_.range(0), () => {
             this.grains.push(new Grain(false));
         }, this);
     	this.init();
@@ -155,6 +153,7 @@ class Client {
         const accel = new THREE.Vector3(0, 0, -1);
 
         // Global simulation config.
+        const floor_damping = 5.0;
         const cfm_epsilon = 1e-3;
 
         // Global water config.
@@ -348,7 +347,7 @@ class Client {
                 });
             });
 
-            // Box collision.
+            // Box collision & floor friction.
             _.each(grains, (grain, ix) => {
                 if (grain.position_new.x < 0) {
                     grain.position_new.x *= -reflection_coeff;
@@ -361,7 +360,11 @@ class Client {
                     grain.position_new.y = 1 + (grain.position_new.y - 1) * -reflection_coeff;
                 }
                 if (grain.position_new.z < 0) {
-                    grain.position_new.z *= -reflection_coeff;
+                    let dz = -grain.position_new.z * (1 + reflection_coeff);
+                    grain.position_new.z += dz;
+                    // Ad hoc friction.
+                    grain.position_new.x = grain.position.x + (grain.position_new.x - grain.position.x) * Math.exp(-floor_damping * dt);
+                    grain.position_new.y = grain.position.y + (grain.position_new.y - grain.position.y) * Math.exp(-floor_damping * dt);
                 }
             });
         });
