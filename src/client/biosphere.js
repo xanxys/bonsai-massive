@@ -2,19 +2,23 @@
 
 // Experimental grain interaction
 class Grain {
-    constructor(is_water) {
+    constructor(is_water, pos) {
         this.type_is_water = is_water;
         if (is_water) {
             this.position = new THREE.Vector3(
                 Math.random(), Math.random(), Math.random() * 0.3 + 0.3);
         } else {
-            this.position = new THREE.Vector3(
-                Math.random() * 0.3, Math.random() * 0.3, Math.random() * 3);
+            if (pos !== undefined) {
+                this.position = pos.clone();
+            } else {
+                this.position = new THREE.Vector3(
+                    0.1 + Math.random() * 0.1, Math.random() * 0.1 + 0.1, 1.0);
+            }
         }
 
         this.velocity = new THREE.Vector3(0, 0, 0);
 
-        // Temporary buffer for calculating new position.
+        // Temporary buffer for calculating new position.this.grains.push(new Grain(false, new THREE.Vector3(0.1, 0.1, 1.0)));
         this.position_new = new THREE.Vector3();
     }
 
@@ -60,9 +64,7 @@ class Client {
             this.grains.push(new Grain(true));
         }, this);
         // Sand
-        _.each(_.range(30), () => {
-            this.grains.push(new Grain(false));
-        }, this);
+        this.count = 1000;
     	this.init();
     }
 
@@ -70,8 +72,8 @@ class Client {
     init() {
     	this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.005, 18);
     	this.camera.up = new THREE.Vector3(0, 0, 1);
-        this.camera.position.x = 0.3;
-        this.camera.position.y = 0.3;
+        this.camera.position.x = 1.5;
+        this.camera.position.y = 2.0;
         this.camera.position.z = 0.4;
     	this.camera.lookAt(new THREE.Vector3(0, 0, 0));
 
@@ -102,17 +104,7 @@ class Client {
         box.position.z = 1;
     	this.scene.add(box);
 
-
-        this.grains_objects = _.map(this.grains, (grain) => {
-            let ball = new THREE.Mesh(
-                new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
-                new THREE.MeshNormalMaterial()
-                //grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
-            );
-            this.scene.add(ball);
-            return ball;
-        }, this);
-        this.apply_grains();
+        this.grains_objects = [];
 
     	// new, web worker API
     	// Selection
@@ -170,6 +162,20 @@ class Client {
         const friction_static = 0.5; // must be in [0, 1)
         const friction_dynamic = 0.3; // must be in [0, friction_static)
 
+        if (this.count > 0) {
+            if (this.count % 4 === 0) {
+                const init = [
+                    new THREE.Vector3(0.1, 0.1, 1.0),
+                    new THREE.Vector3(0.1, 0.2, 1.0),
+                    new THREE.Vector3(0.2, 0.1, 1.0),
+                    new THREE.Vector3(0.2, 0.2, 1.0)
+                ];
+                const phase = Math.floor(this.count / 4) % init.length;
+                var p = init[phase].clone().add(new THREE.Vector3(Math.random() * 0.01, Math.random() * 0.01, 0));
+                this.grains.push(new Grain(false, p));
+            }
+            this.count -= 1;
+        }
         let grains = this.grains;
 
         // Apply gravity & velocity.
@@ -391,6 +397,22 @@ class Client {
     }
 
     apply_grains() {
+        let delta_num = this.grains.length - this.grains_objects.length;
+        if (delta_num > 0) {
+            this.grains_objects = this.grains_objects.concat(_.map(_.range(delta_num), () => {
+                let ball = new THREE.Mesh(
+                    new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
+                    new THREE.MeshNormalMaterial()
+                    //grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
+                );
+                this.scene.add(ball);
+                return ball;
+            }, this));
+        } else if (delta_num < 0) {
+            this.grains_objects = this.grains_objects.slice(0, this.grains.length);
+        }
+
+        console.assert(this.grains.length === this.grains_objects.length);
         _.each(this.grains_objects, (go, ix) => {
             go.position.copy(this.grains[ix].position);
         }, this);
