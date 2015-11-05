@@ -3,19 +3,12 @@
 // Experimental grain interaction
 class Grain {
     constructor(is_water, pos) {
-        this.type_is_water = is_water;
-        if (is_water) {
-            this.position = new THREE.Vector3(
-                Math.random(), Math.random(), Math.random() * 0.3 + 0.3);
-        } else {
-            if (pos !== undefined) {
-                this.position = pos.clone();
-            } else {
-                this.position = new THREE.Vector3(
-                    0.1 + Math.random() * 0.1, Math.random() * 0.1 + 0.1, 1.0);
-            }
+        if (pos === undefined) {
+            pos = new THREE.Vector3(
+                Math.random(), Math.random(), Math.random() + 0.5);
         }
-
+        this.type_is_water = is_water;
+        this.position = pos.clone();
         this.velocity = new THREE.Vector3(0, 0, 0);
 
         // Temporary buffer for calculating new position.this.grains.push(new Grain(false, new THREE.Vector3(0.1, 0.1, 1.0)));
@@ -51,6 +44,40 @@ function sph_kernel_grad(dp, h) {
     }
 }
 
+// A source that emits constant flow of given type of particle from
+// nearly fixed location, until total_num particles are emitted from this source.
+// ParticleSource is physically implausible, so it has high change of being
+// removed in final version, but very useful for debugging / showing demo.
+class ParticleSource {
+    constructor(is_water, total_num) {
+        this.is_water = is_water;
+        this.total_num = total_num;
+
+        this.frames_per_particle = 4;
+        this.base_positions = [
+            new THREE.Vector3(0.1, 0.1, 1.0),
+            new THREE.Vector3(0.1, 0.2, 1.0),
+            new THREE.Vector3(0.2, 0.1, 1.0),
+            new THREE.Vector3(0.2, 0.2, 1.0)
+        ];
+    }
+
+    // Return particles to be inserted to the scene at given timestamp.
+    maybe_emit(timestamp) {
+        if (timestamp >= this.frames_per_particle * this.total_num) {
+            return [];
+        }
+        if (timestamp % this.frames_per_particle !== 0) {
+            return [];
+        }
+        const phase = (timestamp / this.frames_per_particle) % this.base_positions.length;
+        const initial_pos = this.base_positions[phase].clone()
+            .add(new THREE.Vector3(Math.random() * 0.01, Math.random() * 0.01, 0));
+        this.num_emitted += 1;
+        return [new Grain(this.is_water, initial_pos)];
+    }
+};
+
 // Separate into
 // 1. master class (holds chunk worker)
 // 1': 3D GUI class
@@ -59,12 +86,11 @@ class Client {
     constructor() {
         this.debug = (location.hash === '#debug');
         this.grains = [];
-        // Water
-        _.each(_.range(200), () => {
-            this.grains.push(new Grain(true));
-        }, this);
-        // Sand
-        this.count = 1000;
+        this.sources = [
+            new ParticleSource(true, 200),
+            new ParticleSource(false, 200)
+        ];
+        this.timestamp = 0;
     	this.init();
     }
 
@@ -163,20 +189,10 @@ class Client {
         const friction_static = 0.5; // must be in [0, 1)
         const friction_dynamic = 0.3; // must be in [0, friction_static)
 
-        if (this.count > 0) {
-            if (this.count % 4 === 0) {
-                const init = [
-                    new THREE.Vector3(0.1, 0.1, 1.0),
-                    new THREE.Vector3(0.1, 0.2, 1.0),
-                    new THREE.Vector3(0.2, 0.1, 1.0),
-                    new THREE.Vector3(0.2, 0.2, 1.0)
-                ];
-                const phase = Math.floor(this.count / 4) % init.length;
-                var p = init[phase].clone().add(new THREE.Vector3(Math.random() * 0.01, Math.random() * 0.01, 0));
-                this.grains.push(new Grain(false, p));
-            }
-            this.count -= 1;
-        }
+        _.each(this.sources, (source) => {
+            this.grains = this.grains.concat(source.maybe_emit(this.timestamp));
+        }, this)
+
         let grains = this.grains;
 
         // Apply gravity & velocity.
@@ -403,6 +419,7 @@ class Client {
 
             grain.position.copy(grain.position_new);
         }, this);
+        this.timestamp += 1;
     }
 
     apply_grains() {
