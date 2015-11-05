@@ -60,7 +60,7 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         // Water
-        _.each(_.range(0), () => {
+        _.each(_.range(200), () => {
             this.grains.push(new Grain(true));
         }, this);
         // Sand
@@ -148,6 +148,7 @@ class Client {
         const floor_static = 0.7;
         const floor_dynamic = 0.5;
         const cfm_epsilon = 1e-3;
+        const sand_water_equiv = 0.3;
 
         // Global water config.
         const reflection_coeff = 0.3; // Must be in (0, 1)
@@ -230,35 +231,43 @@ class Client {
         });
 
         let density = function(ix_target) {
+            console.assert(grains[ix_target].is_water());
             return _.reduce(neighbors[ix_target], (acc, ix_other) => {
-                if (!grains[ix_other].is_water()) {
-                    return acc;
+                let equiv = 1.0;
+                if (grains[ix_other].is_sand()) {
+                    equiv = sand_water_equiv;
                 }
                 let weight = sph_kernel(grains[ix_target].position_new.clone().sub(grains[ix_other].position_new), h);
-                return acc + weight * mass_grain;
+                return acc + weight * mass_grain * equiv;
             }, 0);
         };
 
         let density_constraint_deriv = function(ix_target) {
+            console.assert(grains[ix_target].is_water());
             return _.reduce(neighbors[ix_target], (m, ix_deriv) => {
-                if (!grains[ix_deriv].is_water()) {
-                    return m;
+                let equiv = 1.0;
+                if (grains[ix_deriv].is_sand()) {
+                    equiv = sand_water_equiv;
                 }
                 return m.set(ix_deriv,
                     _.reduce(neighbors[ix_target], (acc, ix_other) => {
                         if (ix_other === ix_target) {
                             return acc;
                         }
+                        let other_equiv = 1.0;
+                        if (grains[ix_other].is_sand()) {
+                            other_equiv = sand_water_equiv;
+                        }
                         if (ix_deriv === ix_other) {
                             return acc.add(
                                 sph_kernel_grad(
                                     grains[ix_other].position_new.clone().sub(grains[ix_target].position_new),
-                                    h));
+                                    h).multiplyScalar(equiv * other_equiv));
                         } else if (ix_deriv === ix_target) {
                             return acc.add(
                                 sph_kernel_grad(
                                     grains[ix_target].position_new.clone().sub(grains[ix_other].position_new),
-                                    h));
+                                    h).multiplyScalar(equiv * other_equiv));
                         } else {
                             return acc;
                         }
@@ -399,11 +408,11 @@ class Client {
     apply_grains() {
         let delta_num = this.grains.length - this.grains_objects.length;
         if (delta_num > 0) {
-            this.grains_objects = this.grains_objects.concat(_.map(_.range(delta_num), () => {
+            this.grains_objects = this.grains_objects.concat(_.map(this.grains.slice(this.grains_objects.length), (grain) => {
                 let ball = new THREE.Mesh(
-                    new THREE.IcosahedronGeometry(0.1 / 2),  // make it smaller for visualization
-                    new THREE.MeshNormalMaterial()
-                    //grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
+                    new THREE.IcosahedronGeometry(0.1 / 4),  // make it smaller for visualization
+                    //new THREE.MeshNormalMaterial()
+                    grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
                 );
                 this.scene.add(ball);
                 return ball;
