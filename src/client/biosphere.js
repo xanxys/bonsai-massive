@@ -87,8 +87,8 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         this.sources = [
-            new ParticleSource(true, 200, new THREE.Vector3(0.5, 0.5, 2.0)),
-            new ParticleSource(false, 200, new THREE.Vector3(0.1, 0.1, 1.0))
+            new ParticleSource(true, 300, new THREE.Vector3(0.5, 0.5, 2.0)),
+            new ParticleSource(false, 300, new THREE.Vector3(0.1, 0.1, 1.0))
         ];
         this.timestamp = 0;
     	this.init();
@@ -427,9 +427,9 @@ class Client {
         if (delta_num > 0) {
             this.grains_objects = this.grains_objects.concat(_.map(this.grains.slice(this.grains_objects.length), (grain) => {
                 let ball = new THREE.Mesh(
-                    new THREE.IcosahedronGeometry(0.1 / 4),  // make it smaller for visualization
+                    new THREE.IcosahedronGeometry(0.1 / 3),  // make it smaller for visualization
                     //new THREE.MeshNormalMaterial()
-                    grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshBasicMaterial({color: '#fcc'})
+                    grain.is_water() ? new THREE.MeshNormalMaterial() : new THREE.MeshLambertMaterial({color: '#fcc'})
                 );
                 this.scene.add(ball);
                 return ball;
