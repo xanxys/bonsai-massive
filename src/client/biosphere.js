@@ -49,16 +49,16 @@ function sph_kernel_grad(dp, h) {
 // ParticleSource is physically implausible, so it has high change of being
 // removed in final version, but very useful for debugging / showing demo.
 class ParticleSource {
-    constructor(is_water, total_num) {
+    constructor(is_water, total_num, center_pos) {
         this.is_water = is_water;
         this.total_num = total_num;
 
         this.frames_per_particle = 4;
         this.base_positions = [
-            new THREE.Vector3(0.1, 0.1, 1.0),
-            new THREE.Vector3(0.1, 0.2, 1.0),
-            new THREE.Vector3(0.2, 0.1, 1.0),
-            new THREE.Vector3(0.2, 0.2, 1.0)
+            center_pos.clone().add(new THREE.Vector3(-0.1, -0.1, 0)),
+            center_pos.clone().add(new THREE.Vector3(-0.1,  0.1, 0)),
+            center_pos.clone().add(new THREE.Vector3( 0.1, -0.1, 0)),
+            center_pos.clone().add(new THREE.Vector3( 0.1,  0.1, 0))
         ];
     }
 
@@ -87,8 +87,8 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         this.sources = [
-            new ParticleSource(true, 200),
-            new ParticleSource(false, 200)
+            new ParticleSource(true, 200, new THREE.Vector3(0.5, 0.5, 2.0)),
+            new ParticleSource(false, 200, new THREE.Vector3(0.1, 0.1, 1.0))
         ];
         this.timestamp = 0;
     	this.init();
