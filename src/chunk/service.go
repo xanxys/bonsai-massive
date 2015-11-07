@@ -6,6 +6,8 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -111,11 +113,31 @@ func NewGrain(isWater bool, initialPos *Vec3f) *Grain {
 	}
 }
 
+// Return b^exp. Takes O(log(exp)) time.
+func powInt(b float32, exp uint) float32 {
+	power := float32(1.0)
+	accum := b
+	// Example: exp == 5
+	// Create {b^1, b^2, b^4, b^8, ...}
+	//  (LSB)    1    0    1            == 5
+	// b^5 ==  b^1 *     b^4
+	for {
+		if exp%2 == 1 {
+			accum *= power
+		}
+		exp /= 2
+		if exp == 0 {
+			return accum
+		}
+		power = power * power
+	}
+}
+
 // Poly6 kernel
 func SphKernel(dp *Vec3f, h float32) float32 {
 	lenSq := dp.LengthSq()
 	if lenSq < h*h {
-		return float32(math.Pow(float64(h*h-lenSq), 3)) * (315.0 / 64.0 / math.Pi / float32(math.Pow(float64(h), 9)))
+		return powInt(h*h-lenSq, 3) * (315.0 / 64.0 / math.Pi / powInt(h, 9))
 	} else {
 		return 0
 	}
@@ -125,7 +147,7 @@ func SphKernel(dp *Vec3f, h float32) float32 {
 func SphKernelGrad(dp *Vec3f, h float32) *Vec3f {
 	dpLen := dp.Length()
 	if 0 < dpLen && dpLen < h {
-		return dp.MultS(float32(math.Pow(float64(h-dpLen), 2)) / dpLen)
+		return dp.MultS(powInt(h-dpLen, 2) / dpLen)
 	} else {
 		return NewVec3f0()
 	}
@@ -462,7 +484,20 @@ func benchmark() {
 	for iter := 0; iter < steps; iter++ {
 		world.Step()
 	}
-	log.Printf("Benchmark: %.3fs for %d steps", float64(time.Since(t0))*1e-9, steps)
+	log.Printf("Benchmark: %.3fs for %d steps\n", float64(time.Since(t0))*1e-9, steps)
+
+	log.Printf("Profiling\n")
+	world = NewGrainWorld()
+	f, err := os.Create("chunk-grains-benchmark.prof")
+	if err != nil {
+		log.Fatal("Failed to output profile file")
+	}
+	pprof.StartCPUProfile(f)
+	for iter := 0; iter < steps; iter++ {
+		world.Step()
+	}
+	pprof.StopCPUProfile()
+	log.Printf("Done\n")
 }
 
 // TODO: split internal / external representation.

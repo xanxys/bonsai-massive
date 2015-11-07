@@ -92,6 +92,8 @@ class Client {
         ];
         this.timestamp = 0;
     	this.init();
+
+        this.benchmark()
     }
 
     // return :: ()
@@ -151,6 +153,16 @@ class Client {
 		this.controls.noPan = false;
         let _this = this;
     	this.controls.maxDistance = 8;
+    }
+
+    benchmark() {
+        let steps = 4 * 300;
+        let t0 = new Date().getTime();
+        for(let i = 0; i < steps; i++) {
+            this.update_grains()
+        }
+        let dt = new Date().getTime() - t0;
+        console.log('Benchmark:', dt * 1e-3, 'sec for ', steps, ' steps')
     }
 
     /* UI Utils */
