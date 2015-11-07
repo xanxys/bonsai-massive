@@ -281,7 +281,7 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		if !world.Grains[ixTarget].IsWater {
 			log.Fatal("gradient of density is only defined for water")
 		}
-		var grads map[int]*Vec3f
+		grads := make(map[int]*Vec3f)
 		for _, ixDeriv := range neighbors[ixTarget] {
 			equiv := float32(1.0)
 			if !world.Grains[ixDeriv].IsWater {
@@ -458,10 +458,11 @@ func (world *GrainWorld) Step() {
 func benchmark() {
 	t0 := time.Now()
 	world := NewGrainWorld()
-	for iter := 0; iter < 300*4; iter++ {
+	steps := 300 * 4
+	for iter := 0; iter < steps; iter++ {
 		world.Step()
 	}
-	log.Printf("Benchmark: %dus", time.Since(t0))
+	log.Printf("Benchmark: %.3fs for %d steps", float64(time.Since(t0))*1e-6, steps)
 }
 
 // TODO: split internal / external representation.
