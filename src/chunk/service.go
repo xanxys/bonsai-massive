@@ -462,7 +462,7 @@ func benchmark() {
 	for iter := 0; iter < steps; iter++ {
 		world.Step()
 	}
-	log.Printf("Benchmark: %.3fs for %d steps", float64(time.Since(t0))*1e-6, steps)
+	log.Printf("Benchmark: %.3fs for %d steps", float64(time.Since(t0))*1e-9, steps)
 }
 
 // TODO: split internal / external representation.
