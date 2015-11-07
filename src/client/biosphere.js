@@ -83,7 +83,7 @@ class ParticleSource {
 // 1': 3D GUI class
 // 2. Panel GUI class
 class Client {
-    constructor() {
+    constructor(playback_data) {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         this.sources = [
@@ -93,7 +93,13 @@ class Client {
         this.timestamp = 0;
     	this.init();
 
-        this.benchmark()
+        if (playback_data === undefined) {
+            // Client side simulation mode.
+            this.benchmark()
+        } else {
+            // Playback.
+            this.playback_data = playback_data;
+        }
     }
 
     // return :: ()
@@ -171,7 +177,18 @@ class Client {
     	let _this = this;
     	requestAnimationFrame(function(){_this.animate();});
         this.controls.update();
-        this.update_grains();
+        if (this.playback_data === undefined) {
+            this.update_grains();
+        } else {
+            if (this.timestamp < this.playback_data.length) {
+                this.grains = _.map(this.playback_data[this.timestamp], (ser_grain) => {
+                    return new Grain(
+                        ser_grain.is_water,
+                        new THREE.Vector3(ser_grain.position[0], ser_grain.position[1], ser_grain.position[2]));
+                });
+                this.timestamp++;
+            }
+        }
         this.apply_grains();
     	this.renderer.render(this.scene, this.camera);
     }
@@ -459,5 +476,8 @@ class Client {
 
 // run app
 $(document).ready(function() {
-    new Client().animate();
+    $.ajax('/static/grains-dump.json').done(function(data) {
+        console.log('Received playback data w/ #frames=', data.length);
+        new Client(data).animate();
+    });
 });

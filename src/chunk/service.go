@@ -2,7 +2,9 @@ package main
 
 import (
 	"./api"
+	"fmt"
 	"golang.org/x/net/context"
+	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
@@ -498,6 +500,35 @@ func benchmark() {
 	}
 	pprof.StopCPUProfile()
 	log.Printf("Done\n")
+
+	log.Printf("Dumping\n")
+	dump := "["
+	world = NewGrainWorld()
+	for iter := 0; iter < steps; iter++ {
+		world.Step()
+		snapshot_dump := "["
+		for ix, grain := range world.Grains {
+			grain_dump := "{"
+			grain_dump += fmt.Sprintf("\"is_water\": %t,", grain.IsWater)
+			grain_dump += fmt.Sprintf("\"position\": [%f, %f, %f]\n}",
+				grain.Position.X, grain.Position.Y, grain.Position.Z)
+			snapshot_dump += grain_dump
+			if ix == len(world.Grains)-1 {
+				snapshot_dump += "]"
+			} else {
+				snapshot_dump += ","
+			}
+		}
+		dump += snapshot_dump
+		if iter == steps-1 {
+			dump += "]"
+		} else {
+			dump += ","
+		}
+	}
+	ioutil.WriteFile("grains-dump.json", []byte(dump), 0666)
+
+	log.Print("Done\n")
 }
 
 // TODO: split internal / external representation.
