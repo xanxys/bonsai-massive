@@ -87,8 +87,8 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         this.sources = [
-            new ParticleSource(true, 300, new THREE.Vector3(0.5, 0.5, 2.0)),
-            new ParticleSource(false, 300, new THREE.Vector3(0.1, 0.1, 1.0))
+            new ParticleSource(true, 1000, new THREE.Vector3(0.5, 0.5, 2.0)),
+            new ParticleSource(false, 1000, new THREE.Vector3(0.1, 0.1, 1.0))
         ];
         this.timestamp = 0;
     	this.init();
