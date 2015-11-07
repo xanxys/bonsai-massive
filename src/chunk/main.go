@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	log.Println("Starting chunk server at :8000 (gRPC)")
-	lis, err := net.Listen("tcp", ":8000")
+	log.Println("Starting chunk server at :9000 (gRPC)")
+	lis, err := net.Listen("tcp", ":9000")
 	if err != nil {
 		log.Fatal(err)
 	}
