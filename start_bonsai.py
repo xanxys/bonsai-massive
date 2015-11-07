@@ -177,10 +177,11 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         conn.close()
 
 def run_fake_server():
-    print("Running fake server at http://localhost:%d/ with fallback %s" % (
-        FAKE_PORT, get_local_url()))
+    host = '0.0.0.0'
+    print("Running fake server at http://%s:%d/ with fallback %s" % (
+        host, FAKE_PORT, get_local_url()))
 
-    httpd = http.server.HTTPServer(('localhost', FAKE_PORT), FakeServerHandler)
+    httpd = http.server.HTTPServer((host, FAKE_PORT), FakeServerHandler)
     httpd.serve_forever()
 
 if __name__ == '__main__':
