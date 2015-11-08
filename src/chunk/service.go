@@ -273,7 +273,12 @@ func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
 
 type Constraint struct {
 	Value float32
-	Grads map[int]*Vec3f
+	Grads []CGrad
+}
+
+type CGrad struct {
+	grainIndex int
+	grad       *Vec3f
 }
 
 // :: [{
@@ -301,11 +306,11 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		return acc
 	}
 
-	density_constraint_deriv := func() map[int]*Vec3f {
+	density_constraint_deriv := func() []CGrad {
 		if !world.Grains[ixTarget].IsWater {
 			log.Fatal("gradient of density is only defined for water")
 		}
-		grads := make(map[int]*Vec3f)
+		var grads []CGrad
 		for _, ixDeriv := range neighbors[ixTarget] {
 			equiv := float32(1.0)
 			if !world.Grains[ixDeriv].IsWater {
@@ -334,7 +339,10 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 							h).MultS(other_equiv))
 				}
 			}
-			grads[ixDeriv] = gradAccum.MultS(-equiv / density_base)
+			grads = append(grads, CGrad{
+				grainIndex: ixDeriv,
+				grad:       gradAccum.MultS(-equiv / density_base),
+			})
 		}
 		return grads
 	}
@@ -362,12 +370,18 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				// Collision (no penetration) constraint.
 				f_normal := penetration * sand_stiffness
 				dp = dp.Normalized()
-				grads := make(map[int]*Vec3f)
-				grads[ixOther] = dp.MultS(sand_stiffness)
-				grads[ixTarget] = dp.MultS(-sand_stiffness)
 				cs = append(cs, Constraint{
 					Value: f_normal,
-					Grads: grads,
+					Grads: []CGrad{
+						CGrad{
+							grainIndex: ixOther,
+							grad:       dp.MultS(sand_stiffness),
+						},
+						CGrad{
+							grainIndex: ixTarget,
+							grad:       dp.MultS(-sand_stiffness),
+						},
+					},
 				})
 
 				// Tangential friction constraint.
@@ -378,20 +392,17 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				// Both max static friction & dynamic friction are proportional to
 				// force along normal (collision).
 				if dv.LengthSq() > 0 {
-					grads_t := make(map[int]*Vec3f)
-					f_tangent := dv.Length()
-					if f_tangent < f_normal*friction_static {
-						// Static friction.
-						grads_t[ixOther] = dir_tangent.MultS(-f_tangent)
-						grads_t[ixTarget] = dir_tangent.MultS(f_tangent)
-					} else {
-						// Dynamic friction.
+					f_tangent := dv.Length() // Static friction by default.
+					if f_tangent >= f_normal*friction_static {
+						// Switch to dynamic friction if force is too large.
 						f_tangent = f_normal * friction_dynamic
 						if f_tangent >= dv.Length() {
 							log.Panicln("Dynamic friction condition breached")
 						}
-						grads_t[ixOther] = dir_tangent.MultS(-f_tangent)
-						grads_t[ixTarget] = dir_tangent.MultS(f_tangent)
+					}
+					grads_t := []CGrad{
+						CGrad{grainIndex: ixOther, grad: dir_tangent.MultS(-f_tangent)},
+						CGrad{grainIndex: ixTarget, grad: dir_tangent.MultS(-f_tangent)},
 					}
 					cs = append(cs, Constraint{
 						Value: f_tangent,
@@ -425,13 +436,13 @@ func (world *GrainWorld) Step() {
 			constraints := world.ConstraintsFor(neighbors, ix)
 			for _, constraint := range constraints {
 				var gradLengthSq float32
-				for ixFeedback := range constraint.Grads {
-					gradLengthSq += constraint.Grads[ixFeedback].LengthSq()
+				for _, grad := range constraint.Grads {
+					gradLengthSq += grad.grad.LengthSq()
 				}
 				scale := -constraint.Value / (gradLengthSq + cfm_epsilon)
 
-				for ixFeedback := range constraint.Grads {
-					world.Grains[ixFeedback].PositionNew = *world.Grains[ixFeedback].PositionNew.Add(constraint.Grads[ixFeedback].MultS(scale))
+				for _, grad := range constraint.Grads {
+					world.Grains[grad.grainIndex].PositionNew = *world.Grains[grad.grainIndex].PositionNew.Add(grad.grad.MultS(scale))
 				}
 			}
 		}
