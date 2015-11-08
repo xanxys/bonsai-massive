@@ -210,8 +210,8 @@ func NewGrainWorld() *GrainWorld {
 	return &GrainWorld{
 		Grains: []*Grain{},
 		Sources: []*ParticleSource{
-			NewParticleSource(true, 3000, Vec3f{0.5, 0.5, 2.0}),
-			NewParticleSource(false, 3000, Vec3f{0.1, 0.1, 1.0}),
+			NewParticleSource(true, 300, Vec3f{0.5, 0.5, 2.0}),
+			NewParticleSource(false, 300, Vec3f{0.1, 0.1, 1.0}),
 		},
 		Timestamp: 0,
 	}
@@ -326,15 +326,15 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 					gradAccum = gradAccum.Add(
 						SphKernelGrad(
 							world.Grains[ixOther].PositionNew.Sub(&world.Grains[ixTarget].PositionNew),
-							h).MultS(equiv * other_equiv))
+							h).MultS(other_equiv))
 				} else if ixDeriv == ixTarget {
 					gradAccum = gradAccum.Add(
 						SphKernelGrad(
 							world.Grains[ixTarget].PositionNew.Sub(&world.Grains[ixOther].PositionNew),
-							h).MultS(equiv * other_equiv))
+							h).MultS(other_equiv))
 				}
 			}
-			grads[ixDeriv] = gradAccum.MultS(-1.0 / density_base)
+			grads[ixDeriv] = gradAccum.MultS(-equiv / density_base)
 		}
 		return grads
 	}
