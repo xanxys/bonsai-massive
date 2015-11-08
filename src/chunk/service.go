@@ -57,42 +57,42 @@ type Vec3f struct {
 	Z float32
 }
 
-func NewVec3f0() *Vec3f {
-	return &Vec3f{X: 0, Y: 0, Z: 0}
+func NewVec3f0() Vec3f {
+	return Vec3f{X: 0, Y: 0, Z: 0}
 }
 
-func (v *Vec3f) LengthSq() float32 {
+func (v Vec3f) LengthSq() float32 {
 	return v.X*v.X + v.Y*v.Y + v.Z*v.Z
 }
 
-func (v *Vec3f) Length() float32 {
+func (v Vec3f) Length() float32 {
 	return float32(math.Sqrt(float64(v.LengthSq())))
 }
 
-func (v *Vec3f) Normalized() *Vec3f {
+func (v Vec3f) Normalized() Vec3f {
 	return v.MultS(1 / v.Length())
 }
 
 // Project v onto the plane defined by given normal.
 // caller must ensure: normal.Length() == 1
-func (v *Vec3f) ProjectOnPlane(normal *Vec3f) *Vec3f {
+func (v Vec3f) ProjectOnPlane(normal Vec3f) Vec3f {
 	return v.Sub(normal.MultS(normal.Dot(v)))
 }
 
-func (v *Vec3f) Dot(u *Vec3f) float32 {
+func (v Vec3f) Dot(u Vec3f) float32 {
 	return v.X*u.X + v.Y*u.Y + v.Z*u.Z
 }
 
-func (v *Vec3f) Add(u *Vec3f) *Vec3f {
-	return &Vec3f{v.X + u.X, v.Y + u.Y, v.Z + u.Z}
+func (v Vec3f) Add(u Vec3f) Vec3f {
+	return Vec3f{v.X + u.X, v.Y + u.Y, v.Z + u.Z}
 }
 
-func (v *Vec3f) Sub(u *Vec3f) *Vec3f {
-	return &Vec3f{v.X - u.X, v.Y - u.Y, v.Z - u.Z}
+func (v Vec3f) Sub(u Vec3f) Vec3f {
+	return Vec3f{v.X - u.X, v.Y - u.Y, v.Z - u.Z}
 }
 
-func (v *Vec3f) MultS(s float32) *Vec3f {
-	return &Vec3f{
+func (v Vec3f) MultS(s float32) Vec3f {
+	return Vec3f{
 		X: s * v.X,
 		Y: s * v.Y,
 		Z: s * v.Z,
@@ -107,11 +107,11 @@ type Grain struct {
 	PositionNew Vec3f
 }
 
-func NewGrain(isWater bool, initialPos *Vec3f) *Grain {
+func NewGrain(isWater bool, initialPos Vec3f) *Grain {
 	return &Grain{
 		IsWater:  isWater,
-		Position: *initialPos,
-		Velocity: *NewVec3f0(),
+		Position: initialPos,
+		Velocity: NewVec3f0(),
 	}
 }
 
@@ -136,7 +136,7 @@ func powInt(b float32, exp uint) float32 {
 }
 
 // Poly6 kernel
-func SphKernel(dp *Vec3f, h float32) float32 {
+func SphKernel(dp Vec3f, h float32) float32 {
 	lenSq := dp.LengthSq()
 	if lenSq < h*h {
 		return powInt(h*h-lenSq, 3) * (315.0 / 64.0 / math.Pi / powInt(h, 9))
@@ -146,7 +146,7 @@ func SphKernel(dp *Vec3f, h float32) float32 {
 }
 
 // Spiky kernel
-func SphKernelGrad(dp *Vec3f, h float32) *Vec3f {
+func SphKernelGrad(dp Vec3f, h float32) Vec3f {
 	dpLen := dp.Length()
 	if 0 < dpLen && dpLen < h {
 		return dp.MultS(powInt(h-dpLen, 2) / dpLen)
@@ -163,7 +163,7 @@ type ParticleSource struct {
 	isWater           bool
 	totalNum          int
 	framesPerParticle int
-	basePositions     []*Vec3f
+	basePositions     []Vec3f
 }
 
 func NewParticleSource(isWater bool, totalNum int, centerPos Vec3f) *ParticleSource {
@@ -171,11 +171,11 @@ func NewParticleSource(isWater bool, totalNum int, centerPos Vec3f) *ParticleSou
 		isWater:           isWater,
 		totalNum:          totalNum,
 		framesPerParticle: 4,
-		basePositions: []*Vec3f{
-			centerPos.Add(&Vec3f{-0.1, -0.1, 0}),
-			centerPos.Add(&Vec3f{-0.1, 0.1, 0}),
-			centerPos.Add(&Vec3f{0.1, -0.1, 0}),
-			centerPos.Add(&Vec3f{0.1, 0.1, 0}),
+		basePositions: []Vec3f{
+			centerPos.Add(Vec3f{-0.1, -0.1, 0}),
+			centerPos.Add(Vec3f{-0.1, 0.1, 0}),
+			centerPos.Add(Vec3f{0.1, -0.1, 0}),
+			centerPos.Add(Vec3f{0.1, 0.1, 0}),
 		},
 	}
 }
@@ -192,7 +192,7 @@ func (ps *ParticleSource) MaybeEmit(timestamp uint64) []*Grain {
 
 	phase := (ts / ps.framesPerParticle) % len(ps.basePositions)
 	initialPos := ps.basePositions[phase].Add(
-		&Vec3f{rand.Float32() * 0.01, rand.Float32() * 0.01, 0})
+		Vec3f{rand.Float32() * 0.01, rand.Float32() * 0.01, 0})
 	return []*Grain{NewGrain(ps.isWater, initialPos)}
 }
 
@@ -258,7 +258,7 @@ func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
 					gs, exist := bins[nKey]
 					if exist {
 						for _, gIndex := range gs {
-							if world.Grains[gIndex].PositionNew.Sub(&grain.PositionNew).Length() < h {
+							if world.Grains[gIndex].PositionNew.Sub(grain.PositionNew).Length() < h {
 								neighbors = append(neighbors, gIndex)
 							}
 						}
@@ -278,7 +278,7 @@ type Constraint struct {
 
 type CGrad struct {
 	grainIndex int
-	grad       *Vec3f
+	grad       Vec3f
 }
 
 // :: [{
@@ -300,7 +300,7 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			if !world.Grains[ixOther].IsWater {
 				equiv = sand_water_equiv
 			}
-			weight := SphKernel(world.Grains[ixTarget].PositionNew.Sub(&world.Grains[ixOther].PositionNew), h)
+			weight := SphKernel(world.Grains[ixTarget].PositionNew.Sub(world.Grains[ixOther].PositionNew), h)
 			acc += weight * mass_grain * equiv
 		}
 		return acc
@@ -330,12 +330,12 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				if ixDeriv == ixOther {
 					gradAccum = gradAccum.Add(
 						SphKernelGrad(
-							world.Grains[ixOther].PositionNew.Sub(&world.Grains[ixTarget].PositionNew),
+							world.Grains[ixOther].PositionNew.Sub(world.Grains[ixTarget].PositionNew),
 							h).MultS(other_equiv))
 				} else if ixDeriv == ixTarget {
 					gradAccum = gradAccum.Add(
 						SphKernelGrad(
-							world.Grains[ixTarget].PositionNew.Sub(&world.Grains[ixOther].PositionNew),
+							world.Grains[ixTarget].PositionNew.Sub(world.Grains[ixOther].PositionNew),
 							h).MultS(other_equiv))
 				}
 			}
@@ -364,7 +364,7 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			if world.Grains[ixOther].IsWater {
 				continue // No sand-other interaction for now.
 			}
-			dp := world.Grains[ixTarget].PositionNew.Sub(&world.Grains[ixOther].PositionNew)
+			dp := world.Grains[ixTarget].PositionNew.Sub(world.Grains[ixOther].PositionNew)
 			penetration := sand_radius*2 - dp.Length()
 			if penetration > 0 {
 				// Collision (no penetration) constraint.
@@ -385,8 +385,8 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				})
 
 				// Tangential friction constraint.
-				dv := world.Grains[ixTarget].PositionNew.Sub(&world.Grains[ixTarget].Position).Sub(
-					world.Grains[ixOther].PositionNew.Sub(&world.Grains[ixOther].Position))
+				dv := world.Grains[ixTarget].PositionNew.Sub(world.Grains[ixTarget].Position).Sub(
+					world.Grains[ixOther].PositionNew.Sub(world.Grains[ixOther].Position))
 				dir_tangent := dv.ProjectOnPlane(dp).Normalized()
 
 				// Both max static friction & dynamic friction are proportional to
@@ -425,7 +425,7 @@ func (world *GrainWorld) Step() {
 	}
 	// Apply gravity & velocity.
 	for _, grain := range world.Grains {
-		grain.PositionNew = *grain.Position.Add(grain.Velocity.MultS(dt)).Add(accel.MultS(0.5 * dt * dt))
+		grain.PositionNew = grain.Position.Add(grain.Velocity.MultS(dt)).Add(accel.MultS(0.5 * dt * dt))
 	}
 	// Index spatially.
 	neighbors := world.IndexNeighbors(h)
@@ -442,7 +442,7 @@ func (world *GrainWorld) Step() {
 				scale := -constraint.Value / (gradLengthSq + cfm_epsilon)
 
 				for _, grad := range constraint.Grads {
-					world.Grains[grad.grainIndex].PositionNew = *world.Grains[grad.grainIndex].PositionNew.Add(grad.grad.MultS(scale))
+					world.Grains[grad.grainIndex].PositionNew = world.Grains[grad.grainIndex].PositionNew.Add(grad.grad.MultS(scale))
 				}
 			}
 		}
@@ -463,7 +463,7 @@ func (world *GrainWorld) Step() {
 				dz := -grain.PositionNew.Z * (1 + reflection_coeff)
 				grain.PositionNew.Z += dz
 
-				dxy := grain.PositionNew.Sub(&grain.Position).ProjectOnPlane(&Vec3f{0, 0, 1})
+				dxy := grain.PositionNew.Sub(grain.Position).ProjectOnPlane(Vec3f{0, 0, 1})
 				if dxy.Length() < dz*floor_static {
 					// Static friction.
 					grain.PositionNew.X = grain.Position.X
@@ -474,7 +474,7 @@ func (world *GrainWorld) Step() {
 					if dxy_capped > dz*floor_dynamic {
 						dxy_capped = dz * floor_dynamic
 					}
-					grain.PositionNew = *grain.PositionNew.Sub(dxy.Normalized().MultS(dxy_capped))
+					grain.PositionNew = grain.PositionNew.Sub(dxy.Normalized().MultS(dxy_capped))
 				}
 			}
 		}
@@ -483,7 +483,7 @@ func (world *GrainWorld) Step() {
 	// Actually update velocity & position.
 	// PositionNew is destroyed after this.
 	for _, grain := range world.Grains {
-		grain.Velocity = *grain.PositionNew.Sub(&grain.Position).MultS(1.0 / dt)
+		grain.Velocity = grain.PositionNew.Sub(grain.Position).MultS(1.0 / dt)
 		grain.Position = grain.PositionNew
 	}
 
