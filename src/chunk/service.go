@@ -26,7 +26,7 @@ const sand_water_equiv = 0.3
 const reflection_coeff = 0.3 // Must be in (0, 1)
 const density_base = 1000.0  // kg/m^3
 const h = 0.1
-const mass_grain = 0.1 * 113 / 20 // V_sphere(h) * density_base
+const mass_grain = 0.1 * 113.0 / 20.0 // V_sphere(h) * density_base
 const num_iter = 3
 
 // Sand config.
@@ -117,8 +117,8 @@ func NewGrain(isWater bool, initialPos *Vec3f) *Grain {
 
 // Return b^exp. Takes O(log(exp)) time.
 func powInt(b float32, exp uint) float32 {
-	power := float32(1.0)
-	accum := b
+	power := b
+	accum := float32(1.0)
 	// Example: exp == 5
 	// Create {b^1, b^2, b^4, b^8, ...}
 	//  (LSB)    1    0    1            == 5
@@ -334,7 +334,7 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 							h).MultS(equiv * other_equiv))
 				}
 			}
-			grads[ixDeriv] = gradAccum.MultS(-1 / density_base)
+			grads[ixDeriv] = gradAccum.MultS(-1.0 / density_base)
 		}
 		return grads
 	}

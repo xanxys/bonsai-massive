@@ -87,15 +87,15 @@ class Client {
         this.debug = (location.hash === '#debug');
         this.grains = [];
         this.sources = [
-            new ParticleSource(true, 1000, new THREE.Vector3(0.5, 0.5, 2.0)),
-            new ParticleSource(false, 1000, new THREE.Vector3(0.1, 0.1, 1.0))
+            new ParticleSource(true, 300, new THREE.Vector3(0.5, 0.5, 2.0)),
+            new ParticleSource(false, 300, new THREE.Vector3(0.1, 0.1, 1.0))
         ];
         this.timestamp = 0;
     	this.init();
 
         if (playback_data === undefined) {
             // Client side simulation mode.
-            this.benchmark()
+            //this.benchmark()
         } else {
             // Playback.
             this.playback_data = playback_data;
@@ -395,6 +395,7 @@ class Client {
 
         // Iteratively resolve collisions & constraints.
         _.each(_.range(num_iter), () => {
+            //console.log(density(0));
             _.each(grains, (grain, ix) => {
                 _.each(constraints_with_deriv(ix), (constraint) => {
                     let scale = - constraint.constraint / _.reduce(constraint.gradients.values(), (acc, grad) => {
@@ -476,6 +477,10 @@ class Client {
 
 // run app
 $(document).ready(function() {
+    /*
+    new Client().animate();
+    return;
+    */
     $.ajax('/static/grains-dump.json').done(function(data) {
         console.log('Received playback data w/ #frames=', data.length);
         new Client(data).animate();
