@@ -2,9 +2,9 @@ package main
 
 import (
 	"./api"
+	"bufio"
 	"fmt"
 	"golang.org/x/net/context"
-	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
@@ -502,32 +502,36 @@ func benchmark() {
 	log.Printf("Done\n")
 
 	log.Printf("Dumping\n")
-	dump := "["
+
+	f, err = os.Create("./client/grains-dump.json")
+	if err != nil {
+		log.Fatal("Failed to open dump file")
+	}
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+	w.WriteString("[")
 	world = NewGrainWorld()
 	for iter := 0; iter < steps; iter++ {
 		world.Step()
-		snapshot_dump := "["
+		w.WriteString("[")
 		for ix, grain := range world.Grains {
-			grain_dump := "{"
-			grain_dump += fmt.Sprintf("\"is_water\": %t,", grain.IsWater)
-			grain_dump += fmt.Sprintf("\"position\": [%f, %f, %f]\n}",
+			w.WriteString("{")
+			fmt.Fprintf(w, "\"is_water\": %t,", grain.IsWater)
+			fmt.Fprintf(w, "\"position\": [%f, %f, %f]",
 				grain.Position.X, grain.Position.Y, grain.Position.Z)
-			snapshot_dump += grain_dump
+			w.WriteString("}")
 			if ix == len(world.Grains)-1 {
-				snapshot_dump += "]"
+				w.WriteString("]")
 			} else {
-				snapshot_dump += ","
+				w.WriteString(",")
 			}
 		}
-		dump += snapshot_dump
 		if iter == steps-1 {
-			dump += "]"
+			w.WriteString("]\n")
 		} else {
-			dump += ","
+			w.WriteString(",\n")
 		}
 	}
-	ioutil.WriteFile("grains-dump.json", []byte(dump), 0666)
-
 	log.Print("Done\n")
 }
 
