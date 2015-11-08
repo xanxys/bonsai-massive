@@ -247,8 +247,8 @@ func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
 	}
 
 	// For each grain, lookup nearby bins and filter actual neighbors.
-	var neighborIndex [][]int
-	for _, grain := range world.Grains {
+	neighborIndex := make([][]int, len(world.Grains))
+	for ix, grain := range world.Grains {
 		var neighbors []int
 		key := toBinKey(grain)
 		for dx := -1; dx <= 1; dx++ {
@@ -266,7 +266,7 @@ func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
 				}
 			}
 		}
-		neighborIndex = append(neighborIndex, neighbors)
+		neighborIndex[ix] = neighbors
 	}
 	return neighborIndex
 }
@@ -310,7 +310,7 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		if !world.Grains[ixTarget].IsWater {
 			log.Fatal("gradient of density is only defined for water")
 		}
-		var grads []CGrad
+		grads := make([]CGrad, 0, len(neighbors[ixTarget])-1)
 		for _, ixDeriv := range neighbors[ixTarget] {
 			equiv := float32(1.0)
 			if !world.Grains[ixDeriv].IsWater {
@@ -347,13 +347,15 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		return grads
 	}
 
-	var cs []Constraint
 	if world.Grains[ixTarget].IsWater {
-		cs = append(cs, Constraint{
-			Value: density()/density_base - 1,
-			Grads: density_constraint_deriv(),
-		})
+		return []Constraint{
+			Constraint{
+				Value: density()/density_base - 1,
+				Grads: density_constraint_deriv(),
+			},
+		}
 	} else {
+		cs := make([]Constraint, 0, len(neighbors[ixTarget]))
 		// This will result in 2 same constraints per particle pair,
 		// but there's no problem (other than performance) for repeating
 		// same constraint.
@@ -411,8 +413,8 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				}
 			}
 		}
+		return cs
 	}
-	return cs
 }
 
 // Position-based dynamics.
