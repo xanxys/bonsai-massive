@@ -238,12 +238,7 @@ func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
 	bins := make(map[BinKey][]int)
 	for ix, grain := range world.Grains {
 		key := toBinKey(grain)
-		gs, exist := bins[key]
-		if exist {
-			bins[key] = append(gs, ix)
-		} else {
-			bins[key] = []int{ix}
-		}
+		bins[key] = append(bins[key], ix)
 	}
 
 	// For each grain, lookup nearby bins and filter actual neighbors.
@@ -255,12 +250,10 @@ func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
 			for dy := -1; dy <= 1; dy++ {
 				for dz := -1; dz <= 1; dz++ {
 					nKey := BinKey{key.X + dx, key.Y + dy, key.Z + dz}
-					gs, exist := bins[nKey]
-					if exist {
-						for _, gIndex := range gs {
-							if world.Grains[gIndex].PositionNew.Sub(grain.PositionNew).Length() < h {
-								neighbors = append(neighbors, gIndex)
-							}
+					gs := bins[nKey]
+					for _, gIndex := range gs {
+						if world.Grains[gIndex].PositionNew.Sub(grain.PositionNew).LengthSq() < h*h {
+							neighbors = append(neighbors, gIndex)
 						}
 					}
 				}
@@ -393,12 +386,13 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 
 				// Both max static friction & dynamic friction are proportional to
 				// force along normal (collision).
-				if dv.LengthSq() > 0 {
-					f_tangent := dv.Length() // Static friction by default.
+				dvLen := dv.Length()
+				if dvLen > 0 {
+					f_tangent := dvLen // Static friction by default.
 					if f_tangent >= f_normal*friction_static {
 						// Switch to dynamic friction if force is too large.
 						f_tangent = f_normal * friction_dynamic
-						if f_tangent >= dv.Length() {
+						if f_tangent >= dvLen {
 							log.Panicln("Dynamic friction condition breached")
 						}
 					}
@@ -466,13 +460,14 @@ func (world *GrainWorld) Step() {
 				grain.PositionNew.Z += dz
 
 				dxy := grain.PositionNew.Sub(grain.Position).ProjectOnPlane(Vec3f{0, 0, 1})
-				if dxy.Length() < dz*floor_static {
+				dxyLen := dxy.Length()
+				if dxyLen < dz*floor_static {
 					// Static friction.
 					grain.PositionNew.X = grain.Position.X
 					grain.PositionNew.Y = grain.Position.Y
 				} else {
 					// Dynamic friction.
-					dxy_capped := dxy.Length()
+					dxy_capped := dxyLen
 					if dxy_capped > dz*floor_dynamic {
 						dxy_capped = dz * floor_dynamic
 					}
