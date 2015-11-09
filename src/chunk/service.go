@@ -17,6 +17,10 @@ func (ck *CkServiceImpl) Test(ctx context.Context, q *api.TestQ) (*api.TestS, er
 	return &api.TestS{}, nil
 }
 
+func (ck *CkServiceImpl) ModifyChunk(ctx context.Context, q *api.ModifyChunkQ) (*api.ModifyChunkS, error) {
+	return &api.ModifyChunkS{}, nil
+}
+
 // A continuous running part of world executed by at most a single thread.
 type Chunk struct {
 }

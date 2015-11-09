@@ -196,7 +196,7 @@ class Client {
     // Position-based dynamics.
     update_grains() {
         // Global world config.
-        const dt = 1/30;
+        const dt = 0.05; //1/10;
         const accel = new THREE.Vector3(0, 0, -1);
 
         // Global simulation config.
@@ -477,10 +477,11 @@ class Client {
 
 // run app
 $(document).ready(function() {
-    /*
+
     new Client().animate();
     return;
-    */
+
+
     $.ajax('/static/grains-dump.json').done(function(data) {
         console.log('Received playback data w/ #frames=', data.length);
         new Client(data).animate();

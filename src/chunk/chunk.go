@@ -12,7 +12,7 @@ import (
 )
 
 // Global world config.
-const dt = 1 / 30.0
+const dt = 1 / 30.00
 
 // Global simulation config.
 const floor_static = 0.7

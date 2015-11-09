@@ -1,8 +1,14 @@
 syntax="proto3";
 package api;
 
+// One chunk server contains several chunks which might be running or stopped.
+// Chunks can span multiple worlds, and also can run in isolated mode.
+//
+// But for now, there's only one chunk.
 service ChunkService {
     rpc Test(TestQ) returns (TestS);
+
+    rpc ModifyChunk(ModifyChunkQ) returns (ModifyChunkS);
 }
 
 message TestQ {
@@ -10,6 +16,36 @@ message TestQ {
 }
 
 message TestS {
+}
+
+message ModifyChunkQ {
+    enum Speed {
+        // Do not step.
+        ZERO = 0;
+
+        // Operate at close to realtime (best effort).
+        NORMAL = 1;
+
+        // Allocate as many cores as possible to the chunk to speed up thing,
+        // even though that's inefficient.
+        FASTEST = 2;
+    }
+
+    // Set chunk's speed.
+    Speed target_speed = 1;
+
+    // Target timestamp to step to. Specify max uint64 to represent "infinite".
+    // (all servers' behaviors are undefined after passing that max).
+    // This will be written even when target_speed == ZERO.
+    uint64 target_timestamp = 2;
+}
+
+message ModifyChunkS {
+    // Current timestamp.
+    // It's guaranteed that
+    // * when stop: chunk will stay at timestamp until further requests.
+    // * when !stop; actual timestamp >= timestamp
+    uint64 timestamp = 1;
 }
 
 // Snapshot of a chunk at given timestamp.
