@@ -6,16 +6,17 @@ package api;
 //
 // But for now, there's only one chunk.
 service ChunkService {
-    rpc Test(TestQ) returns (TestS);
+    rpc Benchmark(BenchmarkQ) returns (BenchmarkS);
 
     rpc ModifyChunk(ModifyChunkQ) returns (ModifyChunkS);
 }
 
-message TestQ {
-    string a = 1;
+message BenchmarkQ {
 }
 
-message TestS {
+message BenchmarkS {
+    // Human-readable, multi line report of the benchmark.
+    string report = 1;
 }
 
 message ModifyChunkQ {
@@ -36,7 +37,10 @@ message ModifyChunkQ {
 
     // Target timestamp to step to. Specify max uint64 to represent "infinite".
     // (all servers' behaviors are undefined after passing that max).
-    // This will be written even when target_speed == ZERO.
+    //
+    // Invariant: timestamp <= target_timestamp.
+    //
+    // TODO: what to do if timestamp of the past is specified?
     uint64 target_timestamp = 2;
 }
 
