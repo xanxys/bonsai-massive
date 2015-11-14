@@ -18,9 +18,26 @@ service FrontendService {
     // In-Biosphere fetching
     // Endpoint: /api/chunk
     rpc Chunk(ChunkQ) returns (ChunkS);
+
+    // Biosphere streaming.
+    // Endpoint: /api/biosphere_frames
+    rpc BiosphereFrames(BiosphereFramesQ) returns (BiosphereFramesS);
 }
 
+
+message BiosphereFramesQ {
+    bytes cont_token = 1;
+}
+
+// TODO: Level of details sharding
+message BiosphereFramesS {
+    PolySoup content = 1;
+    bytes cont_token = 2;
+}
+
+
 message BiospheresQ {
+
 }
 
 message BiosphereDeltaQ {
@@ -85,10 +102,28 @@ message ChunkS {
 
     // Triangle soup with vertex colors. Lights are tonemapped and
     // baked in. Color is in LDR space, not physically accurate in any way.
-    PolySoup soup = 3;
+    PolySoup content = 3;
 }
 
 message PolySoup {
+    message Vertex {
+        float px = 1;
+        float py = 2;
+        float pz = 3;
+
+        float nx = 4;
+        float ny = 5;
+        float nz = 6;
+
+        // LDR color in [0, 1].
+        float r = 7;
+        float g = 8;
+        float b = 9;
+    }
+
+    // Vertices of triangles.
+    // Length must be multiple of 3.
+    repeated Vertex vertices = 1;
 }
 
 // This structure is permanent.

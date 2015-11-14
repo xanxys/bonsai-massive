@@ -83,6 +83,13 @@ func main() {
 			WriteS(w, r, s, e)
 		}
 	})
+	http.HandleFunc("/api/biosphere_frames", func(w http.ResponseWriter, r *http.Request) {
+		q := MaybeExtractQ(w, r, &api.BiosphereFramesQ{})
+		if q != nil {
+			s, e := fe.HandleBiosphereFrames((*q).(*api.BiosphereFramesQ))
+			WriteS(w, r, s, e)
+		}
+	})
 	http.Handle("/static/",
 		http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
 
