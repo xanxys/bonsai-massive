@@ -191,11 +191,11 @@ func (fe *FeServiceImpl) HandleBiosphereFrames(q *api.BiosphereFramesQ) (*api.Bi
 	}
 
 	ps := &api.PolySoup{}
-	for i := 0; i < len(indices); i += 3 {
+	for i := 0; i < len(indices); i++ {
 		ps.Vertices = append(ps.Vertices, &api.PolySoup_Vertex{
-			Px: vertices[indices[i+0]],
-			Py: vertices[indices[i+1]],
-			Pz: vertices[indices[i+2]],
+			Px: vertices[indices[i]*3+0],
+			Py: vertices[indices[i]*3+1],
+			Pz: vertices[indices[i]*3+2],
 		})
 	}
 
