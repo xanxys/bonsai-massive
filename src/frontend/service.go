@@ -102,6 +102,44 @@ func (fe *FeServiceImpl) HandleApplyChunks() error {
 	return nil
 }
 
+// Unlike other handles, this handler should translate as much errors into
+// human-readable errors instead of logging.
+func (fe *FeServiceImpl) HandleDebug(q *api.DebugQ) (*api.DebugS, error) {
+	ctx := context.Background()
+
+	service, err := fe.authCompute(ctx)
+	if err != nil {
+		return &api.DebugS{
+			ChunkServersError: fmt.Sprintf("Failed to get GCE access: %v", err),
+		}, nil
+	}
+
+	list, err := service.Instances.List(ProjectId, zone).Do()
+	if err != nil {
+		return &api.DebugS{
+			ChunkServersError: fmt.Sprintf("Failed to get GCE instance list: %#v", err),
+		}, nil
+	}
+
+	var chunkServers []*api.DebugS_ChunkServerState
+	for _, instance := range list.Items {
+		metadata := make(map[string]string)
+		for _, item := range instance.Metadata.Items {
+			metadata[item.Key] = *item.Value
+		}
+		ty, ok := metadata["bonsai-type"]
+		if ok && ty == "chunk" {
+			chunkServers = append(chunkServers, &api.DebugS_ChunkServerState{
+				IpAddress: "",
+				State:     fmt.Sprintf("%v", instance),
+			})
+		}
+	}
+	return &api.DebugS{
+		ChunkServers: chunkServers,
+	}, nil
+}
+
 func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS, error) {
 	ctx := context.Background()
 

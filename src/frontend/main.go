@@ -69,6 +69,13 @@ func main() {
 	}()
 
 	// Dispatchers.
+	http.HandleFunc("/api/debug", func(w http.ResponseWriter, r *http.Request) {
+		q := MaybeExtractQ(w, r, &api.DebugQ{})
+		if q != nil {
+			s, e := fe.HandleDebug((*q).(*api.DebugQ))
+			WriteS(w, r, s, e)
+		}
+	})
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
 		if q != nil {

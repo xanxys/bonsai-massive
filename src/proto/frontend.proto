@@ -7,6 +7,10 @@ package api;
 // * latency: 100ms RTT
 // * failure rate: once in hour
 service FrontendService {
+    // Debugging info for entire stack (can break abstraction).
+    // Endpoint: /api/debug
+    rpc Debug(DebugQ) returns (DebugS);
+
     // Administrative, read-only.
     // Endpoint: /api/biospheres
     rpc Biospheres(BiospheresQ) returns (BiospheresS);
@@ -22,6 +26,24 @@ service FrontendService {
     // Biosphere streaming.
     // Endpoint: /api/biosphere_frames
     rpc BiosphereFrames(BiosphereFramesQ) returns (BiosphereFramesS);
+}
+
+message DebugQ {
+}
+
+message DebugS {
+
+    // Contain error message that is impossible to attribute to each chunk server.
+    string chunk_servers_error = 1;
+
+    message ChunkServerState {
+        string ip_address = 1;
+        // Human-readable state (might be error message when fails to retrieve).
+        string state = 2;
+    }
+    // Returns all known (including running) chunk server descriptions,
+    // excluding already terminated chunk servers.
+    repeated ChunkServerState chunk_servers = 2;
 }
 
 
