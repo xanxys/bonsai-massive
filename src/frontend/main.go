@@ -24,7 +24,7 @@ func MaybeExtractQ(w http.ResponseWriter, r *http.Request, defaultQ proto.Messag
 	pb := r.Form.Get("pb")
 	if pb == "" {
 		http.NotFound(w, r)
-		fmt.Fprintf(w, "pb param required")
+		fmt.Fprintf(w, "Non-empty pb param required")
 		return nil
 	}
 	err = jsonpb.UnmarshalString(pb, q)
