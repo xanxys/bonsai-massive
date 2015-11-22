@@ -76,8 +76,6 @@ class ContainerFactory:
         Create a docker container using docker/frontend Dockerfile.
         """
         def internal():
-            # Without clean, bazel somehow won't update
-            subprocess.call(["bazel", "clean"], cwd="./src")
             if subprocess.call(["bazel", "build", "frontend:server"], cwd="./src") != 0:
                 raise RuntimeError("Frontend build failed")
             if subprocess.call(["bazel", "build", "client:static"], cwd="./src") != 0:
@@ -95,8 +93,6 @@ class ContainerFactory:
         Create a docker container of the given name with docker/chunk file.
         """
         def internal():
-            # Without clean, bazel somehow won't update
-            subprocess.call(["bazel", "clean"], cwd="./src")
             if subprocess.call(["bazel", "build", "chunk:server"], cwd="./src") != 0:
                 raise RuntimeError("Chunk build failed")
             shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
