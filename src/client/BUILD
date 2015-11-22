@@ -4,8 +4,6 @@ genrule(
     name = "static",
     srcs = [
         ":client",
-        "biosphere.html",
-        "landing.html",
     ],
     outs = ["static.tar"],
     cmd = "tar -c --xform s:^.*/:: $(SRCS) > $@",
@@ -16,9 +14,11 @@ filegroup(
     name = "client",
     srcs = glob([
         "*.css",
+        "*.html",
         "*.js",
+        "card_background.png",
         "icons/*.png",
-        "svg_icons/*.svg",
+        "icons/*.svg",
         "third_party/*.js",
     ]),
 )

@@ -10,6 +10,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
+	"google.golang.org/grpc"
 	"io/ioutil"
 	"log"
 	"math"
@@ -45,10 +46,12 @@ func NewFeService() *FeServiceImpl {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &FeServiceImpl{
+	fe := &FeServiceImpl{
 		cred:               conf,
 		chunkContainerName: string(cont),
 	}
+	go fe.StatefulLoop()
+	return fe
 }
 
 func (fe *FeServiceImpl) authDatastore(ctx context.Context) (*datastore.Client, error) {
@@ -70,36 +73,9 @@ type BiosphereMeta struct {
 	Name string
 }
 
-// HandleApplyChunks checks chunk servers and commit latest status to datastore
-// when new state is detected. Note that this function can be called on multiple
-// nodes when multiple FeServer are running.
-// Do not mess up datastore.
-func (fe *FeServiceImpl) HandleApplyChunks() error {
-	ctx := context.Background()
+// Arbitrary code that needs to run continuously forever on this server.
+func (fe *FeServiceImpl) StatefulLoop() {
 
-	service, err := fe.authCompute(ctx)
-	if err != nil {
-		return err
-	}
-
-	list, err := service.Instances.List(ProjectId, zone).Do()
-	if err != nil {
-		log.Printf("Failed to get instance list: %#v", err)
-	}
-
-	log.Println("== Chunks")
-	for _, instance := range list.Items {
-		metadata := make(map[string]string)
-		for _, item := range instance.Metadata.Items {
-			metadata[item.Key] = *item.Value
-		}
-		ty, ok := metadata["bonsai-type"]
-		if ok && ty == "chunk" {
-			log.Println(instance)
-		}
-	}
-
-	return nil
 }
 
 // Unlike other handles, this handler should translate as much errors into
@@ -129,9 +105,11 @@ func (fe *FeServiceImpl) HandleDebug(q *api.DebugQ) (*api.DebugS, error) {
 		}
 		ty, ok := metadata["bonsai-type"]
 		if ok && ty == "chunk" {
+			ip := instance.NetworkInterfaces[0].NetworkIP
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip), grpc.WithInsecure())
 			chunkServers = append(chunkServers, &api.DebugS_ChunkServerState{
-				IpAddress: "",
-				State:     fmt.Sprintf("%v", instance),
+				IpAddress: ip,
+				State:     fmt.Sprintf("%v %v %v", conn, err, instance),
 			})
 		}
 	}
@@ -260,7 +238,7 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
 			`docker login -e dummy@example.com -u _token -p $ACCESS_TOKEN https://gcr.io`,
 			fmt.Sprintf(`docker pull %s`, fe.chunkContainerName),
-			fmt.Sprintf(`docker run --publish 8000:8000 %s`, fe.chunkContainerName),
+			fmt.Sprintf(`docker run --publish 9000:9000 %s`, fe.chunkContainerName),
 		}, "\n")
 
 	bonsaiType := "chunk"

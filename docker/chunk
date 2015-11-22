@@ -5,5 +5,5 @@ COPY key.json /root/bonsai/key.json
 COPY ca-bundle.crt /etc/ssl/certs/ca-certificates.crt
 RUN ["chmod", "a+x", "/root/bonsai/chunk-server.bin"]
 
-EXPOSE 8000
+EXPOSE 9000
 ENTRYPOINT ["/root/bonsai/chunk-server.bin"]
