@@ -6,10 +6,9 @@ Build and/or deploy containers for bonsai.
 | Client | ---- | Frontend | ----- | Chunk |
 
 
-frontend can be 2, 3, 1+2, or 1+3:
+frontend can be 2 or 1+2:
 1. fake server (which proxies all API requests to more serious frontend)
-2. local server (directly running docker container)
-3. remote service (on GKE, managed by kubernetes under replication controller / load balancer)
+2. remote service (on GKE, managed by kubernetes under replication controller / load balancer)
 
 chunk always runs on GCE (not GKE), launched by frontend.
 
@@ -100,18 +99,6 @@ class ContainerFactory:
         return self._create_container(
             'docker/chunk', self.get_container_path('bonsai_chunk'), internal)
 
-
-def deploy_containers_local(container_name):
-    print("Running containers locally")
-    name = "bonsai_fe-%d" % random.randint(0, 100000)
-    subprocess.call([
-        "docker", "run",
-        "--tty",
-        "--interactive",
-        "--name", name,
-        "--publish", "%d:8000" % LOCAL_PORT,
-        container_name])
-
 def deploy_containers_gke(container_name, rollout=True):
     print("Pushing containers to google container repository")
     subprocess.call(['gcloud', 'docker', 'push', container_name])
@@ -191,12 +178,6 @@ if __name__ == '__main__':
         unknown requests are redirected to localhost:8000, which can be launched
         by --local.
         """)
-    parser.add_argument('--local',
-        default=False, action='store_const', const=True,
-        help="""
-        Create and run a container locally. This is equivalent to running it on
-        GCE (--remote)
-        """)
     parser.add_argument('--remote',
         default=False, action='store_const', const=True,
         help="""
@@ -214,13 +195,10 @@ if __name__ == '__main__':
     if args.fake:
         run_fake_server()
 
-    if args.local or args.remote:
+    if args.remote:
         factory = ContainerFactory(args.key)
         fe_container_name = factory.create_fe_container()
         chunk_container_name = factory.create_chunk_container()
-        if args.local:
-            deploy_containers_gke(chunk_container_name, rollout=False)
-            deploy_containers_local(fe_container_name)
-        elif args.remote:
+        if args.remote:
             deploy_containers_gke(chunk_container_name, rollout=False)
             deploy_containers_gke(fe_container_name)
