@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"time"
 )
 
-// Unlike other handles, this handler should translate as much errors into
-// human-readable errors instead of logging.
+// HandleDebug translate as much errors into human-readable errors instead
+// of logging, unlike other handles.
 func (fe *FeServiceImpl) HandleDebug(q *api.DebugQ) (*api.DebugS, error) {
 	ctx := context.Background()
 
@@ -39,8 +40,10 @@ func (fe *FeServiceImpl) HandleDebug(q *api.DebugQ) (*api.DebugS, error) {
 				IpAddress: ip,
 				Health:    api.DebugS_ALLOCATED,
 			}
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip), grpc.WithInsecure())
-			if conn != nil && err == nil {
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+			if conn != nil {
+				defer conn.Close()
 				serverState.Health = api.DebugS_GRPC_OK
 				chunkService := api.NewChunkServiceClient(conn)
 				resp, err := chunkService.Status(ctx, &api.StatusQ{})

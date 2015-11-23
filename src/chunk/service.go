@@ -27,7 +27,6 @@ func NewCkService() *CkServiceImpl {
 }
 
 func (ck *CkServiceImpl) Status(ctx context.Context, q *api.StatusQ) (*api.StatusS, error) {
-	Benchmark()
 	return &api.StatusS{}, nil
 }
 
