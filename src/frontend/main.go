@@ -6,8 +6,10 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"log"
 	"mime"
 	"net/http"
+	"reflect"
 )
 
 // MaybeExtractQ extracts proto from HTTP request and returns it.
@@ -53,55 +55,54 @@ func WriteS(
 	}
 }
 
+// JsonpbHandler converts given grpc server method of type
+// func(context.Context, *<RequestMessage>) (*<ResponseMessage>, error)
+// to a wrapped HTTP handler.
+// If the method doesn't match this type, JsonpbHandler will panic.
+func JsonpbHandler(grpcServerMethod interface{}) func(http.ResponseWriter, *http.Request) {
+	mType := reflect.TypeOf(grpcServerMethod)
+	if mType.Kind() != reflect.Func || mType.NumIn() != 2 || mType.NumOut() != 2 {
+		log.Panicf("Expecting func(2 args) (2 args), got %v", mType)
+	}
+	reqType := mType.In(1).Elem()
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := MaybeExtractQ(w, r, reflect.New(reqType).Interface().(proto.Message))
+		if q != nil {
+			retVals := reflect.ValueOf(grpcServerMethod).Call([]reflect.Value{
+				reflect.ValueOf(context.Background()),
+				reflect.ValueOf(q),
+			})
+			WriteS(w, r, retVals[0].Interface().(proto.Message), retVals[1].Interface().(error))
+		}
+	}
+}
+
+func FileServingHandler(filename string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "/root/bonsai/static/"+filename)
+	}
+}
+
 func main() {
 	const port = 8000
-	fmt.Printf("Starting frontend server http://localhost:%d\n", port)
+	log.Printf("Starting frontend server http://localhost:%d\n", port)
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
-	fe := NewFeService()
+	// Enforce that NewFeService implements the service defined in proto.
+	var fe api.FrontendServiceServer
+	fe = NewFeService()
 
 	// Dispatchers.
-	http.HandleFunc("/api/debug", func(w http.ResponseWriter, r *http.Request) {
-		q := MaybeExtractQ(w, r, &api.DebugQ{})
-		if q != nil {
-			s, e := fe.Debug(context.Background(), (*q).(*api.DebugQ))
-			WriteS(w, r, s, e)
-		}
-	})
-	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
-		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
-		if q != nil {
-			s, e := fe.Biospheres(context.Background(), (*q).(*api.BiospheresQ))
-			WriteS(w, r, s, e)
-		}
-	})
-	http.HandleFunc("/api/biosphere_delta", func(w http.ResponseWriter, r *http.Request) {
-		q := MaybeExtractQ(w, r, &api.BiosphereDeltaQ{})
-		if q != nil {
-			s, e := fe.BiosphereDelta(context.Background(), (*q).(*api.BiosphereDeltaQ))
-			WriteS(w, r, s, e)
-		}
-	})
-	http.HandleFunc("/api/biosphere_frames", func(w http.ResponseWriter, r *http.Request) {
-		q := MaybeExtractQ(w, r, &api.BiosphereFramesQ{})
-		if q != nil {
-			s, e := fe.BiosphereFrames(context.Background(), (*q).(*api.BiosphereFramesQ))
-			WriteS(w, r, s, e)
-		}
-	})
-	http.Handle("/static/",
-		http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
-
+	http.HandleFunc("/api/debug", JsonpbHandler(fe.Debug))
+	http.HandleFunc("/api/biospheres", JsonpbHandler(fe.Biospheres))
+	http.HandleFunc("/api/biosphere_delta", JsonpbHandler(fe.BiosphereDelta))
+	http.HandleFunc("/api/biosphere_frames", JsonpbHandler(fe.BiosphereFrames))
+	// Static files.
+	http.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
 	// Special parmalinks.
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "/root/bonsai/static/landing.html")
-	})
-	http.HandleFunc("/biosphere/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "/root/bonsai/static/biosphere.html")
-	})
-	http.HandleFunc("/debug", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "/root/bonsai/static/debug.html")
-	})
+	http.HandleFunc("/", FileServingHandler("landing.html"))
+	http.HandleFunc("/biosphere/", FileServingHandler("biosphere.html"))
+	http.HandleFunc("/debug", FileServingHandler("debug.html"))
 
 	// Start FE server and block on it forever.
 	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)

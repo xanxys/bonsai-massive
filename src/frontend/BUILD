@@ -14,6 +14,7 @@ genrule(
         "handle_biosphere_delta.go",
         "handle_biosphere_frames.go",
         "handle_biospheres.go",
+        "handle_chunk.go",
         "handle_debug.go",
         "main.go",
         "service.go",
