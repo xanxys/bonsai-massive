@@ -225,14 +225,14 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	const machineType = "n1-standard-4"
 
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + ProjectId
-	imageURL := "https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1504-vivid-v20150422"
+	// Run `gcloud compute images list --project google-containers`
+	// to see list of container names.
+	imageURL := "https://www.googleapis.com/compute/v1/projects/google-containers/global/images/container-vm-v20151103"
 
+	// TODO: migrate to kubelet manifest file.
 	startupScript := strings.Join(
 		[]string{
 			`#!/bin/bash`,
-			`apt-get update`,
-			`apt-get -y install docker.io`,
-			`service docker start`,
 			`METADATA=http://metadata.google.internal./computeMetadata/v1`,
 			`SVC_ACCT=$METADATA/instance/service-accounts/default`,
 			`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
