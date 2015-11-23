@@ -118,10 +118,24 @@ def deploy_containers_gke(container_name, rollout=True):
             '--image=%s' % container_name])
 
 def show_prod_deployment():
-    container_name_staging = ""
-    print("===================================================================")
-    print("kubectl rolling-update bonsai-prod-frontend-rc --update-period=30s --image=%s" % container_name_staging)
-    print("===================================================================")
+    pod_result = json.loads(subprocess.check_output(['kubectl', 'get', '-o', 'json', 'pod']).decode('utf-8'))
+    def get_images_for(pod_name):
+        container_statuses = [container_status for pod in pod_result['items'] for container_status in pod['status']['containerStatuses']]
+        return set([cs['image'] for cs in container_statuses if cs['name'] == pod_name])
+
+    staging_images = get_images_for('bonsai-staging-frontend')
+    print("* current staging images: %s" % staging_images)
+    print("* current prod images: %s" % get_images_for('bonsai-prod-frontend'))
+
+    if len(staging_images) == 0:
+        print("Staging pods not running; aborting")
+    elif len(staging_images) >= 2:
+        print("Multiple staging images %s exist; maybe doing rolling-update? Wait until it stabilizes and retry.")
+    else:
+        container_name_staging = staging_images.pop()
+        print("===================================================================")
+        print("kubectl rolling-update bonsai-prod-frontend-rc --update-period=30s --image=%s" % container_name_staging)
+        print("===================================================================")
 
 
 class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
