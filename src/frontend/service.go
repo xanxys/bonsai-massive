@@ -106,12 +106,27 @@ func (fe *FeServiceImpl) HandleDebug(q *api.DebugQ) (*api.DebugS, error) {
 		ty, ok := metadata["bonsai-type"]
 		if ok && ty == "chunk" {
 			ip := instance.NetworkInterfaces[0].NetworkIP
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip), grpc.WithInsecure())
-			chunkServers = append(chunkServers, &api.DebugS_ChunkServerState{
+			serverState := api.DebugS_ChunkServerState{
 				IpAddress: ip,
-				State:     fmt.Sprintf("%v %v %v", conn, err, instance),
-			})
+				Health:    api.DebugS_ALLOCATED,
+			}
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip), grpc.WithInsecure())
+			if conn != nil && err == nil {
+				serverState.Health = api.DebugS_GRPC_OK
+				chunkService := api.NewChunkServiceClient(conn)
+				resp, err := chunkService.Status(ctx, &api.StatusQ{})
+				if err != nil {
+					serverState.State = fmt.Sprintf("%v", err)
+				} else {
+					serverState.Health = api.DebugS_STATUS_OK
+					serverState.State = fmt.Sprintf("%v", resp)
+				}
+			} else {
+				serverState.State = fmt.Sprintf("%v", err)
+			}
+			chunkServers = append(chunkServers, &serverState)
 		}
+
 	}
 	return &api.DebugS{
 		ChunkServers: chunkServers,

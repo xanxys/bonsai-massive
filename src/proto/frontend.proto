@@ -36,10 +36,25 @@ message DebugS {
     // Contain error message that is impossible to attribute to each chunk server.
     string chunk_servers_error = 1;
 
+    // Latter entries are always stricter than entries before them.
+    enum ChunkServerHealth {
+        // The machine shows up in compute engine VM list.
+        // This is always true, so this is the default fallback (0).
+        ALLOCATED = 0;
+
+        // Possible to create gRPC connection.
+        GRPC_OK = 1;
+
+        // Possible to get successful Status RPC response.
+        STATUS_OK = 2;
+    }
+
     message ChunkServerState {
         string ip_address = 1;
         // Human-readable state (might be error message when fails to retrieve).
         string state = 2;
+
+        ChunkServerHealth health = 3;
     }
     // Returns all known (including running) chunk server descriptions,
     // excluding already terminated chunk servers.

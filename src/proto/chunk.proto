@@ -6,9 +6,18 @@ package api;
 //
 // But for now, there's only one chunk.
 service ChunkService {
+    // Get status of chunks.
+    rpc Status(StatusQ) returns (StatusS);
+
     rpc Benchmark(BenchmarkQ) returns (BenchmarkS);
 
     rpc ModifyChunk(ModifyChunkQ) returns (ModifyChunkS);
+}
+
+message StatusQ {
+}
+
+message StatusS {
 }
 
 message BenchmarkQ {
