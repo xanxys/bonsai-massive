@@ -10,9 +10,7 @@ import (
 
 // HandleDebug translate as much errors into human-readable errors instead
 // of logging, unlike other handles.
-func (fe *FeServiceImpl) HandleDebug(q *api.DebugQ) (*api.DebugS, error) {
-	ctx := context.Background()
-
+func (fe *FeServiceImpl) Debug(ctx context.Context, q *api.DebugQ) (*api.DebugS, error) {
 	service, err := fe.authCompute(ctx)
 	if err != nil {
 		return &api.DebugS{

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
+	"golang.org/x/net/context"
 	"mime"
 	"net/http"
 )
@@ -63,28 +64,28 @@ func main() {
 	http.HandleFunc("/api/debug", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.DebugQ{})
 		if q != nil {
-			s, e := fe.HandleDebug((*q).(*api.DebugQ))
+			s, e := fe.Debug(context.Background(), (*q).(*api.DebugQ))
 			WriteS(w, r, s, e)
 		}
 	})
 	http.HandleFunc("/api/biospheres", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiospheresQ{})
 		if q != nil {
-			s, e := fe.HandleBiospheres((*q).(*api.BiospheresQ))
+			s, e := fe.Biospheres(context.Background(), (*q).(*api.BiospheresQ))
 			WriteS(w, r, s, e)
 		}
 	})
 	http.HandleFunc("/api/biosphere_delta", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiosphereDeltaQ{})
 		if q != nil {
-			s, e := fe.HandleBiosphereDelta((*q).(*api.BiosphereDeltaQ))
+			s, e := fe.BiosphereDelta(context.Background(), (*q).(*api.BiosphereDeltaQ))
 			WriteS(w, r, s, e)
 		}
 	})
 	http.HandleFunc("/api/biosphere_frames", func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, &api.BiosphereFramesQ{})
 		if q != nil {
-			s, e := fe.HandleBiosphereFrames((*q).(*api.BiosphereFramesQ))
+			s, e := fe.BiosphereFrames(context.Background(), (*q).(*api.BiosphereFramesQ))
 			WriteS(w, r, s, e)
 		}
 	})

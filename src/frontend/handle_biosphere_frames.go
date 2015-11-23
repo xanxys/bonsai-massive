@@ -2,10 +2,11 @@ package main
 
 import (
 	"./api"
+	"golang.org/x/net/context"
 	"math"
 )
 
-func (fe *FeServiceImpl) HandleBiosphereFrames(q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
+func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
 	// Icosahedron definition.
 	// Adopted from https://github.com/mrdoob/three.js/blob/master/src/extras/geometries/IcosahedronGeometry.js
 	t := float32((1 + math.Sqrt(5)) / 2)

@@ -6,9 +6,7 @@ import (
 	"google.golang.org/cloud/datastore"
 )
 
-func (fe *FeServiceImpl) HandleBiospheres(q *api.BiospheresQ) (*api.BiospheresS, error) {
-	ctx := context.Background()
-
+func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*api.BiospheresS, error) {
 	var nCores uint32
 	var nTicks uint64
 	nCores = 42

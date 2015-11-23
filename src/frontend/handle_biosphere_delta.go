@@ -11,9 +11,7 @@ import (
 	"strings"
 )
 
-func (fe *FeServiceImpl) HandleBiosphereDelta(q *api.BiosphereDeltaQ) (*api.BiospheresS, error) {
-	ctx := context.Background()
-
+func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDeltaQ) (*api.BiospheresS, error) {
 	name := "FugaFuga"
 	var nCores uint32
 	var nTicks uint64
