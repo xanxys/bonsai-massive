@@ -2,22 +2,22 @@
     "apiVersion": "v1",
     "kind": "ReplicationController",
     "metadata": {
-        "name": "dev-fe-rc",
+        "name": "bonsai-prod-frontend-rc",
         "labels": {
-            "role": "dev"
+            "env": "prod"
         }
     },
     "spec": {
         "replicas": 1,
         "selector": {
             "name": "frontend",
-            "role": "dev"
+            "env": "prod"
         },
         "template": {
             "spec": {
                 "containers": [
                     {
-                        "name": "dev-fe",
+                        "name": "bonsai-prod-frontend",
                         "image": "gcr.io/bonsai-genesis/bonsai_frontend",
                         "ports": [
                             {
@@ -30,7 +30,7 @@
             "metadata": {
                 "labels": {
                     "name": "frontend",
-                    "role": "dev"
+                    "env": "prod"
                 }
             }
         }

@@ -15,6 +15,8 @@ chunk always runs on GCE (not GKE), launched by frontend.
 Requires docker 1.5+
 You need to be in docker group to run this script.
 This script is not supposed to be run by root.
+
+It is assumed you use a single GKE cluster for all environments.
 """
 import argparse
 import datetime
@@ -29,7 +31,11 @@ import subprocess
 # Google Cloud Platform project id
 PROJECT_NAME = "bonsai-genesis"
 FAKE_PORT = 7000
-LOCAL_PORT = 8000
+# Don't put trailing /
+SERVERS = {
+    'staging': ('bonsai-staging.xanxys.net', 80),
+    'prod': ('bonsai.xanxys.net', 80),
+}
 
 
 class ContainerFactory:
@@ -100,18 +106,23 @@ class ContainerFactory:
             'docker/chunk', self.get_container_path('bonsai_chunk'), internal)
 
 def deploy_containers_gke(container_name, rollout=True):
+    assert(args.env != 'prod')
     print("Pushing containers to google container repository")
     subprocess.call(['gcloud', 'docker', 'push', container_name])
 
     if rollout:
         print("Rolling out new image %s" % container_name)
         subprocess.call(['kubectl', 'rolling-update',
-            'dev-fe-rc',
+            'bonsai-%s-frontend-rc' % args.env,
             '--update-period=10s',
             '--image=%s' % container_name])
 
-def get_local_url():
-    return "http://localhost:%d/" % LOCAL_PORT
+def show_prod_deployment():
+    container_name_staging = ""
+    print("===================================================================")
+    print("kubectl rolling-update bonsai-prod-frontend-rc --update-period=30s --image=%s" % container_name_staging)
+    print("===================================================================")
+
 
 class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -148,9 +159,10 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
             self.do_get_proxy()
 
     def do_get_proxy(self):
-        conn = http.client.HTTPConnection('localhost', LOCAL_PORT)
-        conn.request('GET', 'http://localhost:%d%s' % (
-            LOCAL_PORT, self.path))
+        host, port = SERVERS[args.env]
+        conn = http.client.HTTPConnection(host, port)
+        conn.request('GET', 'http://%s:%d%s' % (
+            host, port, self.path))
         resp = conn.getresponse()
 
         self.send_response(resp.status)
@@ -159,11 +171,9 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         shutil.copyfileobj(resp, self.wfile)
         conn.close()
 
-def run_fake_server():
+def run_fake_server(env):
     host = '0.0.0.0'
-    print("Running fake server at http://%s:%d/ with fallback %s" % (
-        host, FAKE_PORT, get_local_url()))
-
+    print("Running fake server at http://%s:%d/ with fallback %s" % SERVERS[env])
     httpd = http.server.HTTPServer((host, FAKE_PORT), FakeServerHandler)
     httpd.serve_forever()
 
@@ -173,10 +183,8 @@ if __name__ == '__main__':
     parser.add_argument("--fake",
         default=False, action='store_const', const=True,
         help="""
-        Run very lightweight fake python server, which is useful for client dev.
-        Files are served directly (no container) from working tree, and all
-        unknown requests are redirected to localhost:8000, which can be launched
-        by --local.
+        Run very lightweight fake python server which serves static files from
+        working directory, and proxies other requests to real server on GKE.
         """)
     parser.add_argument('--remote',
         default=False, action='store_const', const=True,
@@ -184,21 +192,32 @@ if __name__ == '__main__':
         Create and run a container remotely on Google Container Engine.
         This option starts rolling-update immediately after uploading container.
         """)
+    parser.add_argument('--env',
+        default='staging',
+        help="""
+        Environment to deploy to. It must be either 'staging' (default) or 'prod'.
+        """)
     # Key
     parser.add_argument("--key",
         help="""
         Path of JSON private key of Google Cloud Platform. This will be copied
         to the created container, so don't upload them to public repository.
         """)
-    args = parser.parse_args()
+    args = parser.parse_args() # this is a global variable.
+    if args.env not in ['staging', 'prod']:
+        raise RuntimeError("Invalid --env. It must be either staging or prod.")
 
     if args.fake:
         run_fake_server()
 
     if args.remote:
-        factory = ContainerFactory(args.key)
-        fe_container_name = factory.create_fe_container()
-        chunk_container_name = factory.create_chunk_container()
-        if args.remote:
+        if args.env != 'prod':
+            factory = ContainerFactory(args.key)
+            fe_container_name = factory.create_fe_container()
+            chunk_container_name = factory.create_chunk_container()
             deploy_containers_gke(chunk_container_name, rollout=False)
             deploy_containers_gke(fe_container_name)
+        else:
+            print("Direct deployment to prod is not supported, because it's dangerous.")
+            print("Instead, here is the command to copy staging configuration to prod.")
+            show_prod_deployment()

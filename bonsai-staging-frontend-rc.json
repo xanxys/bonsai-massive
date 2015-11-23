@@ -1,0 +1,38 @@
+{
+    "apiVersion": "v1",
+    "kind": "ReplicationController",
+    "metadata": {
+        "name": "bonsai-staging-frontend-rc",
+        "labels": {
+            "env": "staging"
+        }
+    },
+    "spec": {
+        "replicas": 1,
+        "selector": {
+            "name": "frontend",
+            "env": "staging"
+        },
+        "template": {
+            "spec": {
+                "containers": [
+                    {
+                        "name": "bonsai-staging-frontend",
+                        "image": "gcr.io/bonsai-genesis/bonsai_frontend",
+                        "ports": [
+                            {
+                                "containerPort": 8000
+                            }
+                        ]
+                    }
+                ]
+            },
+            "metadata": {
+                "labels": {
+                    "name": "frontend",
+                    "env": "staging"
+                }
+            }
+        }
+    }
+}
