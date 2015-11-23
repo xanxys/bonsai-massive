@@ -1,8 +1,8 @@
 go_binary(
     name="server_not_working_now_do_not_use",
     srcs=[
-        "main.go",
         "//proto:proto_go_src",
+        "main.go",
     ],
 )
 
@@ -10,9 +10,13 @@ go_binary(
 genrule(
     name="server",
     srcs=[
+        "//proto:proto_go_src",
+        "handle_biosphere_delta.go",
+        "handle_biosphere_frames.go",
+        "handle_biospheres.go",
+        "handle_debug.go",
         "main.go",
         "service.go",
-        "//proto:proto_go_src",
     ],
     outs=[
         "server.bin",
