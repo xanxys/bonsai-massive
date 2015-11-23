@@ -70,9 +70,14 @@ func JsonpbHandler(grpcServerMethod interface{}) func(http.ResponseWriter, *http
 		if q != nil {
 			retVals := reflect.ValueOf(grpcServerMethod).Call([]reflect.Value{
 				reflect.ValueOf(context.Background()),
-				reflect.ValueOf(q),
+				reflect.ValueOf(*q),
 			})
-			WriteS(w, r, retVals[0].Interface().(proto.Message), retVals[1].Interface().(error))
+			// Can't cast nil to error.
+			var err error
+			if retVals[1].Interface() != nil {
+				err = retVals[1].Interface().(error)
+			}
+			WriteS(w, r, retVals[0].Interface().(proto.Message), err)
 		}
 	}
 }
