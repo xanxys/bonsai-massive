@@ -91,6 +91,17 @@ func main() {
 	http.Handle("/static/",
 		http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
 
+	// Special parmalinks.
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "/root/bonsai/static/landing.html")
+	})
+	http.HandleFunc("/biosphere/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "/root/bonsai/static/biosphere.html")
+	})
+	http.HandleFunc("/debug", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "/root/bonsai/static/debug.html")
+	})
+
 	// Start FE server and block on it forever.
 	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
