@@ -139,27 +139,28 @@ def show_prod_deployment():
 
 
 class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
+    """
+    Fake server that serves static files (including special URLs such as "/debug")
+    identically from working directory files as the real server, but proxies
+    everything to a real server determined by args.env.
+    """
+
     def do_GET(self):
         base_dir = './src/client'
-        path_components = self.path[1:].split('/')
-        if path_components[0] == 'static':
-            print('STATIC')
-            # Convert to real file path
-            if len(path_components) == 1:
-                file_path_cs = ["index.html"]
-            else:
-                file_path_cs = path_components[1:]
-            file_path = os.path.join(base_dir, *file_path_cs)
-            self.do_get_static_with_fallback(file_path)
-        elif path_components[0] == 'biosphere':
-            print('STATIC (/biosphere -> /static/biosphere.html)')
-            file_path = os.path.join(base_dir, 'biosphere.html')
-            self.do_get_static_with_fallback(file_path)
-        else:
-            print('PROXY')
+        maybe_fn = self.get_filename_from_url()
+        mapping = self.emulate_build()
+        if maybe_fn == True:
+            print('PROXYING')
             self.do_get_proxy()
+        elif maybe_fn == False or maybe_fn not in mapping:
+            print('STATIC:NOT_FOUND_LOCALLY %s -> %s' % (self.path, maybe_fn))
+            self.send_error(404,
+                message="""File not found (FakeServer). You actually don't have the file, or FakeServer is behaving differently from real servers.""")
+        else:
+            print('STATIC %s -> %s' % (self.path, maybe_fn))
+            self.do_get_static_file(mapping[maybe_fn])
 
-    def do_get_static_with_fallback(self, file_path):
+    def do_get_static_file(self, file_path):
         ctype = self.guess_type(file_path)
         try:
             f = open(file_path, 'rb')
@@ -171,6 +172,44 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         except IOError:
             print('->PROXY')
             self.do_get_proxy()
+
+    def get_filename_from_url(self):
+        """
+        Converts URL to filename.
+        Returns either:
+        1. filename (str)
+        2. False (when path is definitely not found)
+        3. True (when path might be found on real server)
+        path needs to start with "/"
+        """
+        path_components = [c for c in self.path.split('/') if c]
+        if len(path_components) == 0:
+            return 'landing.html'
+        elif len(path_components) >= 2 and path_components[0] == 'static':
+            if len(path_components) == 2:
+                return path_components[1]
+            else:
+                return False
+        elif path_components == ['debug']:
+            return 'debug.html'
+        elif len(path_components) == 2 and path_components[0] == 'biosphere':
+            return 'biosphere.html'
+        else:
+            return True
+
+    def emulate_build(self):
+        """
+        Create mapping from filename to file path,
+        simulating BUILD file.
+        """
+        filename_blacklist = set(['BUILD', '.gitignore'])
+        mapping = {}
+        for (dir_path, dir_names, file_names) in os.walk('src/client'):
+            for file_name in file_names:
+                if file_name in filename_blacklist:
+                    continue
+                mapping[file_name] = os.path.join(dir_path, file_name)
+        return mapping
 
     def do_get_proxy(self):
         host, port = SERVERS[args.env]
@@ -185,10 +224,12 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         shutil.copyfileobj(resp, self.wfile)
         conn.close()
 
-def run_fake_server(env):
-    host = '0.0.0.0'
-    print("Running fake server at http://%s:%d/ with fallback %s" % SERVERS[env])
-    httpd = http.server.HTTPServer((host, FAKE_PORT), FakeServerHandler)
+def run_fake_server():
+    fake_server_config = ('0.0.0.0', FAKE_PORT)
+    fake_server_url = 'http://%s:%d/' % fake_server_config
+    real_server_url = 'http://%s:%d/' % SERVERS[args.env]
+    print("Running fake server at %s with fallback %s" % (fake_server_url, real_server_url))
+    httpd = http.server.HTTPServer(fake_server_config, FakeServerHandler)
     httpd.serve_forever()
 
 if __name__ == '__main__':
