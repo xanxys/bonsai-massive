@@ -50,7 +50,7 @@ $(document).ready(() => {
                 create: function() {
                     console.log('CREATE', this.name);
                     var request = {
-                        type: 1,  // ADD, see https://github.com/golang/protobuf/issues/59
+                        type: 1, // ADD, see https://github.com/golang/protobuf/issues/59
                         desc: {
                             name: this.name
                         }

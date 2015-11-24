@@ -1,74 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>Bonsai</title>
 
-		<meta charset="utf-8"/>
+<head>
+	<title>Bonsai</title>
 
-		<link rel="stylesheet" href="/static/material.css" type="text/css"/>
-		<link rel="icon" href="/static/favicon.png" type="image/png"/>
+	<meta charset="utf-8" />
 
-		<script src="/static/vue.js"></script>
-		<script src="/static/underscore.js"></script>
-		<script src="/static/underscore.string.min.js"></script>
-		<script src="/static/jquery.js"></script>
-		<script src="/static/landing.js"></script>
-	</head>
-	<body>
-        <div class="top_sheet">
-			<img style="align:left" src="/static/logo_white.svg" width="40px" height="40px"/>
+	<link rel="stylesheet" href="/static/material.css" type="text/css" />
+	<link rel="icon" href="/static/favicon.png" type="image/png" />
 
-			<div style="float: right">
-				<img src="/static/person.svg" width="40px" height="40px"/>
+	<script src="/static/vue.js"></script>
+	<script src="/static/underscore.js"></script>
+	<script src="/static/underscore.string.min.js"></script>
+	<script src="/static/jquery.js"></script>
+	<script src="/static/landing.js"></script>
+</head>
+
+<body>
+	<div class="top_sheet">
+		<img style="align:left" src="/static/logo_white.svg" width="40px" height="40px" />
+
+		<div style="float: right">
+			<img src="/static/person.svg" width="40px" height="40px" />
+		</div>
+	</div>
+
+	<div id="biospheres">
+		<h1>Biospheres</h1>
+		<div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
+			<div class="bg">
 			</div>
-        </div>
-
-		<div id="biospheres">
-			<h1>Biospheres</h1>
-	        <div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
-				<div class="bg">
-				</div>
-				<div class="content">
-					<div style="display:inline">
-						<span style="font-size:200%">{{name}}</span>
-						<ul>
-							<li>{{num_ticks}} ticks</li>
-							<li>12332 cells</li>
-						</ul>
-					</div>
-				</div>
-				<div class="content2">
+			<div class="content">
+				<div style="display:inline">
+					<span style="font-size:200%">{{name}}</span>
 					<ul>
-						<li>{{num_cores}} cores</li>
-						<li>12.3 GiB</li>
+						<li>{{num_ticks}} ticks</li>
+						<li>12332 cells</li>
 					</ul>
 				</div>
-	        </div>
-			<div v-show="loading" class="card_dummy_center">
-				<div class="loader">Loading...</div>
+			</div>
+			<div class="content2">
+				<ul>
+					<li>{{num_cores}} cores</li>
+					<li>12.3 GiB</li>
+				</ul>
 			</div>
 		</div>
-
-		<div class="fab" id="create_biosphere">
-			<img src="/static/ic_add_white_24px.svg"/>
+		<div v-show="loading" class="card_dummy_center">
+			<div class="loader">Loading...</div>
 		</div>
+	</div>
 
-		<div id="create_biosphere_dialog" style="display: none" class="dialog">
-			<h2>Create Biosphere</h2>
+	<div class="fab" id="create_biosphere">
+		<img src="/static/ic_add_white_24px.svg" />
+	</div>
 
-			Name: <input v-model="name"/> <br/>
-			Size: 10m x 10m <br/>
+	<div id="create_biosphere_dialog" style="display: none" class="dialog">
+		<h2>Create Biosphere</h2>
 
-			<div style="background-color: #E1F5FE">
+		Name:
+		<input v-model="name" />
+		<br/> Size: 10m x 10m
+		<br/>
+
+		<div style="background-color: #E1F5FE">
 			1.23 USD / hour
-			</div>
-
-			<div style="float: right">
-				<button v-on="click: cancel">No</button>
-				<button v-on="click: create" class="{{create_ready ? 'enabled' : 'disabled'}}">Create</button>
-			</div>
 		</div>
 
-		<!-- %%$$ANALYTICS$$%% -->
-	</body>
+		<div style="float: right">
+			<button v-on="click: cancel">No</button>
+			<button v-on="click: create" class="{{create_ready ? 'enabled' : 'disabled'}}">Create</button>
+		</div>
+	</div>
+
+	<!-- %%$$ANALYTICS$$%% -->
+</body>
+
 </html>

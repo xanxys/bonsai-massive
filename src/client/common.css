@@ -1,22 +1,19 @@
 @import url(http://fonts.googleapis.com/css?family=Clicker+Script);
 @import url(http://fonts.googleapis.com/css?family=Alegreya+Sans:300,800);
 @import url(http://fonts.googleapis.com/css?family=Inconsolata:400,700);
-
 html, body {
-	margin: 0;
-	padding: 0;
-	height: 100%;
-	overflow: hidden;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
 }
-
 #main {
-	z-index: -1;
-	margin: 0;
-	padding: 0;
+    z-index: -1;
+    margin: 0;
+    padding: 0;
 }
-
 canvas {
-	display: block;
+    display: block;
 }
 
 /* Colors
@@ -29,251 +26,219 @@ canvas {
 */
 
 .bg-genome {
-	background-color: #ad7fa8;
+    background-color: #ad7fa8;
 }
-
 .bg-time {
-	background-color: #72cf89;
+    background-color: #72cf89;
 }
-
 .bg-chunk {
-	background-color: #729fcf;
+    background-color: #729fcf;
 }
-
 .bg-plant {
-	background-color: #cfbf72;
+    background-color: #cfbf72;
 }
-
 .bg-chart {
-	background-color: #cf7274;
+    background-color: #cf7274;
 }
-
 .bg-about {
-	background-color: #729fcf;
+    background-color: #729fcf;
 }
 
 /* Basic structure (logo + two columns) */
+
 .logo {
-	position: absolute;
-	right: 0;
-	bottom: 0;
+    position: absolute;
+    right: 0;
+    bottom: 0;
 }
-
 .logo-text {
-	font-size: 50px;
-	position: relative;
-	font-family: 'Clicker Script', cursive;
-	color: #784;
-	margin-right: 10px;
-	margin-bottom: 10px;
-
-	text-shadow: 0 0 5px #eee;
-
-	-webkit-touch-callout: none;
-	-webkit-user-select: none;
-	-khtml-user-select: none;
-	-moz-user-select: none;
-	-ms-user-select: none;
-	user-select: none;
+    font-size: 50px;
+    position: relative;
+    font-family: 'Clicker Script', cursive;
+    color: #784;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 5px #eee;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
-
 .column-buttons {
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 50px;
-	height: 100%;
-
-	background-color: #424242; /* Grey 800 */
-
-	box-shadow: 3px 0 3px 0 rgba(0, 0, 0, 0.4);
-	z-index: 3;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 50px;
+    height: 100%;
+    background-color: #424242;
+    /* Grey 800 */
+    box-shadow: 3px 0 3px 0 rgba(0, 0, 0, 0.4);
+    z-index: 3;
 }
-
 .column-buttons hr {
-	border: none;
-	border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    border: none;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
 }
-
 .column-windows {
-	position: absolute;
-	left: 50px;
-	top: 0;
-	width: 5px;
-	height: 100%;
+    position: absolute;
+    left: 50px;
+    top: 0;
+    width: 5px;
+    height: 100%;
 }
-
 
 /* Buttons */
+
 .column-buttons button {
-	background: none;
-	border: none;
-	padding: 0;
-	margin: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
-
 .column-buttons button:focus {
-	outline: none;
+    outline: none;
 }
-
 .column-buttons button img {
-	-webkit-filter: grayscale(100%);
-	-moz-filter: grayscale(100%);
-	filter: grayscale(100%);
+    -webkit-filter: grayscale(100%);
+    -moz-filter: grayscale(100%);
+    filter: grayscale(100%);
 }
-
 .column-buttons button.active img {
-	-webkit-filter: grayscale(0%);
-	-moz-filter: grayscale(0%);
-	filter: grayscale(0%);
+    -webkit-filter: grayscale(0%);
+    -moz-filter: grayscale(0%);
+    filter: grayscale(0%);
 }
-
 
 /* Windows */
+
 .debug {
-	display: none;
+    display: none;
 }
-
 .pane-panel {
-	margin-bottom: 0;
-	padding-left: 10px;
-	padding-bottom: 10px;
-
-	overflow: hidden;
-	width: 400px;
-	display: none;
-	margin-bottom: 10px;
-	min-height: 50px;
-	opacity: 0.9;
-
-	font-family: "Inconsolata", sans-serif;
+    margin-bottom: 0;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    overflow: hidden;
+    width: 400px;
+    display: none;
+    margin-bottom: 10px;
+    min-height: 50px;
+    opacity: 0.9;
+    font-family: "Inconsolata", sans-serif;
 }
-
 .pane-panel h1 {
-	font-size: 150%;
-	margin-top: 1px;
-	margin-bottom: 1px;
-	font-family: 'Alegreya Sans', sans-serif;
-	font-weight: 800;
-	color: #eee;
+    font-size: 150%;
+    margin-top: 1px;
+    margin-bottom: 1px;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-weight: 800;
+    color: #eee;
 }
-
 .pane-panel h2 {
-	font-size: 120%;
-	margin-top: 1px;
-	margin-bottom: 0;
-	font-family: 'Alegreya Sans', sans-serif;
-	font-weight: 800;
-	color: #ccc;
+    font-size: 120%;
+    margin-top: 1px;
+    margin-bottom: 0;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-weight: 800;
+    color: #ccc;
 }
-
 .pane-panel pre {
-	margin-top: 0;
-	margin-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
 }
-
 .figure {
-	background-color: #222;
-	color: #eee;
+    background-color: #222;
+    color: #eee;
 }
-
 .pane-panel button {
-	border: #eee solid 2px;
-
-	height: 2em;
-
-	background: none;
-	border-radius: 1px;
-	color: white;
-
-	font-family: 'Alegreya Sans', sans-serif;
-	font-weight: 800;
+    border: #eee solid 2px;
+    height: 2em;
+    background: none;
+    border-radius: 1px;
+    color: white;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-weight: 800;
 }
 
 /* Time Panel */
-#ui_abs_time {
-	font-size: 150%;
-}
 
+#ui_abs_time {
+    font-size: 150%;
+}
 #button_play {
-	width: 2em;
-	height: 2em;
-	font-family: sans-serif;
+    width: 2em;
+    height: 2em;
+    font-family: sans-serif;
 }
 
 /* Plant Panel */
+
 .bg-plant span {
-	background-color: #ccc;
-	margin-right: 2px;
-
-	font-family: "Inconsolata", sans-serif;
-	font-weight: 700;
-	font-size: 10px;
+    background-color: #ccc;
+    margin-right: 2px;
+    font-family: "Inconsolata", sans-serif;
+    font-weight: 700;
+    font-size: 10px;
 }
-
 .bg-plant {
-	max-height: 500px;
-	overflow: auto;
+    max-height: 500px;
+    overflow: auto;
 }
 
 /* Genome Panel */
+
 .bg-genome table {
-	border-right: 2px solid #ccc;
-	display: inline-block;
+    border-right: 2px solid #ccc;
+    display: inline-block;
 }
-
 .bg-genome td {
-	padding-top: 0;
-	padding-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
 }
-
 .bg-genome table tr:first-child {
-	font-family: "Inconsolata", sans-serif;
-	font-weight: 700;
-	font-size: 10px;
+    font-family: "Inconsolata", sans-serif;
+    font-weight: 700;
+    font-size: 10px;
 }
-
 .bg-genome table tr:not(first-child) {
-	font-family: 'Alegreya Sans', sans-serif;
-	font-weight: 300;
-	font-size: 8px;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-weight: 300;
+    font-size: 8px;
 }
-
 .ct-intrinsic {
-	background-color: #341;
+    background-color: #341;
 }
-
 .ct-compound {
-	background-color: #79c;
+    background-color: #79c;
 }
-
 .ct-standard {
-	background-color: #673;
+    background-color: #673;
 }
-
 .ct-unknown {
-	background-color: #a33;
+    background-color: #a33;
 }
 
 /* about panel */
+
 .bg-about {
-	width: 600px;
-	font-family: 'Alegreya Sans', sans-serif;
+    width: 600px;
+    font-family: 'Alegreya Sans', sans-serif;
 }
-
 .bg-about p {
-	margin-top: 0;
-	margin-bottom: 0.4em;
+    margin-top: 0;
+    margin-bottom: 0.4em;
 }
-
 .bg-about li .gene {
-	font-family: "Inconsolata", sans-serif;
-	font-weight: 700;
+    font-family: "Inconsolata", sans-serif;
+    font-weight: 700;
 }
 
 /*  */
+
 .credit {
-	position: absolute;
-	right: 0;
-	bottom: 0;
+    position: absolute;
+    right: 0;
+    bottom: 0;
 }
