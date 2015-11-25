@@ -18,6 +18,7 @@ genrule(
         "handle_debug.go",
         "main.go",
         "service.go",
+        "vector.go",
     ],
     outs=[
         "server.bin",
