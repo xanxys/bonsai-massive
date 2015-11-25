@@ -18,6 +18,7 @@ genrule(
         "handle_chunk.go",
         "handle_debug.go",
         "main.go",
+        "mesh.go",
         "service.go",
         "vector.go",
     ],
