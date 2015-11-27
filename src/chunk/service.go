@@ -26,18 +26,9 @@ func NewCkService() *CkServiceImpl {
 	}
 }
 
-func (ck *CkServiceImpl) Status(ctx context.Context, q *api.StatusQ) (*api.StatusS, error) {
-	return &api.StatusS{}, nil
-}
-
 func (ck *CkServiceImpl) Benchmark(ctx context.Context, q *api.BenchmarkQ) (*api.BenchmarkS, error) {
 	Benchmark()
 	return &api.BenchmarkS{
 		Report: "No report",
 	}, nil
-}
-
-func (ck *CkServiceImpl) ModifyChunk(ctx context.Context, q *api.ModifyChunkQ) (*api.ModifyChunkS, error) {
-	ck.chunkCommand <- q
-	return &api.ModifyChunkS{}, nil
 }
