@@ -20,7 +20,7 @@ genrule(
         "main.go",
         "mesh.go",
         "service.go",
-        "vector.go",
+        "//common:lib",
     ],
     outs=[
         "server.bin",

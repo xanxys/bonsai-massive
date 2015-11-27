@@ -1,4 +1,5 @@
-// TODO: Move to src/common or something
+// TODO: When go_library rule is supported by bazel, rename to a different
+// package name to make the library safely reusable.
 package main
 
 import (

@@ -5,7 +5,7 @@ genrule(
         "main.go",
         "chunk.go",
         "service.go",
-        "vector.go",
+        "//common:lib",
         "//proto:proto_go_src",
     ],
     outs=[
