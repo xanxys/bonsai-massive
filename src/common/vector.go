@@ -53,19 +53,3 @@ func (v Vec3f) MultS(s float32) Vec3f {
 		Z: s * v.Z,
 	}
 }
-
-type Grain struct {
-	IsWater  bool
-	Position Vec3f
-	Velocity Vec3f
-
-	PositionNew Vec3f
-}
-
-func NewGrain(isWater bool, initialPos Vec3f) *Grain {
-	return &Grain{
-		IsWater:  isWater,
-		Position: initialPos,
-		Velocity: NewVec3f0(),
-	}
-}
