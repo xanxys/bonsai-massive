@@ -2,14 +2,17 @@ package main
 
 import (
 	"./api"
+	"compress/gzip"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"io"
 	"log"
 	"mime"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 // MaybeExtractQ extracts proto from HTTP request and returns it.
@@ -59,7 +62,7 @@ func WriteS(
 // func(context.Context, *<RequestMessage>) (*<ResponseMessage>, error)
 // to a wrapped HTTP handler.
 // If the method doesn't match this type, JsonpbHandler will panic.
-func JsonpbHandler(grpcServerMethod interface{}) func(http.ResponseWriter, *http.Request) {
+func JsonpbHandler(grpcServerMethod interface{}) http.HandlerFunc {
 	mType := reflect.TypeOf(grpcServerMethod)
 	if mType.Kind() != reflect.Func || mType.NumIn() != 2 || mType.NumOut() != 2 {
 		log.Panicf("Expecting func(2 args) (2 args), got %v", mType)
@@ -82,7 +85,33 @@ func JsonpbHandler(grpcServerMethod interface{}) func(http.ResponseWriter, *http
 	}
 }
 
-func FileServingHandler(filename string) func(http.ResponseWriter, *http.Request) {
+// Adopted from https://gist.github.com/the42/1956518
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+// Wrap given handler and support gzip compression
+// (used when allowed by browsers).
+func GzipHandler(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+			gz := gzip.NewWriter(w)
+			defer gz.Close()
+			gzr := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+			h(gzr, r)
+		} else {
+			h(w, r)
+		}
+	}
+}
+
+func FileServingHandler(filename string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "/root/bonsai/static/"+filename)
 	}
@@ -98,10 +127,10 @@ func main() {
 	fe = NewFeService()
 
 	// Dispatchers.
-	http.HandleFunc("/api/debug", JsonpbHandler(fe.Debug))
-	http.HandleFunc("/api/biospheres", JsonpbHandler(fe.Biospheres))
-	http.HandleFunc("/api/biosphere_delta", JsonpbHandler(fe.BiosphereDelta))
-	http.HandleFunc("/api/biosphere_frames", JsonpbHandler(fe.BiosphereFrames))
+	http.HandleFunc("/api/debug", GzipHandler(JsonpbHandler(fe.Debug)))
+	http.HandleFunc("/api/biospheres", GzipHandler(JsonpbHandler(fe.Biospheres)))
+	http.HandleFunc("/api/biosphere_delta", GzipHandler(JsonpbHandler(fe.BiosphereDelta)))
+	http.HandleFunc("/api/biosphere_frames", GzipHandler(JsonpbHandler(fe.BiosphereFrames)))
 	// Static files.
 	http.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("/root/bonsai/static"))))
 	// Special parmalinks.
