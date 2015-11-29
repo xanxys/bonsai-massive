@@ -20,9 +20,10 @@ It is assumed you use a single GKE cluster for all environments.
 """
 import argparse
 import datetime
-import json
 import http.client
 import http.server
+import io
+import json
 import os
 import random
 import shutil
@@ -215,14 +216,31 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         host, port = SERVERS[args.env]
         conn = http.client.HTTPConnection(host, port)
         conn.request('GET', 'http://%s:%d%s' % (
-            host, port, self.path))
+            host, port, self.path), None, {
+                'Accept-Encoding': self.parse_headers().get('accept-encoding', '')
+            })
         resp = conn.getresponse()
 
         self.send_response(resp.status)
+        self.send_header('Content-Encoding', resp.getheader('Content-Encoding'))
         self.send_header('Content-Type', resp.getheader('Content-Type'))
         self.end_headers()
         shutil.copyfileobj(resp, self.wfile)
         conn.close()
+
+    def parse_headers(self):
+        """
+        Return dict (lowercase header name -> header content string)
+        """
+        headers = {}
+        for line in self.headers.as_string().split('\n'):
+            line = line.strip()
+            ix = line.find(':')
+            if ix < 0:
+                continue
+            headers[line[:ix].lower()] = line[ix+1:].strip()
+        return headers
+
 
 def run_fake_server():
     fake_server_config = ('0.0.0.0', FAKE_PORT)
