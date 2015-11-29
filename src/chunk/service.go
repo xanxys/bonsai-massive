@@ -20,13 +20,14 @@ func NewCkService() *CkServiceImpl {
 	chQ := make(chan bool, 5)
 	chR := make(chan *api.ChunkSnapshot, 5)
 	go func() {
+		log.Printf("Grain world created")
 		gworld := NewGrainWorld()
 		for {
 			select {
 			case command := <-ch:
 				log.Printf("%v\n", command)
 			case <-chQ:
-				log.Printf("Snapshotting at timestamp %d", gworld.Timestamp)
+				log.Printf("Snapshotting at timestamp %d (%d grains)", gworld.Timestamp, len(gworld.Grains))
 				snapshot := &api.ChunkSnapshot{
 					Grains: make([]*api.CkPosition, len(gworld.Grains)),
 				}
@@ -48,6 +49,7 @@ func NewCkService() *CkServiceImpl {
 	return &CkServiceImpl{
 		chunkCommand: ch,
 		chunkQuery:   chQ,
+		chunkResult:  chR,
 	}
 }
 
