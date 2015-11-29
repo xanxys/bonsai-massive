@@ -18,6 +18,7 @@ message StatusQ {
 }
 
 message StatusS {
+    ChunkSnapshot snapshot = 1;
 }
 
 message BenchmarkQ {
@@ -75,6 +76,8 @@ message ChunkSnapshot {
     int32 gravity_z = 1;
 
     repeated Cell cells = 2;
+
+    repeated CkPosition grains = 3;
 }
 
 // Self-replicating blackbox. It has fuzzy sphere-like shape.
