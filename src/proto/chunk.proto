@@ -19,6 +19,7 @@ message StatusQ {
 
 message StatusS {
     ChunkSnapshot snapshot = 1;
+    uint64 snapshot_timestamp = 2;
 }
 
 message BenchmarkQ {

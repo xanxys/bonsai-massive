@@ -49,7 +49,8 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 
 	}
 	return &api.BiosphereFramesS{
-		Content: mesh.Serialize(),
+		Content:          mesh.Serialize(),
+		ContentTimestamp: resp.SnapshotTimestamp,
 	}, nil
 
 }

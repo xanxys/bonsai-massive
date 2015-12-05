@@ -9,6 +9,7 @@ func (ck *CkServiceImpl) Status(ctx context.Context, q *api.StatusQ) (*api.Statu
 	ck.chunkQuery <- true
 	result := <-ck.chunkResult
 	return &api.StatusS{
-		Snapshot: result,
+		Snapshot:          result.Snapshot,
+		SnapshotTimestamp: result.Timestamp,
 	}, nil
 }

@@ -69,6 +69,7 @@ message BiosphereFramesQ {
 // TODO: Level of details sharding
 message BiosphereFramesS {
     PolySoup content = 1;
+    uint64 content_timestamp = 3;
     bytes cont_token = 2;
 }
 

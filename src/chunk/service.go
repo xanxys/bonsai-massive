@@ -6,19 +6,24 @@ import (
 	"log"
 )
 
+type ChunkResult struct {
+	Snapshot  *api.ChunkSnapshot
+	Timestamp uint64
+}
+
 type CkServiceImpl struct {
 	// Send null to terminate chunk executor permanently.
 	chunkCommand chan *api.ModifyChunkQ
 
 	chunkQuery chan bool
 
-	chunkResult chan *api.ChunkSnapshot
+	chunkResult chan *ChunkResult
 }
 
 func NewCkService() *CkServiceImpl {
 	ch := make(chan *api.ModifyChunkQ, 5)
 	chQ := make(chan bool, 5)
-	chR := make(chan *api.ChunkSnapshot, 5)
+	chR := make(chan *ChunkResult, 5)
 	go func() {
 		log.Printf("Grain world created")
 		gworld := NewGrainWorld()
@@ -40,7 +45,10 @@ func NewCkService() *CkServiceImpl {
 						int32(p.Z + 0.5),
 					}
 				}
-				chR <- snapshot
+				chR <- &ChunkResult{
+					Snapshot:  snapshot,
+					Timestamp: gworld.Timestamp,
+				}
 			default:
 			}
 			gworld.Step()
