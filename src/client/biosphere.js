@@ -5,7 +5,7 @@
 // 1': 3D GUI class
 // 2. Panel GUI class
 class Client {
-    constructor(playback_data) {
+    constructor(bs_time) {
         this.debug = (location.hash === '#debug');
         this.timestamp = 0;
     	this.init();
@@ -16,6 +16,7 @@ class Client {
                 "pb": JSON.stringify({})
             }
         }).done(function(data) {
+            bs_time.$set('current_timestamp', data.content_timestamp);
             _this.on_frame_received(data);
         });
     }
@@ -104,7 +105,7 @@ class Client {
 $(document).ready(function() {
     var biosphere_id = document.location.pathname.split('/')[2];
 
-    var bs = new Vue({
+    var bs_main = new Vue({
         el: '#header',
         data: {
             loading: true,
@@ -124,7 +125,7 @@ $(document).ready(function() {
                     var name = _.find(data.biospheres, (biosphere) => {
                         return biosphere.biosphere_id === biosphere_id;
                     }).name;
-                    bs.$set('biosphere_name', name);
+                    bs_main.$set('biosphere_name', name);
                 });
             },
             enter: function(biosphere) {
@@ -133,7 +134,13 @@ $(document).ready(function() {
             }
         }
     });
-    bs.update();
+    var bs_time = new Vue({
+        el: '#time',
+        data: {
+            current_timestamp: null,
+        },
+    });
+    bs_main.update();
 
-    new Client().animate();
+    new Client(bs_time).animate();
 });
