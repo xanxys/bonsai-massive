@@ -9,6 +9,9 @@
 	<link rel="stylesheet" href="/static/material.css" type="text/css" />
 	<link rel="icon" href="/static/favicon.png" type="image/png" />
 
+	<script src="https://apis.google.com/js/platform.js" async defer></script>
+	<meta name="google-signin-client_id" content="496584303137-6aphahbmnpmkv7c3egnblqh3tmvvm3g3.apps.googleusercontent.com">
+
 	<script src="/static/vue.js"></script>
 	<script src="/static/underscore.js"></script>
 	<script src="/static/underscore.string.min.js"></script>
@@ -21,7 +24,7 @@
 		<img style="align:left" src="/static/logo_white.svg" width="40px" height="40px" />
 
 		<div style="float: right">
-			<img src="/static/person.svg" width="40px" height="40px" />
+			<div class="g-signin2" data-onsuccess="onSignIn"></div>
 		</div>
 	</div>
 
