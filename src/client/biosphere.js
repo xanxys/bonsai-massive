@@ -102,5 +102,38 @@ class Client {
 
 // run app
 $(document).ready(function() {
+    var biosphere_id = document.location.pathname.split('/')[2];
+
+    var bs = new Vue({
+        el: '#header',
+        data: {
+            loading: true,
+            biosphere_name: "",
+        },
+        methods: {
+            // For some reason, () => doesn't work.
+            update: function() {
+                var biospheres = this.biospheres;
+                this.loading = true;
+                $.ajax('/api/biospheres', {
+                    "data": {
+                        "pb": JSON.stringify({})
+                    }
+                }).done(data => {
+                    this.loading = false;
+                    var name = _.find(data.biospheres, (biosphere) => {
+                        return biosphere.biosphere_id === biosphere_id;
+                    }).name;
+                    bs.$set('biosphere_name', name);
+                });
+            },
+            enter: function(biosphere) {
+                console.log('entering', biosphere.biosphere_id);
+                window.location.href = '/biosphere/' + biosphere.biosphere_id;
+            }
+        }
+    });
+    bs.update();
+
     new Client().animate();
 });

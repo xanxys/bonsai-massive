@@ -1,3 +1,7 @@
 body {
     overflow: hidden;
 }
+/* Avoid size change between loading -> load finished. */
+#header{
+    height: 80px;
+}
