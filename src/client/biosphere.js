@@ -76,7 +76,8 @@ class Client {
     	this.renderer = new THREE.WebGLRenderer({
     		antialias: true
     	});
-    	this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+    	this.renderer.setSize($('#main').width(), 600);
     	this.renderer.setClearColor('#eee');
     	$('#main').append(this.renderer.domElement);
 
