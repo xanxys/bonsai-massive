@@ -8,8 +8,13 @@ class Client {
     constructor(bs_time) {
         this.debug = (location.hash === '#debug');
         this.timestamp = 0;
+        this.bs_time = bs_time;
     	this.init();
 
+        this.refresh_data();
+    }
+
+    refresh_data() {
         var _this = this;
         $.ajax('/api/biosphere_frames', {
             "data": {
@@ -18,8 +23,28 @@ class Client {
                 })
             }
         }).done(function(data) {
-            bs_time.$set('current_timestamp', data.content_timestamp);
+            var current_day = Math.floor(data.content_timestamp/5000);
+            var years = _.map(_.range(Math.ceil(data.content_timestamp/(5000 * 10))), (year_index) => {
+                var sol_begin = 10 * year_index;
+                var sol_end = Math.min(10 * (year_index + 1), Math.ceil(data.content_timestamp/5000));
+
+                var sols = _.map(_.range(sol_begin, sol_end), (sol_index) => {
+                    return {
+                        "index": sol_index,
+                        "index_in_year": sol_index % 10,
+                        "active": sol_index === current_day
+                    };
+                });
+                return {
+                    "index": year_index,
+                    "sols": sols,
+                };
+            });
+
+            _this.bs_time.$set('current_timestamp', data.content_timestamp);
+            _this.bs_time.$set('years', years);
             _this.on_frame_received(data);
+            _this.refresh_data();
         });
     }
 
@@ -141,6 +166,7 @@ $(document).ready(function() {
         el: '#time',
         data: {
             current_timestamp: null,
+            years: [],
         },
     });
     bs_main.update();

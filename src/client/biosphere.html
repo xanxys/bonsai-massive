@@ -12,6 +12,7 @@
 	<link rel="stylesheet" href="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.indigo-light_blue.min.css" />
 	<script src="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.min.js"></script>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+	<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
 
 	<script src="https://apis.google.com/js/platform.js" async defer></script>
 	<script src="/static/vue.js"></script>
@@ -37,12 +38,21 @@
 		</div>
 	</div>
 	<div class="mdl-grid">
-		<div id="time" class="mdl-cell mdl-cell--3-col">
-			<h5>Time Control</h5>
-			<ul>
-				<li>Current: {{current_timestamp}}</li>
-				<li>Biosphere Age: {{head_timestamp}</li>
-			</ul>
+		<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
+			<div>
+				<h5>Time Control</h5>
+				<ul>
+					<li>Current: {{current_timestamp}}</li>
+					<li>Biosphere Age: {{head_timestamp}</li>
+				</ul>
+
+				<div v-repeat="year in years">
+					<h6>Year {{year.index}}</h6>
+					<div v-repeat="sol in year.sols" class="day" v-class="active: sol.active">
+						<span>{{sol.index_in_year}}</span>
+					</div>
+				</div>
+			</div>
 		</div>
 		<div class="mdl-cell mdl-cell--9-col">
 			<div id="main"></div>

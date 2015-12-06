@@ -1,7 +1,29 @@
 body {
     overflow: hidden;
 }
+
 /* Avoid size change between loading -> load finished. */
-#header{
+
+#header {
     height: 80px;
+}
+#time > div {
+    padding: 8px;
+}
+.day {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin: 8px;
+    text-align: center;
+    border-radius: 16px;
+    background-color: #E8EAF6;
+}
+.day > span {
+    position: relative;
+    top: 0.1em;
+}
+.day.active {
+    background-color: #E91E63;
+    color: white;
 }
