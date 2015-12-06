@@ -13,7 +13,9 @@ class Client {
         var _this = this;
         $.ajax('/api/biosphere_frames', {
             "data": {
-                "pb": JSON.stringify({})
+                "pb": JSON.stringify({
+                    "biosphere_id": document.biosphere_id,
+                })
             }
         }).done(function(data) {
             bs_time.$set('current_timestamp', data.content_timestamp);
@@ -104,6 +106,7 @@ class Client {
 // run app
 $(document).ready(function() {
     var biosphere_id = document.location.pathname.split('/')[2];
+    document.biosphere_id = biosphere_id;
 
     var bs_main = new Vue({
         el: '#header',

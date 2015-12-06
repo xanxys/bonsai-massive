@@ -63,6 +63,8 @@ message DebugS {
 
 
 message BiosphereFramesQ {
+    uint64 biosphere_id = 2;
+
     bytes cont_token = 1;
 }
 
