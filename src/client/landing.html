@@ -26,42 +26,51 @@
 </head>
 
 <body>
-	<div class="top_sheet">
-		<img style="align:left" src="/static/logo_white.svg" width="40px" height="40px" />
-
-		<div style="float: right">
-			<div class="g-signin2" data-onsuccess="onSignIn"></div>
-		</div>
-	</div>
-
-	<div id="biospheres">
-		<h1>Biospheres</h1>
-		<div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
-			<div class="bg">
+	<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+		<header class="mdl-layout__header">
+			<div class="mdl-layout__header-row">
+				<span class="mdl-layout-title">
+					<img src="/static/logo_white.svg" width="24px" height="24px" /> Bonsai
+				</span>
+				<div class="mdl-layout-spacer"></div>
+				<div class="g-signin2" data-onsuccess="onSignIn"></div>
 			</div>
-			<div class="content">
-				<div style="display:inline">
-					<span style="font-size:200%">{{name}}</span>
-					<ul>
-						<li>{{num_ticks}} ticks</li>
-						<li>12332 cells</li>
-					</ul>
+		</header>
+
+		<main class="mdl-layout__content">
+			<div class="page-content">
+				<div id="biospheres">
+					<h1>Biospheres</h1>
+					<div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
+						<div class="bg">
+						</div>
+						<div class="content">
+							<div style="display:inline">
+								<span style="font-size:200%">{{name}}</span>
+								<ul>
+									<li>{{num_ticks}} ticks</li>
+									<li>12332 cells</li>
+								</ul>
+							</div>
+						</div>
+						<div class="content2">
+							<ul>
+								<li>{{num_cores}} cores</li>
+								<li>12.3 GiB</li>
+							</ul>
+						</div>
+					</div>
+					<div class="card_dummy_center">
+						<div class="mdl-spinner mdl-js-spinner is-active" v-class="is-active: loading"></div>
+					</div>
 				</div>
 			</div>
-			<div class="content2">
-				<ul>
-					<li>{{num_cores}} cores</li>
-					<li>12.3 GiB</li>
-				</ul>
-			</div>
-		</div>
-		<div v-show="loading" class="card_dummy_center">
-			<div class="loader">Loading...</div>
-		</div>
-	</div>
 
-	<div class="fab" id="create_biosphere">
-		<img src="/static/ic_add_white_24px.svg" />
+			<!-- Don't put buttons outside this main, otherwise, jquery & MDL will conflict and .click won't work. -->
+			<div id="create_biosphere" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored">
+				<i class="material-icons">add</i>
+			</div>
+		</main>
 	</div>
 
 	<div id="create_biosphere_dialog" style="display: none" class="dialog">

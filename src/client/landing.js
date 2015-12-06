@@ -29,6 +29,9 @@ $(document).ready(() => {
         }
     });
     bs.update();
+    $('#hoge').click(() => {
+        console.log('hoge');
+    });
 
     $('#create_biosphere').click(() => {
         $('#create_biosphere_dialog').show();
