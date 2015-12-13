@@ -1,6 +1,12 @@
 "use strict";
 // ECMAscript 6
 
+function onSignIn(googleUser) {
+    console.log(googleUser);
+    document.googleUser = googleUser;
+    //let id_token = googleUser.getAuthResponse().id_token;
+}
+
 $(document).ready(() => {
     var bs = new Vue({
         el: '#biospheres',
@@ -56,6 +62,9 @@ $(document).ready(() => {
                         type: 1, // ADD, see https://github.com/golang/protobuf/issues/59
                         desc: {
                             name: this.name
+                        },
+                        auth: {
+                            id_token: document.googleUser.getAuthResponse().id_token
                         }
                     };
                     $.ajax('/api/biosphere_delta', {

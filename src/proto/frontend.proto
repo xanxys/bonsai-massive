@@ -28,6 +28,38 @@ service FrontendService {
     rpc BiosphereFrames(BiosphereFramesQ) returns (BiosphereFramesS);
 }
 
+// User's authentication information. Some requests requires this to perform
+// some operations.
+message UserAuth {
+    // Google auth API user token id
+    // see. https://developers.google.com/identity/sign-in/web/backend-auth
+    string id_token = 1;
+}
+
+// Error types that are suitable to showing to users, which means:
+// * They can be converted to actionable UI.
+// When Error is included in response messages, they must be mutually exclusive.
+// Response is either:
+// 1. OK and contains other fields
+// 2. not OK and other fields are garbage
+// Exceptions to this rule must be clearly commented.
+enum Error {
+    // This happens when client is too old.
+    // Suggest to refresh the page.
+    TOO_OLD_VERSION = 0;
+
+    // User can follow whaterver normal flow.
+    OK = 1;
+
+    // Indicates server (including 3rd party backends) failure or system bug.
+    // Only thing user can do is randomly retry or wait for a fix.
+    // All "shouldn't happen" failures must return this.
+    //
+    // This includes UI bug: UI that needs authentication must not send requests
+    // without id token, for example. Thus, it should result in this error.
+    INTERNAL_ERROR = 2;
+}
+
 message DebugQ {
 }
 
@@ -81,6 +113,8 @@ message BiospheresQ {
 }
 
 message BiosphereDeltaQ {
+    UserAuth auth = 3;
+
     //
     DeltaType type = 1;
 

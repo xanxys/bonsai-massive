@@ -2,16 +2,30 @@ package main
 
 import (
 	"./api"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud/datastore"
 	"log"
 	"math/rand"
+	"net/http"
 	"strings"
 )
 
 func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDeltaQ) (*api.BiospheresS, error) {
+	if q.Auth == nil {
+		return nil, errors.New("BiosphereDelta requires auth")
+	}
+	canWrite, err := fe.isWriteAuthorized(q.Auth)
+	if err != nil {
+		return nil, err
+	}
+	if canWrite {
+		return nil, errors.New("UI must disallow unauthorized actions")
+	}
+
 	name := "FugaFuga"
 	var nCores uint32
 	var nTicks uint64
@@ -46,6 +60,32 @@ func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDel
 			},
 		},
 	}, nil
+}
+
+type googleOAuth2V3Resp struct {
+	email string
+}
+
+// Decided if the user is allowed to do write operations.
+func (fe *FeServiceImpl) isWriteAuthorized(auth *api.UserAuth) (bool, error) {
+	resp, err := http.Get(fmt.Sprintf("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=%s", auth.IdToken))
+	if err != nil {
+		return false, errors.New("Auth server failed")
+	}
+	defer resp.Body.Close()
+
+	decoder := json.NewDecoder(resp.Body)
+	var m googleOAuth2V3Resp
+	err = decoder.Decode(&m)
+	if err != nil {
+		return false, err
+	}
+
+	if m.email != "xanxys@gmail.com" {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
