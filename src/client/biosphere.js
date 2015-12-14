@@ -12,6 +12,13 @@ class Client {
     	this.init();
 
         this.refresh_data();
+
+        let _this = this;
+        $(window).resize(() => {
+            _this.renderer.setSize($('#main').width(), $('#main').height());
+            _this.camera.aspect = $('#main').width() / $('#main').height();
+            _this.camera.updateProjectionMatrix();
+        });
     }
 
     refresh_data() {
