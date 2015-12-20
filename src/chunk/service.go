@@ -24,40 +24,60 @@ func NewCkService() *CkServiceImpl {
 	ch := make(chan *api.ModifyChunkQ, 5)
 	chQ := make(chan bool, 5)
 	chR := make(chan *ChunkResult, 5)
-	go func() {
-		log.Printf("Grain world created")
-		gworld := NewGrainWorld()
-		for {
-			select {
-			case command := <-ch:
-				log.Printf("%v\n", command)
-			case <-chQ:
-				log.Printf("Snapshotting at timestamp %d (%d grains)", gworld.Timestamp, len(gworld.Grains))
-				snapshot := &api.ChunkSnapshot{
-					Grains: make([]*api.CkPosition, len(gworld.Grains)),
+	go worldController(ch, chQ, chR)
+	return &CkServiceImpl{
+		chunkCommand: ch,
+		chunkQuery:   chQ,
+		chunkResult:  chR,
+	}
+}
+
+// Synchronize multiple chunks in a world, and responds to external command.
+func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkResult) {
+	log.Printf("Grain worlds created")
+	gchunks := []*GrainChunk{
+		NewGrainChunk(),
+		NewGrainChunk(),
+	}
+	for {
+		select {
+		case command := <-ch:
+			log.Printf("%v\n", command)
+		case <-chQ:
+			numGrains := 0
+			timestamp := gchunks[0].Timestamp
+			for _, gchunk := range gchunks {
+				numGrains += len(gchunk.Grains)
+				if gchunk.Timestamp != timestamp {
+					log.Panicf("Chunk desynchronized just after synchronization (%d != %d)", timestamp, gchunk.Timestamp)
 				}
-				for ix, grain := range gworld.Grains {
+			}
+			log.Printf("Snapshotting at timestamp %d (%d grains, %d chunks)", timestamp, numGrains, len(gchunks))
+			snapshot := &api.ChunkSnapshot{
+				Grains: make([]*api.CkPosition, numGrains),
+			}
+			ix_offset := 0
+			for ixChunk, gchunk := range gchunks {
+				for ix, grain := range gchunk.Grains {
 					// round to unit (0.1mm)
-					p := grain.Position.MultS(10000)
-					snapshot.Grains[ix] = &api.CkPosition{
+					p := grain.Position.Add(Vec3f{float32(ixChunk), 0, 0}).MultS(10000)
+					snapshot.Grains[ix_offset+ix] = &api.CkPosition{
 						int32(p.X + 0.5),
 						int32(p.Y + 0.5),
 						int32(p.Z + 0.5),
 					}
 				}
-				chR <- &ChunkResult{
-					Snapshot:  snapshot,
-					Timestamp: gworld.Timestamp,
-				}
-			default:
+				ix_offset += len(gchunk.Grains)
 			}
-			gworld.Step()
+			chR <- &ChunkResult{
+				Snapshot:  snapshot,
+				Timestamp: timestamp,
+			}
+		default:
 		}
-	}()
-	return &CkServiceImpl{
-		chunkCommand: ch,
-		chunkQuery:   chQ,
-		chunkResult:  chR,
+		for _, gchunk := range gchunks {
+			gchunk.Step()
+		}
 	}
 }
 

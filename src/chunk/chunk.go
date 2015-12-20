@@ -134,14 +134,14 @@ func (ps *ParticleSource) MaybeEmit(timestamp uint64) []*Grain {
 // 1. master class (holds chunk worker)
 // 1': 3D GUI class
 // 2. Panel GUI class
-type GrainWorld struct {
+type GrainChunk struct {
 	Grains    []*Grain
 	Sources   []*ParticleSource
 	Timestamp uint64
 }
 
-func NewGrainWorld() *GrainWorld {
-	return &GrainWorld{
+func NewGrainChunk() *GrainChunk {
+	return &GrainChunk{
 		Grains: []*Grain{},
 		Sources: []*ParticleSource{
 			NewParticleSource(true, 300, Vec3f{0.5, 0.5, 2.0}),
@@ -158,7 +158,7 @@ type BinKey struct {
 // Return neighbor indices for each grain index.
 // Neighbors of g = {g'.PositionNew.DistanceTo(g.PositionNew) < h | g in grains }
 // Note that neighbors contains itself.
-func (world *GrainWorld) IndexNeighbors(h float32) [][]int {
+func (world *GrainChunk) IndexNeighbors(h float32) [][]int {
 	toBinKey := func(grain *Grain) BinKey {
 		indexF := grain.PositionNew.MultS(1 / h)
 		return BinKey{
@@ -216,7 +216,7 @@ type CGrad struct {
 // Result can be empty when there's no active constraint for given
 // particle.
 // gradient(ix) == Deriv[constraint, pos[ix]]
-func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Constraint {
+func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Constraint {
 	density := func() float32 {
 		if !world.Grains[ixTarget].IsWater {
 			log.Fatal("density is only applicable to water grains")
@@ -346,7 +346,7 @@ func (world *GrainWorld) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 }
 
 // Position-based dynamics.
-func (world *GrainWorld) Step() {
+func (world *GrainChunk) Step() {
 	accel := Vec3f{0, 0, -1}
 
 	// Emit new particles.
@@ -424,7 +424,7 @@ func (world *GrainWorld) Step() {
 // Run chunk benchmark and output to local files.
 func Benchmark() {
 	t0 := time.Now()
-	world := NewGrainWorld()
+	world := NewGrainChunk()
 	steps := 300 * 4
 	for iter := 0; iter < steps; iter++ {
 		world.Step()
@@ -432,7 +432,7 @@ func Benchmark() {
 	log.Printf("Benchmark: %.3fs for %d steps\n", float64(time.Since(t0))*1e-9, steps)
 
 	log.Printf("Profiling\n")
-	world = NewGrainWorld()
+	world = NewGrainChunk()
 	f, err := os.Create("chunk-grains-benchmark.prof")
 	if err != nil {
 		log.Fatal("Failed to output profile file")
@@ -453,7 +453,7 @@ func Benchmark() {
 	w := bufio.NewWriter(f)
 	defer w.Flush()
 	w.WriteString("[")
-	world = NewGrainWorld()
+	world = NewGrainChunk()
 	for iter := 0; iter < steps; iter++ {
 		world.Step()
 		w.WriteString("[")
