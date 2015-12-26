@@ -18,7 +18,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 
 	if len(chunks) == 0 {
 		log.Print("Active chunk server not found.")
-		if q.ensureStart {
+		if q.EnsureStart {
 			log.Print("Trying to start new chunk server and returning dummy frame for now")
 			clientCompute, err := fe.authCompute(ctx)
 			if err != nil {

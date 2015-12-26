@@ -6,12 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/net/context"
-	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud/datastore"
-	"log"
-	"math/rand"
 	"net/http"
-	"strings"
 )
 
 func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDeltaQ) (*api.BiospheresS, error) {

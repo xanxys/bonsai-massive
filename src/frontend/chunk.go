@@ -1,13 +1,11 @@
 package main
 
 import (
-	"./api"
-	"errors"
 	"fmt"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
+	"google.golang.org/api/compute/v1"
 	"log"
-	"time"
+	"math/rand"
+	"strings"
 )
 
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
