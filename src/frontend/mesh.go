@@ -4,6 +4,7 @@ import (
 	"./api"
 	"log"
 	"math"
+	"math/rand"
 )
 
 type Mesh []Vertex
@@ -21,6 +22,9 @@ func (mesh Mesh) Serialize() *api.PolySoup {
 			Px: vert.Pos.X,
 			Py: vert.Pos.Y,
 			Pz: vert.Pos.Z,
+			R:  rand.Float32(),
+			G:  rand.Float32(),
+			B:  rand.Float32(),
 		}
 	}
 	return &ps
