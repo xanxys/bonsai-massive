@@ -1,5 +1,15 @@
 "use strict";
 
+
+// Return ajax future (that is returned by $.ajax) for calling jsonpb RPC.
+function call_fe(rpc_name, data) {
+    return $.ajax('/api/' + rpc_name, {
+        "data": {
+            "pb": JSON.stringify(data)
+        }
+    });
+}
+
 // Separate into
 // 1. master class (holds chunk worker)
 // 1': 3D GUI class
@@ -23,12 +33,8 @@ class Client {
 
     refresh_data() {
         var _this = this;
-        $.ajax('/api/biosphere_frames', {
-            "data": {
-                "pb": JSON.stringify({
-                    "biosphere_id": document.biosphere_id,
-                })
-            }
+        call_fe('biosphere_frames', {
+            "biosphere_id": document.biosphere_id,
         }).done(function(data) {
             var current_day = Math.floor(data.content_timestamp/5000);
             var years = _.map(_.range(Math.ceil(data.content_timestamp/(5000 * 10))), (year_index) => {
@@ -140,6 +146,15 @@ $(document).ready(function() {
     var biosphere_id = document.location.pathname.split('/')[2];
     document.biosphere_id = biosphere_id;
 
+    $('#button_start').click(() => {
+        call_fe('biosphere_frames', {
+            'biosphere_id': document.biosphere_id,
+            "ensure_start": true,
+        }).done(data => {
+            console.log(data);
+        })
+    });
+
     var bs_main = new Vue({
         el: '#header',
         data: {
@@ -151,11 +166,7 @@ $(document).ready(function() {
             update: function() {
                 var biospheres = this.biospheres;
                 this.loading = true;
-                $.ajax('/api/biospheres', {
-                    "data": {
-                        "pb": JSON.stringify({})
-                    }
-                }).done(data => {
+                call_fe('/biospheres', {}).done(data => {
                     this.loading = false;
                     var name = _.find(data.biospheres, (biosphere) => {
                         return biosphere.biosphere_id === biosphere_id;

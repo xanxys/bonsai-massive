@@ -17,10 +17,23 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 
 	if len(chunks) == 0 {
-		log.Print("Failed to connect to a chunk server; returning dummy frame")
-		return &api.BiosphereFramesS{
-			Content: fallbackContent(),
-		}, nil
+		log.Print("Active chunk server not found.")
+		if q.ensureStart {
+			log.Print("Trying to start new chunk server and returning dummy frame for now")
+			clientCompute, err := fe.authCompute(ctx)
+			if err != nil {
+				return nil, err
+			}
+			fe.prepare(clientCompute)
+			return &api.BiosphereFramesS{
+				Content: fallbackContent(),
+			}, nil
+		} else {
+			log.Print("Returning dummy frame")
+			return &api.BiosphereFramesS{
+				Content: fallbackContent(),
+			}, nil
+		}
 	}
 
 	chunkInstance := chunks[0]

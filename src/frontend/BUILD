@@ -10,8 +10,10 @@ go_binary(
 genrule(
     name="server",
     srcs=[
+        "//common:lib",
         "//proto:proto_go_src",
         "chunk_servers.go",
+        "chunk.go",
         "handle_biosphere_delta.go",
         "handle_biosphere_frames.go",
         "handle_biospheres.go",
@@ -20,7 +22,6 @@ genrule(
         "main.go",
         "mesh.go",
         "service.go",
-        "//common:lib",
     ],
     outs=[
         "server.bin",
