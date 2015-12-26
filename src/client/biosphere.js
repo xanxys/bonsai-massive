@@ -76,7 +76,10 @@ class Client {
         geom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
         geom.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
 
-        let material = new THREE.MeshBasicMaterial({side: THREE.DoubleSide});
+        let material = new THREE.MeshBasicMaterial({
+            vertexColors: THREE.VertexColors,
+            side: THREE.DoubleSide,
+        });
         let mesh = new THREE.Mesh(geom, material);
 
         this.scene.add(mesh);
