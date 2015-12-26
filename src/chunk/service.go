@@ -76,7 +76,12 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 		default:
 		}
 		for _, gchunk := range gchunks {
-			gchunk.Step()
+			gchunk.Step(&ChunkWall{
+				Xm: true,
+				Xp: true,
+				Ym: true,
+				Yp: true,
+			})
 		}
 	}
 }
