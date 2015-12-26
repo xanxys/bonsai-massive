@@ -113,10 +113,6 @@ message BiosphereFramesS {
 }
 
 
-message BiospheresQ {
-    UserAuth auth = 1;
-}
-
 message BiosphereDeltaQ {
     UserAuth auth = 3;
 
@@ -127,6 +123,33 @@ message BiosphereDeltaQ {
     // In case of ADD, desc.world_id will be ignored.
     BiosphereDesc desc = 2;
 }
+
+message BiospheresQ {
+    UserAuth auth = 1;
+}
+
+message BiospheresS {
+    repeated BiosphereDesc biospheres = 1;
+}
+
+message ChunkQ {
+    ChunkId cid = 1;
+    int32 level = 2;
+
+    // Style option should come here.
+}
+
+// Target size: 100KB
+message ChunkS {
+    ChunkId cid = 1;
+
+    int32 level = 2;
+
+    // Triangle soup with vertex colors. Lights are tonemapped and
+    // baked in. Color is in LDR space, not physically accurate in any way.
+    PolySoup content = 3;
+}
+
 
 enum DeltaType {
     MODIFY = 0;
@@ -146,10 +169,6 @@ enum BiosphereState {
     T_STOP = 4;
 }
 
-message BiospheresS {
-    repeated BiosphereDesc biospheres = 1;
-}
-
 message BiosphereDesc {
     uint64 biosphere_id = 1;
 
@@ -162,26 +181,6 @@ message BiosphereDesc {
 
     // Current timestamp of the world.
     uint64 num_ticks = 4;
-}
-
-
-
-message ChunkQ {
-    ChunkId cid = 1;
-    int32 level = 2;
-
-    // Style option should come here.
-}
-
-// Target size: 100KB
-message ChunkS {
-    ChunkId cid = 1;
-
-    int32 level = 2;
-
-    // Triangle soup with vertex colors. Lights are tonemapped and
-    // baked in. Color is in LDR space, not physically accurate in any way.
-    PolySoup content = 3;
 }
 
 message PolySoup {

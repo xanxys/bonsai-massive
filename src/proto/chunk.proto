@@ -22,6 +22,7 @@ message StatusS {
     uint64 snapshot_timestamp = 2;
 }
 
+
 message BenchmarkQ {
 }
 
@@ -29,6 +30,7 @@ message BenchmarkS {
     // Human-readable, multi line report of the benchmark.
     string report = 1;
 }
+
 
 message ModifyChunkQ {
     enum Speed {
@@ -62,6 +64,7 @@ message ModifyChunkS {
     // * when !stop; actual timestamp >= timestamp
     uint64 timestamp = 1;
 }
+
 
 // Snapshot of a chunk at given timestamp.
 // This contains enough and just enough information for reconstructing it
