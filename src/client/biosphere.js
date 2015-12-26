@@ -64,14 +64,19 @@ class Client {
     on_frame_received(data) {
         let geom = new THREE.BufferGeometry();
         let vertices = new Float32Array(data.content.vertices.length * 3);
+        let vertices_color = new Float32Array(data.content.vertices.length * 3);
         _.each(data.content.vertices, (vertex, ix) => {
             vertices[ix * 3 + 0] = vertex.px;
             vertices[ix * 3 + 1] = vertex.py;
             vertices[ix * 3 + 2] = vertex.pz;
+            vertices_color[ix * 3 + 0] = vertex.r;
+            vertices_color[ix * 3 + 1] = vertex.g;
+            vertices_color[ix * 3 + 2] = vertex.b;
         });
         geom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geom.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
 
-        let material = new THREE.MeshBasicMaterial({color: 0xdddddd, side:THREE.DoubleSide });
+        let material = new THREE.MeshBasicMaterial({side: THREE.DoubleSide});
         let mesh = new THREE.Mesh(geom, material);
 
         this.scene.add(mesh);
