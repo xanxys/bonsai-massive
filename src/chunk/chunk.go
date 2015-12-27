@@ -351,8 +351,10 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 	}
 }
 
-// Position-based dynamics.
-func (world *GrainChunk) Step(wall *ChunkWall) {
+// Take immigrating grains (position must be inside chunk), environmental grains (outside chunk)
+// and wall configuration and calculate single step using very stable position-based dynamics.
+// Returns grains that escaped this chunk. (they'll be removed from world)
+func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *ChunkWall) []*Grain {
 	accel := Vec3f{0, 0, -1}
 
 	// Emit new particles.
@@ -388,27 +390,19 @@ func (world *GrainChunk) Step(wall *ChunkWall) {
 			if grain.PositionNew.X < 0 {
 				if wall.Xm {
 					grain.PositionNew.X *= -reflection_coeff
-				} else {
-					// TODO: leak to outside
 				}
 			} else if grain.PositionNew.X > 1 {
 				if wall.Xp {
 					grain.PositionNew.X = 1 - (grain.PositionNew.X-1)*reflection_coeff
-				} else {
-					// TODO: leak to outside
 				}
 			}
 			if grain.PositionNew.Y < 0 {
 				if wall.Ym {
 					grain.PositionNew.Y *= -reflection_coeff
-				} else {
-					// TODO: leak to outside
 				}
 			} else if grain.PositionNew.Y > 1 {
 				if wall.Ym {
 					grain.PositionNew.Y = 1 - (grain.PositionNew.Y-1)*reflection_coeff
-				} else {
-					// TODO: leak to outside
 				}
 			}
 			if grain.PositionNew.Z < 0 {
@@ -440,7 +434,19 @@ func (world *GrainChunk) Step(wall *ChunkWall) {
 		grain.Position = grain.PositionNew
 	}
 
+	internalGrains := make([]*Grain, 0)
+	externalGrains := make([]*Grain, 0)
+	for _, grain := range world.Grains {
+		if (grain.Position.X < 0 && !wall.Xm) || (grain.Position.X > 1 && !wall.Xp) ||
+			(grain.Position.Y < 0 && !wall.Ym) || (grain.Position.Y > 1 && !wall.Yp) {
+			externalGrains = append(externalGrains, grain)
+		} else {
+			internalGrains = append(internalGrains, grain)
+		}
+	}
+	world.Grains = internalGrains
 	world.Timestamp++
+	return externalGrains
 }
 
 // Run chunk benchmark and output to local files.
@@ -455,7 +461,7 @@ func Benchmark() {
 	world := NewGrainChunk()
 	steps := 300 * 4
 	for iter := 0; iter < steps; iter++ {
-		world.Step(confined)
+		world.Step(nil, nil, confined)
 	}
 	log.Printf("Benchmark: %.3fs for %d steps\n", float64(time.Since(t0))*1e-9, steps)
 
@@ -467,7 +473,7 @@ func Benchmark() {
 	}
 	pprof.StartCPUProfile(f)
 	for iter := 0; iter < steps; iter++ {
-		world.Step(confined)
+		world.Step(nil, nil, confined)
 	}
 	pprof.StopCPUProfile()
 	log.Printf("Done\n")
@@ -483,7 +489,7 @@ func Benchmark() {
 	w.WriteString("[")
 	world = NewGrainChunk()
 	for iter := 0; iter < steps; iter++ {
-		world.Step(confined)
+		world.Step(nil, nil, confined)
 		w.WriteString("[")
 		for ix, grain := range world.Grains {
 			w.WriteString("{")
