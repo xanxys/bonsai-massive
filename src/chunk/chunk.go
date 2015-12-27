@@ -361,6 +361,9 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	for _, source := range world.Sources {
 		world.Grains = append(world.Grains, source.MaybeEmit(world.Timestamp)...)
 	}
+	world.Grains = append(world.Grains, inGrains...)
+	world.Grains = append(world.Grains, envGrains...)
+
 	// Apply gravity & velocity.
 	for _, grain := range world.Grains {
 		grain.PositionNew = grain.Position.Add(grain.Velocity.MultS(dt)).Add(accel.MultS(0.5 * dt * dt))
@@ -426,6 +429,9 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 			}
 		}
 	}
+
+	// We don't need envGrains any more. Throw them away.
+	world.Grains = world.Grains[0 : len(world.Grains)-len(envGrains)]
 
 	// Actually update velocity & position.
 	// PositionNew is destroyed after this.
