@@ -32,42 +32,163 @@ func NewCkService() *CkServiceImpl {
 	}
 }
 
+type World interface {
+	GetEmbeddedChunks() []EmbeddedChunk
+
+	// Ensure that given point lies strictly within some chunk.
+	// point must not be too far outside of the source chunk.
+	Canonicalize(point *WorldCoord) *WorldCoord
+
+	//
+	Transfer(point *WorldCoord, dstChunk ChunkKey) *WorldCoord
+}
+
+type ChunkKey struct {
+	Dx int
+	Dy int
+}
+
+type EmbeddedChunk struct {
+	Key   ChunkKey
+	Chunk *GrainChunk
+}
+
+// Edge X=0, nx is connected with each other at same Y,
+// Y edges (0, ny) is walled.
+type CylinderWorld struct {
+	nx, ny int
+	chunks [][]*GrainChunk
+}
+
+func NewCylinderWorld(nx, ny int) *CylinderWorld {
+	chunks := make([][]*GrainChunk, nx)
+	for ix := 0; ix < nx; ix++ {
+		chunks[ix] = make([]*GrainChunk, ny)
+		for iy := 0; iy < ny; iy++ {
+			chunks[ix][iy] = NewGrainChunk()
+		}
+	}
+	return &CylinderWorld{
+		chunks: chunks,
+		nx:     nx,
+		ny:     ny,
+	}
+}
+
+func (world *CylinderWorld) GetEmbeddedChunks() []EmbeddedChunk {
+	var result []EmbeddedChunk
+	for ix, chunks := range world.chunks {
+		for iy, chunk := range chunks {
+			result = append(result, EmbeddedChunk{
+				Key:   ChunkKey{Dx: ix, Dy: iy},
+				Chunk: chunk,
+			})
+		}
+	}
+	return result
+}
+
+func iabs(x int) int {
+	if x >= 0 {
+		return x
+	} else {
+		return -x
+	}
+}
+
+func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
+	dx := int(point.Position.X)
+	dy := int(point.Position.Y)
+	if dx == 0 && dy == 0 {
+		log.Printf("Trying to canonicalize already canonical coordinate")
+	} else if iabs(dx)+iabs(dy) > 2 {
+		log.Printf("Trying to canonicalize far-way point, %v", point)
+	}
+
+	// Apply modulo to X
+	newDx := (point.Key.Dx + dx) % world.nx
+	if newDx < 0 {
+		newDx += world.nx
+	}
+	// Cap at Y (and emit warning)
+	newDy := point.Key.Dy + dy
+	if newDy < 0 {
+		log.Printf("%v is trying to escape from CylinderWorld, forced to Dy=0", point)
+		newDy = 0
+	} else if newDy >= world.ny {
+		log.Printf("%v is trying to scape from CylinderWorld, forced to Dy=%d", point, world.ny-1)
+		newDy = world.ny - 1
+	}
+
+	return &WorldCoord{
+		Position: point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
+		Key:      ChunkKey{Dx: newDx, Dy: newDy},
+	}
+}
+
+func (world *CylinderWorld) Transfer(point *WorldCoord, dstChunk ChunkKey) *WorldCoord {
+	dx := dstChunk.Dx - point.Key.Dx
+	dy := dstChunk.Dy - point.Key.Dy
+	if iabs(dx) > world.nx/2 {
+		if dx > 0 {
+			dx -= world.nx
+		} else {
+			dx += world.nx
+		}
+	}
+	if iabs(dx)+iabs(dy) > 2 {
+		log.Printf("Transferring long distance, mahnattan dist=%d", iabs(dx)+iabs(dy))
+	}
+	return &WorldCoord{
+		Position: point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
+		Key:      dstChunk,
+	}
+}
+
+type WorldCoord struct {
+	Key      ChunkKey
+	Position Vec3f
+}
+
+type EscapedGrains struct {
+	key    ChunkKey
+	grains []*Grain
+}
+
 // Synchronize multiple chunks in a world, and responds to external command.
 func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkResult) {
-	log.Printf("Grain worlds created")
-	gchunks := []*GrainChunk{
-		NewGrainChunk(),
-		NewGrainChunk(),
-	}
+	log.Printf("Grain world created")
+	world := NewCylinderWorld(2, 1)
+	escapedGrainsList := make([]EscapedGrains, 0)
 	for {
 		select {
 		case command := <-ch:
 			log.Printf("%v\n", command)
 		case <-chQ:
 			numGrains := 0
-			timestamp := gchunks[0].Timestamp
-			for _, gchunk := range gchunks {
-				numGrains += len(gchunk.Grains)
-				if gchunk.Timestamp != timestamp {
-					log.Panicf("Chunk desynchronized just after synchronization (%d != %d)", timestamp, gchunk.Timestamp)
+			timestamp := world.GetEmbeddedChunks()[0].Chunk.Timestamp
+			for _, chunk := range world.GetEmbeddedChunks() {
+				numGrains += len(chunk.Chunk.Grains)
+				if chunk.Chunk.Timestamp != timestamp {
+					log.Panicf("Chunk desynchronized just after synchronization (%d != %d)", timestamp, chunk.Chunk.Timestamp)
 				}
 			}
-			log.Printf("Snapshotting at timestamp %d (%d grains, %d chunks)", timestamp, numGrains, len(gchunks))
+			log.Printf("Snapshotting at timestamp %d (%d grains, %d chunks)", timestamp, numGrains, len(world.GetEmbeddedChunks()))
 			snapshot := &api.ChunkSnapshot{
 				Grains: make([]*api.CkPosition, numGrains),
 			}
 			ix_offset := 0
-			for ixChunk, gchunk := range gchunks {
-				for ix, grain := range gchunk.Grains {
+			for _, eChunk := range world.GetEmbeddedChunks() {
+				for ix, grain := range eChunk.Chunk.Grains {
 					// round to unit (0.1mm)
-					p := grain.Position.Add(Vec3f{float32(ixChunk), 0, 0}).MultS(10000)
+					p := grain.Position.Add(Vec3f{float32(eChunk.Key.Dx), float32(eChunk.Key.Dy), 0}).MultS(10000)
 					snapshot.Grains[ix_offset+ix] = &api.CkPosition{
 						int32(p.X + 0.5),
 						int32(p.Y + 0.5),
 						int32(p.Z + 0.5),
 					}
 				}
-				ix_offset += len(gchunk.Grains)
+				ix_offset += len(eChunk.Chunk.Grains)
 			}
 			chR <- &ChunkResult{
 				Snapshot:  snapshot,
@@ -75,12 +196,46 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 			}
 		default:
 		}
-		for _, gchunk := range gchunks {
-			gchunk.Step(nil, nil, &ChunkWall{
+		// Distribute escapedGrains to chunks as inGrains.
+		inGrainsPerChunk := make(map[ChunkKey][]*Grain)
+		for _, escapedGrains := range escapedGrainsList {
+			for _, grain := range escapedGrains.grains {
+				canonCoord := world.Canonicalize(&WorldCoord{
+					Position: grain.Position,
+					Key:      escapedGrains.key,
+				})
+				// It's safe to overwrite Position here, since a grain only
+				// exists in one place (really?, what will happen w.r.t. envGrains?)
+				// TODO: make sure safety
+				grain.Position = canonCoord.Position
+				inGrainsPerChunk[canonCoord.Key] = append(inGrainsPerChunk[canonCoord.Key], grain)
+			}
+		}
+		escapedGrainsList = nil
+
+		for _, chunk := range world.GetEmbeddedChunks() {
+			envGrains := make([]*Grain, 0)
+			for _, chunkOther := range world.GetEmbeddedChunks() {
+				if chunk.Key != chunkOther.Key {
+					for _, grain := range chunkOther.Chunk.Grains {
+						transferredGrain := *grain
+						transferredGrain.Position = world.Transfer(&WorldCoord{
+							Key:      chunkOther.Key,
+							Position: grain.Position,
+						}, chunk.Key).Position
+						envGrains = append(envGrains, &transferredGrain)
+					}
+				}
+			}
+			escapedGrainsDelta := chunk.Chunk.Step(inGrainsPerChunk[chunk.Key], envGrains, &ChunkWall{
 				Xm: true,
 				Xp: true,
 				Ym: true,
 				Yp: true,
+			})
+			escapedGrainsList = append(escapedGrainsList, EscapedGrains{
+				key:    chunk.Key,
+				grains: escapedGrainsDelta,
 			})
 		}
 	}
