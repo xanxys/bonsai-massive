@@ -60,15 +60,14 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	for _, grain := range resp.Snapshot.Grains {
 		pos := Vec3f{float32(grain.Pos.X), float32(grain.Pos.Y), float32(grain.Pos.Z)}.MultS(1e-4)
 		grainMesh := Icosahedron(pos, 0.1)
+		baseColor := Vec3f{0, 0, 0}
 		if grain.Kind == api.Grain_WATER {
-			grainMesh.SetColor(Vec3f{rand.Float32()*0.1 + 0.5, rand.Float32()*0.1 + 0.5, 1})
+			baseColor = Vec3f{0.4, 0.4, 1}
 		} else if grain.Kind == api.Grain_SOIL {
-			grainMesh.SetColor(Vec3f{1, rand.Float32()*0.1 + 0.5, rand.Float32()*0.1 + 0.5})
-		} else {
-			grainMesh.SetColor(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()})
+			baseColor = Vec3f{0.8, 0.4, 0.3}
 		}
+		grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
 		mesh = append(mesh, grainMesh...)
-
 	}
 	return &api.BiosphereFramesS{
 		Content:          mesh.Serialize(),
