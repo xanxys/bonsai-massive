@@ -80,8 +80,19 @@ message ChunkSnapshot {
     int32 gravity_z = 1;
 
     repeated Cell cells = 2;
+    repeated Grain grains = 4;
 
-    repeated CkPosition grains = 3;
+    reserved 3;
+}
+
+message Grain {
+    CkPosition pos = 1;
+    enum Kind {
+        UNKNOWN = 0;
+        WATER = 1;
+        SOIL = 2;
+    }
+    Kind kind = 2;
 }
 
 // Self-replicating blackbox. It has fuzzy sphere-like shape.

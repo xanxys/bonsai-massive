@@ -175,17 +175,26 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 			}
 			log.Printf("Snapshotting at timestamp %d (%d grains, %d chunks)", timestamp, numGrains, len(world.GetEmbeddedChunks()))
 			snapshot := &api.ChunkSnapshot{
-				Grains: make([]*api.CkPosition, numGrains),
+				Grains: make([]*api.Grain, numGrains),
 			}
 			ix_offset := 0
 			for _, eChunk := range world.GetEmbeddedChunks() {
 				for ix, grain := range eChunk.Chunk.Grains {
+					var kind api.Grain_Kind
+					if grain.IsWater {
+						kind = api.Grain_WATER
+					} else {
+						kind = api.Grain_SOIL
+					}
 					// round to unit (0.1mm)
 					p := grain.Position.Add(Vec3f{float32(eChunk.Key.Dx), float32(eChunk.Key.Dy), 0}).MultS(10000)
-					snapshot.Grains[ix_offset+ix] = &api.CkPosition{
-						int32(p.X + 0.5),
-						int32(p.Y + 0.5),
-						int32(p.Z + 0.5),
+					snapshot.Grains[ix_offset+ix] = &api.Grain{
+						Pos: &api.CkPosition{
+							int32(p.X + 0.5),
+							int32(p.Y + 0.5),
+							int32(p.Z + 0.5),
+						},
+						Kind: kind,
 					}
 				}
 				ix_offset += len(eChunk.Chunk.Grains)

@@ -4,7 +4,6 @@ import (
 	"./api"
 	"log"
 	"math"
-	"math/rand"
 )
 
 type Mesh []Vertex
@@ -22,9 +21,9 @@ func (mesh Mesh) Serialize() *api.PolySoup {
 			Px: vert.Pos.X,
 			Py: vert.Pos.Y,
 			Pz: vert.Pos.Z,
-			R:  rand.Float32(),
-			G:  rand.Float32(),
-			B:  rand.Float32(),
+			R:  vert.Col.X,
+			G:  vert.Col.Y,
+			B:  vert.Col.Z,
 		}
 	}
 	return &ps
@@ -35,6 +34,13 @@ type Vertex struct {
 	Pos Vec3f
 	Nr  Vec3f
 	Col Vec3f
+}
+
+// rgb must be in [0, 1]
+func (mesh *Mesh) SetColor(rgb Vec3f) {
+	for ix, _ := range *mesh {
+		(*mesh)[ix].Col = rgb
+	}
 }
 
 // Create an icosahedron mesh. returned mesh will be approximation of

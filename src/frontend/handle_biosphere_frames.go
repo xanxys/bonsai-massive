@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
+	"math/rand"
 	"time"
 )
 
@@ -56,9 +57,17 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 
 	var mesh Mesh
-	for _, encPos := range resp.Snapshot.Grains {
-		pos := Vec3f{float32(encPos.X), float32(encPos.Y), float32(encPos.Z)}.MultS(1e-4)
-		mesh = append(mesh, Icosahedron(pos, 0.1)...)
+	for _, grain := range resp.Snapshot.Grains {
+		pos := Vec3f{float32(grain.Pos.X), float32(grain.Pos.Y), float32(grain.Pos.Z)}.MultS(1e-4)
+		grainMesh := Icosahedron(pos, 0.1)
+		if grain.Kind == api.Grain_WATER {
+			grainMesh.SetColor(Vec3f{rand.Float32()*0.1 + 0.5, rand.Float32()*0.1 + 0.5, 1})
+		} else if grain.Kind == api.Grain_SOIL {
+			grainMesh.SetColor(Vec3f{1, rand.Float32()*0.1 + 0.5, rand.Float32()*0.1 + 0.5})
+		} else {
+			grainMesh.SetColor(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()})
+		}
+		mesh = append(mesh, grainMesh...)
 
 	}
 	return &api.BiosphereFramesS{
