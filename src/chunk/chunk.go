@@ -38,15 +38,21 @@ type Grain struct {
 	Position Vec3f
 	Velocity Vec3f
 
+	// A unique id (for entire life of a biosphere) to track identity of grain.
+	Id uint64
+
 	// Temporary buffer to store intermediate position during Step().
 	positionNew Vec3f
 }
 
 func NewGrain(isWater bool, initialPos Vec3f) *Grain {
+	// It's no longer safe to issue ids randomly when we issue more than a few
+	// million ids. But for now, it's ok.
 	return &Grain{
 		IsWater:  isWater,
 		Position: initialPos,
 		Velocity: NewVec3f0(),
+		Id:       uint64(rand.Uint32())<<32 | uint64(rand.Uint32()),
 	}
 }
 
