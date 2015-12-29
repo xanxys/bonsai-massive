@@ -77,5 +77,5 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 }
 
 func fallbackContent() *api.PolySoup {
-	return Icosahedron(NewVec3f0(), 0.1).Serialize()
+	return Icosahedron(NewVec3f0(), 0.06).Serialize()
 }
