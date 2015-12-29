@@ -51,6 +51,7 @@ type ChunkKey struct {
 type EmbeddedChunk struct {
 	Key   ChunkKey
 	Chunk *GrainChunk
+	Wall  ChunkWall
 }
 
 // Edge X=0, nx is connected with each other at same Y,
@@ -82,18 +83,16 @@ func (world *CylinderWorld) GetEmbeddedChunks() []EmbeddedChunk {
 			result = append(result, EmbeddedChunk{
 				Key:   ChunkKey{Dx: ix, Dy: iy},
 				Chunk: chunk,
+				Wall: ChunkWall{
+					Xm: false,
+					Xp: false,
+					Ym: iy == 0,
+					Yp: iy == world.ny-1,
+				},
 			})
 		}
 	}
 	return result
-}
-
-func iabs(x int) int {
-	if x >= 0 {
-		return x
-	} else {
-		return -x
-	}
 }
 
 func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
@@ -236,12 +235,7 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 					}
 				}
 			}
-			escapedGrainsDelta := chunk.Chunk.Step(inGrainsPerChunk[chunk.Key], envGrains, &ChunkWall{
-				Xm: true,
-				Xp: true,
-				Ym: true,
-				Yp: true,
-			})
+			escapedGrainsDelta := chunk.Chunk.Step(inGrainsPerChunk[chunk.Key], envGrains, &chunk.Wall)
 			escapedGrainsList = append(escapedGrainsList, EscapedGrains{
 				key:    chunk.Key,
 				grains: escapedGrainsDelta,
@@ -255,4 +249,12 @@ func (ck *CkServiceImpl) Benchmark(ctx context.Context, q *api.BenchmarkQ) (*api
 	return &api.BenchmarkS{
 		Report: "No report",
 	}, nil
+}
+
+func iabs(x int) int {
+	if x >= 0 {
+		return x
+	} else {
+		return -x
+	}
 }
