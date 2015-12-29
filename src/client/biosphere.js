@@ -82,6 +82,10 @@ class Client {
         });
         let mesh = new THREE.Mesh(geom, material);
 
+        if (this.received_mesh !== undefined) {
+            this.scene.remove(this.received_mesh);
+        }
+        this.received_mesh = mesh;
         this.scene.add(mesh);
     }
 
