@@ -65,6 +65,8 @@ func (fe *FeServiceImpl) authCompute(ctx context.Context) (*compute.Service, err
 
 type BiosphereMeta struct {
 	Name string
+	Nx   int32
+	Ny   int32
 }
 
 // Arbitrary code that needs to run continuously forever on this server.

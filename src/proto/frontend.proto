@@ -113,6 +113,7 @@ message BiosphereFramesS {
 }
 
 
+// Next Id: 5
 message BiosphereDeltaQ {
     UserAuth auth = 3;
 
@@ -121,7 +122,9 @@ message BiosphereDeltaQ {
 
     // Default values mean no change.
     // In case of ADD, desc.world_id will be ignored.
-    BiosphereDesc desc = 2;
+    BiosphereDesc desc = 2 [deprecated=true];
+
+    BiosphereCreationConfig creation_config = 4;
 }
 
 message BiospheresQ {
@@ -167,6 +170,15 @@ enum BiosphereState {
     T_RUN = 3;
     // Transition: RUNNING -> STOPPED.
     T_STOP = 4;
+}
+
+message BiosphereCreationConfig {
+    string name = 1;
+
+    // World size (in number of chunks). Hopefully these are applicable for
+    // all relevant world topology.
+    int32 nx = 2;
+    int32 ny = 3;
 }
 
 message BiosphereDesc {

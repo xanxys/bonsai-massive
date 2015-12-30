@@ -1,6 +1,15 @@
 "use strict";
 // ECMAscript 6
 
+// Return ajax future (that is returned by $.ajax) for calling jsonpb RPC.
+function call_fe(rpc_name, data) {
+    return $.ajax('/api/' + rpc_name, {
+        "data": {
+            "pb": JSON.stringify(data)
+        }
+    });
+}
+
 function onSignIn(googleUser) {
     console.log(googleUser);
     document.googleUser = googleUser;
@@ -19,11 +28,7 @@ $(document).ready(() => {
             update: function() {
                 var biospheres = this.biospheres;
                 this.loading = true;
-                $.ajax('/api/biospheres', {
-                    "data": {
-                        "pb": JSON.stringify({})
-                    }
-                }).done(data => {
+                call_fe('biospheres', {}).done(data => {
                     this.loading = false;
                     bs.$set('biospheres', data.biospheres);
                 });
@@ -61,19 +66,18 @@ $(document).ready(() => {
             methods: {
                 // For some reason, () => doesn't get this.name properly.
                 create: function() {
-                    console.log('CREATE', this.name);
-                    var request = {
+                    call_fe('biosphere_delta',  {
                         type: 1, // ADD, see https://github.com/golang/protobuf/issues/59
                         desc: {
                             name: this.name
                         },
+                        creation_config: {
+                            name: this.name,
+                            nx: this.nx,
+                            ny: this.ny,
+                        },
                         auth: {
                             id_token: document.googleUser.getAuthResponse().id_token
-                        }
-                    };
-                    $.ajax('/api/biosphere_delta', {
-                        "data": {
-                            "pb": JSON.stringify(request)
                         }
                     }).done(data => {
                         console.log(data);

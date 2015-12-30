@@ -32,7 +32,9 @@ func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDel
 	key := datastore.NewIncompleteKey(ctx, "BiosphereMeta", nil)
 	// TODO: check collision with existing name / empty names etc.
 	_, err = client.Put(ctx, key, &BiosphereMeta{
-		Name: q.GetDesc().Name,
+		Name: q.GetCreationConfig().Name,
+		Nx:   q.GetCreationConfig().Nx,
+		Ny:   q.GetCreationConfig().Ny,
 	})
 	if err != nil {
 		return nil, err
