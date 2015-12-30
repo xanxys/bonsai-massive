@@ -90,13 +90,13 @@
 
 		<i class="material-icons">border_all</i>
 		<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-			<input class="mdl-textfield__input" type="text" pattern="[0-9]+" v-model="nx" value="3">
+			<input class="mdl-textfield__input" type="text" pattern="[0-9]+" v-model="nx" value="3" number>
 			<label class="mdl-textfield__label" for="sample1">#X chunks (= meter)</label>
 			<span class="mdl-textfield__error">Size must be a positive integer!</span>
 		</div>
 		×
 		<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-			<input class="mdl-textfield__input" type="text" pattern="[0-9]+" v-model="ny" value="2">
+			<input class="mdl-textfield__input" type="text" pattern="[0-9]+" v-model="ny" value="2" number>
 			<label class="mdl-textfield__label" for="sample1">#Y chunks (= meter)</label>
 			<span class="mdl-textfield__error">Size must be a positive integer!</span>
 		</div>

@@ -2,7 +2,16 @@
 // ECMAscript 6
 
 // Return ajax future (that is returned by $.ajax) for calling jsonpb RPC.
-function call_fe(rpc_name, data) {
+function call_fe(rpc_name, data, needs_auth) {
+    if (needs_auth) {
+        if (document.googleUser) {
+            data["auth"] = {
+                id_token: document.googleUser.getAuthResponse().id_token,
+            };
+        } else {
+            console.warn("Not adding auth token despite requested, because sign in widget failed to load.");
+        }
+    }
     return $.ajax('/api/' + rpc_name, {
         "data": {
             "pb": JSON.stringify(data)
@@ -75,11 +84,8 @@ $(document).ready(() => {
                             name: this.name,
                             nx: this.nx,
                             ny: this.ny,
-                        },
-                        auth: {
-                            id_token: document.googleUser.getAuthResponse().id_token
                         }
-                    }).done(data => {
+                    }, true).done(data => {
                         console.log(data);
                     })
                     $('#create_biosphere_dialog').hide();
