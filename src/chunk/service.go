@@ -99,7 +99,7 @@ func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
 	dx := int(point.Position.X)
 	dy := int(point.Position.Y)
 	if dx == 0 && dy == 0 {
-		log.Printf("Trying to canonicalize already canonical coordinate")
+		log.Printf("Trying to canonicalize already canonical coordinate %v", point)
 	} else if iabs(dx)+iabs(dy) > 2 {
 		log.Printf("Trying to canonicalize far-way point, %v", point)
 	}
@@ -136,7 +136,7 @@ func (world *CylinderWorld) Transfer(point *WorldCoord, dstChunk ChunkKey) *Worl
 		}
 	}
 	if iabs(dx)+iabs(dy) > 2 {
-		log.Printf("Transferring long distance, mahnattan dist=%d", iabs(dx)+iabs(dy))
+		log.Printf("Transferring %v to %v, (distance seems too long, mahnattan dist=%d)", point, dstChunk, iabs(dx)+iabs(dy))
 	}
 	return &WorldCoord{
 		Position: point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
