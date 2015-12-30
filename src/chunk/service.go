@@ -157,7 +157,7 @@ type EscapedGrains struct {
 // Synchronize multiple chunks in a world, and responds to external command.
 func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkResult) {
 	log.Printf("Grain world created")
-	world := NewCylinderWorld(2, 1)
+	world := NewCylinderWorld(3, 2)
 	escapedGrainsList := make([]EscapedGrains, 0)
 	for {
 		select {
