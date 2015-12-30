@@ -115,7 +115,7 @@ func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
 		log.Printf("%v is trying to escape from CylinderWorld, forced to Dy=0", point)
 		newDy = 0
 	} else if newDy >= world.ny {
-		log.Printf("%v is trying to scape from CylinderWorld, forced to Dy=%d", point, world.ny-1)
+		log.Printf("%v is trying to escape from CylinderWorld, forced to Dy=%d", point, world.ny-1)
 		newDy = world.ny - 1
 	}
 
