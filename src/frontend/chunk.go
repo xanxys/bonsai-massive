@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const GoogleCloudLoggingScope = "https://www.googleapis.com/auth/logging.write"
+
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	name := fmt.Sprintf("chunk-server-%d", rand.Int63n(1000000000))
 	const machineType = "n1-standard-4"
@@ -25,8 +27,13 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			`SVC_ACCT=$METADATA/instance/service-accounts/default`,
 			`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
 			`docker login -e dummy@example.com -u _token -p $ACCESS_TOKEN https://gcr.io`,
+			`curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh`,
+			`sha256sum install-logging-agent.sh`,
+			`bash install-logging-agent.sh`,
+			`printf '<source>\ntype forward \nport 24224\n</source>\n' > /etc/google-fluentd/config.d/docker.conf`,
+			`service google-fluentd restart`,
 			fmt.Sprintf(`docker pull %s`, fe.chunkContainerName),
-			fmt.Sprintf(`docker run --publish 9000:9000 %s`, fe.chunkContainerName),
+			fmt.Sprintf(`docker run -d --log-driver=fluentd --publish 9000:9000 %s`, fe.chunkContainerName),
 		}, "\n")
 
 	bonsaiType := "chunk"
@@ -63,6 +70,7 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 				Scopes: []string{
 					compute.DevstorageFullControlScope,
 					compute.ComputeScope,
+					GoogleCloudLoggingScope,
 				},
 			},
 		},
