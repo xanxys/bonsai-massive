@@ -34,11 +34,15 @@
 				</span>
 				<div class="mdl-layout-spacer"></div>
 				<div class="g-signin2" data-onsuccess="onSignIn"></div>
+
 			</div>
 		</header>
 
 		<main class="mdl-layout__content">
 			<div class="page-content">
+				<a href="/debug">
+					<i class="material-icons">bug_report</i>
+				</a>
 				<div id="biospheres">
 					<h1>Biospheres</h1>
 					<div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
@@ -82,7 +86,8 @@
 		</div>
 
 		<h6>Cylinderical world (X:looping, Y: clipping)</h6>
-		<img src="/static/cylinder_desc.png" width="200px"/><br/>
+		<img src="/static/cylinder_desc.png" width="200px" />
+		<br/>
 
 		<i class="material-icons">border_all</i>
 		<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
