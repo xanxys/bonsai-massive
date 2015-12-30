@@ -30,36 +30,49 @@
 </head>
 
 <body>
-	<div id="header" class="mdl-grid">
-		<div class="mdl-cell mdl-cell--12-col">
-			<h2>{{biosphere_name}}
-				<div v-show="loading" id="p2" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
-			</h2>
-		</div>
-	</div>
-	<div class="mdl-grid">
-		<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
-			<div>
-				<h5>Time Control</h5>
+	<div class="mdl-layout mdl-js-layout">
+		<header id="header" class="mdl-layout__header">
+			<div class="mdl-layout__header-row">
+				<span class="mdl-layout-title">
+					{{biosphere_name}}
+				</span>
 
-				<button id="button_start">Start</button>
+				<div class="mdl-layout-spacer"></div>
 
-				<ul>
-					<li>Current: {{current_timestamp}}</li>
-					<li>Biosphere Age: {{head_timestamp}</li>
-				</ul>
+				<a class="mdl-button mdl-js-button mdl-button--icon" href="/" id="view_list_button"><i class="material-icons">view_list</i></a>
+				<div class="mdl-tooltip  mdl-tooltip--large" for="view_list_button">See other biospheres</div>
+				<div class="g-signin2" data-onsuccess="onSignIn"></div>
+			</div>
 
-				<div v-repeat="year in years">
-					<h6>Year {{year.index}}</h6>
-					<div v-repeat="sol in year.sols" class="day" v-class="active: sol.active">
-						<span>{{sol.index_in_year}}</span>
+			<div style="width:100%; bottom: -14px" v-show="loading" id="p2" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
+		</header>
+
+		<main class="mdl-layout__content">
+			<div class="mdl-grid">
+				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
+					<div>
+						<h5>Time Control</h5>
+
+						<button id="button_start">Start</button>
+
+						<ul>
+							<li>Current: {{current_timestamp}}</li>
+							<li>Biosphere Age: {{head_timestamp}</li>
+						</ul>
+
+						<div v-repeat="year in years">
+							<h6>Year {{year.index}}</h6>
+							<div v-repeat="sol in year.sols" class="day" v-class="active: sol.active">
+								<span>{{sol.index_in_year}}</span>
+							</div>
+						</div>
 					</div>
 				</div>
+				<div class="mdl-cell mdl-cell--9-col">
+					<div id="main"></div>
+				</div>
 			</div>
-		</div>
-		<div class="mdl-cell mdl-cell--9-col">
-			<div id="main"></div>
-		</div>
+		</main>
 	</div>
 </body>
 
