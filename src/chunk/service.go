@@ -96,8 +96,8 @@ func (world *CylinderWorld) GetEmbeddedChunks() []EmbeddedChunk {
 }
 
 func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
-	dx := int(point.Position.X)
-	dy := int(point.Position.Y)
+	dx := ifloor(point.Position.X)
+	dy := ifloor(point.Position.Y)
 	if dx == 0 && dy == 0 {
 		log.Printf("Trying to canonicalize already canonical coordinate %v", point)
 	} else if iabs(dx)+iabs(dy) > 2 {
@@ -249,6 +249,14 @@ func (ck *CkServiceImpl) Benchmark(ctx context.Context, q *api.BenchmarkQ) (*api
 	return &api.BenchmarkS{
 		Report: "No report",
 	}, nil
+}
+
+func ifloor(x float32) int {
+	if x >= 0 {
+		return int(x)
+	} else {
+		return int(x) - 1
+	}
 }
 
 func iabs(x int) int {
