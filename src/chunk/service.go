@@ -97,14 +97,14 @@ func (world *CylinderWorld) GetEmbeddedChunks() []EmbeddedChunk {
 
 func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
 	// Clip Y.
-	if point.Position.Y < 0 {
+	if point.Dy == 0 && point.Position.Y < 0 {
 		log.Printf("%v is trying to escape from CylinderWorld, clipped to 0 (Dy=0)", point)
-		point = &WorldCoord{point.Key, point.Position}
+		point = &WorldCoord{point.ChunkKey, point.Position}
 		point.Position.Y = 0
-	} else if point.Position.Y >= float32(world.ny) {
-		slightlyInside := float32(world.ny-1) - 1e-4
+	} else if point.Dy == world.ny-1 && point.Position.Y >= 1.0 {
+		slightlyInside := float32(1.0 - 1e-4)
 		log.Printf("%v is trying to escape from CylinderWorld, clipped to %f (Dy=%d)", point, slightlyInside, world.ny-1)
-		point = &WorldCoord{point.Key, point.Position}
+		point = &WorldCoord{point.ChunkKey, point.Position}
 		point.Position.Y = slightlyInside
 	}
 
@@ -117,24 +117,24 @@ func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
 	}
 
 	// Apply modulo to X
-	newDx := (point.Key.Dx + dx) % world.nx
+	newDx := (point.Dx + dx) % world.nx
 	if newDx < 0 {
 		newDx += world.nx
 	}
 	// Cap at Y (and emit warning)
-	newDy := point.Key.Dy + dy
+	newDy := point.Dy + dy
 	if newDy < 0 || newDy >= world.ny {
 		log.Panicf("Dy enforcement failed for %v", point)
 	}
 	return &WorldCoord{
-		Position: point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
-		Key:      ChunkKey{Dx: newDx, Dy: newDy},
+		ChunkKey{Dx: newDx, Dy: newDy},
+		point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
 	}
 }
 
 func (world *CylinderWorld) Transfer(point *WorldCoord, dstChunk ChunkKey) *WorldCoord {
-	dx := dstChunk.Dx - point.Key.Dx
-	dy := dstChunk.Dy - point.Key.Dy
+	dx := dstChunk.Dx - point.Dx
+	dy := dstChunk.Dy - point.Dy
 	if iabs(dx) > world.nx/2 {
 		if dx > 0 {
 			dx -= world.nx
@@ -147,12 +147,12 @@ func (world *CylinderWorld) Transfer(point *WorldCoord, dstChunk ChunkKey) *Worl
 	}
 	return &WorldCoord{
 		Position: point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
-		Key:      dstChunk,
+		ChunkKey: dstChunk,
 	}
 }
 
 type WorldCoord struct {
-	Key      ChunkKey
+	ChunkKey
 	Position Vec3f
 }
 
@@ -217,13 +217,13 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 			for _, grain := range escapedGrains.grains {
 				canonCoord := world.Canonicalize(&WorldCoord{
 					Position: grain.Position,
-					Key:      escapedGrains.key,
+					ChunkKey: escapedGrains.key,
 				})
 				// It's safe to overwrite Position here, since a grain only
 				// exists in one place (really?, what will happen w.r.t. envGrains?)
 				// TODO: make sure safety
 				grain.Position = canonCoord.Position
-				inGrainsPerChunk[canonCoord.Key] = append(inGrainsPerChunk[canonCoord.Key], grain)
+				inGrainsPerChunk[canonCoord.ChunkKey] = append(inGrainsPerChunk[canonCoord.ChunkKey], grain)
 			}
 		}
 		escapedGrainsList = nil
@@ -235,7 +235,7 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 					for _, grain := range chunkOther.Chunk.Grains {
 						transferredGrain := *grain
 						transferredGrain.Position = world.Transfer(&WorldCoord{
-							Key:      chunkOther.Key,
+							ChunkKey: chunkOther.Key,
 							Position: grain.Position,
 						}, chunk.Key).Position
 						envGrains = append(envGrains, &transferredGrain)
