@@ -16,7 +16,7 @@ filegroup(
         "*.css",
         "*.html",
         "*.js",
-        "card_background.png",
+        "*.png",
         "icons/*.png",
         "icons/*.svg",
         "third_party/*.js",
