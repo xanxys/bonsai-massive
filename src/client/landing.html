@@ -73,21 +73,39 @@
 		</main>
 	</div>
 
-	<div id="create_biosphere_dialog" style="display: none" class="dialog">
-		<h2>Create Biosphere</h2>
+	<div id="create_biosphere_dialog" style="display: none" class="dialog mdl-shadow--8dp">
+		<h4>Create Biosphere</h4>
 
-		Name:
-		<input v-model="name" />
-		<br/> Size: 10m x 10m
-		<br/>
+		<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+			<input class="mdl-textfield__input" type="text" v-model="name" id="create_biosphere_name_input">
+			<label class="mdl-textfield__label" for="sample1">Biosphere name</label>
+		</div>
+
+		<h6>Cylinderical world (X:looping, Y: clipping)</h6>
+		<img src="/static/cylinder_desc.png" width="200px"/><br/>
+
+		<i class="material-icons">border_all</i>
+		<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+			<input class="mdl-textfield__input" type="text" pattern="[0-9]+" v-model="nx" value="3">
+			<label class="mdl-textfield__label" for="sample1">#X chunks (= meter)</label>
+			<span class="mdl-textfield__error">Size must be a positive integer!</span>
+		</div>
+		×
+		<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+			<input class="mdl-textfield__input" type="text" pattern="[0-9]+" v-model="ny" value="2">
+			<label class="mdl-textfield__label" for="sample1">#Y chunks (= meter)</label>
+			<span class="mdl-textfield__error">Size must be a positive integer!</span>
+		</div>
 
 		<div style="background-color: #E1F5FE">
-			1.23 USD / hour
+			<i class="material-icons">attach_money</i> {{est_price_usd}} USD / hour
 		</div>
 
 		<div style="float: right">
-			<button v-on="click: cancel">No</button>
-			<button v-on="click: create" class="{{create_ready ? 'enabled' : 'disabled'}}">Create</button>
+			<button v-on="click: cancel" class="mdl-button mdl-js-button">No</button>
+			<button v-on="click: create" v-attr="disabled:!create_ready" class="mdl-button mdl-js-button mdl-button--primary">
+				Create
+			</button>
 		</div>
 	</div>
 

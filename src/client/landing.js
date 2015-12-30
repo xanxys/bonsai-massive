@@ -41,18 +41,22 @@ $(document).ready(() => {
 
     $('#create_biosphere').click(() => {
         $('#create_biosphere_dialog').show();
+        $('#create_biosphere_name_input').focus();
 
         var bs = new Vue({
             el: '#create_biosphere_dialog',
             data: {
-                name: ""
+                name: "",
             },
             computed: {
                 // For some reason, when I write ""() => ..." here, vue.js
                 // fails to detect dependency and do not auto-update.
                 create_ready: function() {
                     return this.name != '';
-                }
+                },
+                est_price_usd: function() {
+                    return 0.015 * (this.nx * this.ny) / 5;
+                },
             },
             methods: {
                 // For some reason, () => doesn't get this.name properly.

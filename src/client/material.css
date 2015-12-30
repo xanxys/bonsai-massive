@@ -88,29 +88,11 @@ body {
 }
 .dialog {
     z-index: 4;
-    box-shadow: 0 9px 18px rgba(0, 0, 0, 0.16), 0 9px 18px rgba(0, 0, 0, 0.23);
     border-radius: 2px;
     padding: 16px;
     position: fixed;
-    height: 400px;
     left: 20%;
     right: 20%;
     top: 20%;
     background-color: white;
-}
-.dialog button {
-    height: 36px;
-    text-transform: uppercase;
-    font-weight: bold;
-    color: #039BE5;
-    /* light blue 600 */
-    border: none;
-    background-color: white;
-    font-size: 100%;
-}
-button.enabled {}
-button.disabled {
-    pointer-events: none;
-    color: #BDBDBD;
-    /* grey 400 */
 }
