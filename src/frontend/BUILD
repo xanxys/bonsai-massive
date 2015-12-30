@@ -12,6 +12,7 @@ genrule(
     srcs=[
         "//common:lib",
         "//proto:proto_go_src",
+        "auth.go",
         "chunk_servers.go",
         "chunk.go",
         "handle_biosphere_delta.go",
