@@ -96,12 +96,24 @@ func (world *CylinderWorld) GetEmbeddedChunks() []EmbeddedChunk {
 }
 
 func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
+	// Clip Y.
+	if point.Position.Y < 0 {
+		log.Printf("%v is trying to escape from CylinderWorld, clipped to 0 (Dy=0)", point)
+		point = &WorldCoord{point.Key, point.Position}
+		point.Position.Y = 0
+	} else if point.Position.Y >= float32(world.ny) {
+		slightlyInside := float32(world.ny-1) - 1e-4
+		log.Printf("%v is trying to escape from CylinderWorld, clipped to %f (Dy=%d)", point, slightlyInside, world.ny-1)
+		point = &WorldCoord{point.Key, point.Position}
+		point.Position.Y = slightlyInside
+	}
+
 	dx := ifloor(point.Position.X)
 	dy := ifloor(point.Position.Y)
 	if dx == 0 && dy == 0 {
 		log.Printf("Trying to canonicalize already canonical coordinate %v", point)
 	} else if iabs(dx)+iabs(dy) > 2 {
-		log.Printf("Trying to canonicalize far-way point, %v", point)
+		log.Printf("Trying to canonicalize far-away point, %v", point)
 	}
 
 	// Apply modulo to X
@@ -111,14 +123,9 @@ func (world *CylinderWorld) Canonicalize(point *WorldCoord) *WorldCoord {
 	}
 	// Cap at Y (and emit warning)
 	newDy := point.Key.Dy + dy
-	if newDy < 0 {
-		log.Printf("%v is trying to escape from CylinderWorld, forced to Dy=0", point)
-		newDy = 0
-	} else if newDy >= world.ny {
-		log.Printf("%v is trying to escape from CylinderWorld, forced to Dy=%d", point, world.ny-1)
-		newDy = world.ny - 1
+	if newDy < 0 || newDy >= world.ny {
+		log.Panicf("Dy enforcement failed for %v", point)
 	}
-
 	return &WorldCoord{
 		Position: point.Position.Sub(Vec3f{X: float32(dx), Y: float32(dy)}),
 		Key:      ChunkKey{Dx: newDx, Dy: newDy},
