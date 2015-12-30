@@ -25,8 +25,32 @@
 </head>
 
 <body>
-	<h2>Debug</h2>
-	<pre id="debug">{{debug}}</pre>
+	<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+		<header class="mdl-layout__header">
+			<div class="mdl-layout__header-row">
+				<span class="mdl-layout-title">
+					Debug
+				</span>
+				<div class="mdl-layout-spacer"></div>
+				<div class="g-signin2" data-onsuccess="onSignIn"></div>
+			</div>
+		</header>
+
+		<main class="mdl-layout__content">
+			<div class="mdl-grid">
+				<div class=" mdl-cell mdl-cell--12-col">
+					<div class="mdl-card mdl-shadow--2dp" style="width: 100%">
+						<div class="mdl-card__title">
+							<h5>JSON dump</h5>
+						</div>
+						<div class="mdl-card__media">
+							<pre id="debug">{{debug}}</pre>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
 </body>
 
 </html>
