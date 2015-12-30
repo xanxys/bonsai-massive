@@ -195,6 +195,7 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 					// round to unit (0.1mm)
 					p := grain.Position.Add(Vec3f{float32(eChunk.Key.Dx), float32(eChunk.Key.Dy), 0}).MultS(10000)
 					snapshot.Grains[ix_offset+ix] = &api.Grain{
+						Id: grain.Id,
 						Pos: &api.CkPosition{
 							int32(p.X + 0.5),
 							int32(p.Y + 0.5),

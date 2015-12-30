@@ -85,7 +85,10 @@ message ChunkSnapshot {
     reserved 3;
 }
 
+// Next Id: 4
 message Grain {
+    uint64 id = 3;
+
     CkPosition pos = 1;
     enum Kind {
         UNKNOWN = 0;
