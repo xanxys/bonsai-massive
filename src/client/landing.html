@@ -33,16 +33,15 @@
 					<img src="/static/logo_white.svg" width="24px" height="24px" /> Bonsai
 				</span>
 				<div class="mdl-layout-spacer"></div>
+				<a class="mdl-button mdl-js-button mdl-button--icon" href="/debug">
+					<i class="material-icons">bug_report</i>
+				</a>
 				<div class="g-signin2" data-onsuccess="onSignIn"></div>
-
 			</div>
 		</header>
 
 		<main class="mdl-layout__content">
 			<div class="page-content">
-				<a href="/debug">
-					<i class="material-icons">bug_report</i>
-				</a>
 				<div id="biospheres">
 					<h1>Biospheres</h1>
 					<div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
