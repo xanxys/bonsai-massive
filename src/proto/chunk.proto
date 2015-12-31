@@ -6,12 +6,66 @@ package api;
 //
 // But for now, there's only one chunk.
 service ChunkService {
+    // New RPC to return CPU/memory/network load of this chunk server? Also need
+    // connectivity info. (IMO it makes sense to make FE manage list of chunk
+    // servers, and each chunk server don't know about list other than
+    // neighbors)
+    //
+    // (FE will decide whether to spawn new chunk servers, migrate chunks etc).
+    // Or maybe just dump them to datastore (because bigtable is expensive to
+    // maintain), and make FE query them. With this approach, we get history for
+    // free. (we can also do dashboards w/ bigquery)
+
+    // Should be renamed.
     // Get status of chunks.
     rpc Status(StatusQ) returns (StatusS);
 
     rpc Benchmark(BenchmarkQ) returns (BenchmarkS);
 
     rpc ModifyChunk(ModifyChunkQ) returns (ModifyChunkS);
+
+    rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
+
+    // Move some chunks to other chunk server?
+    // rpc MigrateChunk()
+}
+
+// Spawn a chunk in this chunk server. This request itself is very lightweight.
+// (although server might slowdown afterwards).
+message SpawnChunkQ {
+    // Opaque unique id of this chunk. Caller will make sure this is actually
+    // unique across all biospheres.
+    string chunk_id = 1;
+
+    // Description of a neighbor chunk.
+    // (dx, dy) != (0, 0) must hold.
+    message ChunkNeighbor {
+        // Neighbor's chunk id.
+        string chunk_id = 1;
+
+        // If true, neighbor is on the same node.
+        bool internal = 2;
+
+        // Chunk server IP address where neighbor is running.
+        // Disregarded when internal is true.
+        string address = 3;
+
+        // Relative position of this neighbor to the newly created chunk.
+        // must be relatively small (|dx| <= 1) for correct operation.
+        int32 dx = 4;
+
+        // Relative position of this neighbor to the newly created chunk.
+        // must be relatively small (|dx| <= 1) for correct operation.
+        int32 dy = 5;
+    }
+
+    // 8-Neighbors. When not specified, it is assumed that location is empty
+    // (regardless of dx, dy) and there is wall between neighbor and this (when
+    // neighbor is a 4-neighbor).
+    repeated ChunkNeighbor neighbors = 2;
+}
+
+message SpawnChunkS {
 }
 
 message StatusQ {
@@ -67,8 +121,8 @@ message ModifyChunkS {
 
 
 // Snapshot of a chunk at given timestamp.
-// This contains enough and just enough information for reconstructing it
-// on memory.
+// This contains enough and just enough information for reconstructing it on
+// memory.
 // Do not include optimization structures in this, since we don't want to break
 // compatibility every time we optimize implemenetation.
 //

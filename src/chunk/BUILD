@@ -2,13 +2,14 @@
 genrule(
     name="server",
     srcs=[
+        "//common:lib",
+        "//proto:proto_go_src",
         "chunk.go",
         "handle_modify_chunk.go",
+        "handle_spawn_chunk.go",
         "handle_status.go",
         "main.go",
         "service.go",
-        "//common:lib",
-        "//proto:proto_go_src",
     ],
     outs=[
         "server.bin",
