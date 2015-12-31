@@ -25,11 +25,6 @@ service FrontendService {
     // Endpoint: /api/change_exec
     rpc ChangeExec(ChangeExecQ) returns (ChangeExecS);
 
-    // <<DEPRECATED>>
-    // In-Biosphere fetching
-    // Endpoint: /api/chunk
-    rpc Chunk(ChunkQ) returns (ChunkS);
-
     // Biosphere streaming.
     // Endpoint: /api/biosphere_frames
     rpc BiosphereFrames(BiosphereFramesQ) returns (BiosphereFramesS);
@@ -155,24 +150,6 @@ message BiospheresQ {
 
 message BiospheresS {
     repeated BiosphereDesc biospheres = 1;
-}
-
-message ChunkQ {
-    ChunkId cid = 1;
-    int32 level = 2;
-
-    // Style option should come here.
-}
-
-// Target size: 100KB
-message ChunkS {
-    ChunkId cid = 1;
-
-    int32 level = 2;
-
-    // Triangle soup with vertex colors. Lights are tonemapped and
-    // baked in. Color is in LDR space, not physically accurate in any way.
-    PolySoup content = 3;
 }
 
 
