@@ -49,11 +49,9 @@ $(document).ready(() => {
         }
     });
     bs.update();
-    $('#hoge').click(() => {
-        console.log('hoge');
-    });
 
     $('#create_biosphere').click(() => {
+        $('#create_biosphere').hide();
         $('#create_biosphere_dialog').show();
         $('#create_biosphere_name_input').focus();
 
@@ -89,9 +87,11 @@ $(document).ready(() => {
                         console.log(data);
                     })
                     $('#create_biosphere_dialog').hide();
+                    $('#create_biosphere').show();
                 },
                 cancel: () => {
                     $('#create_biosphere_dialog').hide();
+                    $('#create_biosphere').show();
                 }
             }
         });
