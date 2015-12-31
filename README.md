@@ -4,6 +4,8 @@ Bonsai is a massive vegetation evolution simulator. Things below are just plans 
 Bonsai simulates plants at individual cell level, and has well-defined physics for lighting, sofy-body, etc..
 All physics is local and energy / mass is carefully conserved.
 
+This project is basically (huge) revamp of [old bonsai](http://www.xanxys.net/bonsai), which was limited because it's written in pure javascript.
+
 ## Simulated Aspects
 * soft-body (particle-based)
 * light (ray-traced)
