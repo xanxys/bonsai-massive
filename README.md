@@ -38,3 +38,7 @@ I did confirm these two results in visually identical simulation.
 * map -> array: very effective
 * pre-allocation of slice: moderately effective if cap is known
 * Mutable pointer-based Vec3f (like three.js): slower than value-passing, even with some hand-optimization of equations to make them in-place
+
+### Go Performance memo
+* chan int message latency: 1us
+* chan int message throughput: 5M messages / sec (no buffer), 20M messages / sec (w/ buffer len=100)
