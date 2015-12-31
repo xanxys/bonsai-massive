@@ -19,10 +19,7 @@ func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDel
 		return nil, errors.New("UI must disallow unauthorized actions")
 	}
 
-	name := "FugaFuga"
-	var nCores uint32
 	var nTicks uint64
-	nCores = 42
 	nTicks = 38
 
 	client, err := fe.authDatastore(ctx)
@@ -31,11 +28,12 @@ func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDel
 	}
 	key := datastore.NewIncompleteKey(ctx, "BiosphereMeta", nil)
 	// TODO: check collision with existing name / empty names etc.
-	_, err = client.Put(ctx, key, &BiosphereMeta{
+	meta := &BiosphereMeta{
 		Name: q.GetCreationConfig().Name,
 		Nx:   q.GetCreationConfig().Nx,
 		Ny:   q.GetCreationConfig().Ny,
-	})
+	}
+	key, err = client.Put(ctx, key, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -49,9 +47,10 @@ func (fe *FeServiceImpl) BiosphereDelta(ctx context.Context, q *api.BiosphereDel
 	return &api.BiospheresS{
 		Biospheres: []*api.BiosphereDesc{
 			&api.BiosphereDesc{
-				Name:     name,
-				NumCores: nCores,
-				NumTicks: nTicks,
+				BiosphereId: uint64(key.ID()),
+				Name:        meta.Name,
+				NumCores:    uint32(meta.Nx*meta.Ny/5) + 1,
+				NumTicks:    nTicks,
 			},
 		},
 	}, nil
