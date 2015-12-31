@@ -4,14 +4,7 @@ genrule(
     srcs=[
         "//common:lib",
         "//proto:proto_go_src",
-        "chunk.go",
-        "handle_chunk_summary.go",
-        "handle_modify_chunk.go",
-        "handle_spawn_chunk.go",
-        "handle_status.go",
-        "main.go",
-        "service.go",
-    ],
+    ] + glob(["*.go"]),
     outs=[
         "server.bin",
     ],
