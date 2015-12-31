@@ -10,11 +10,7 @@ $(document).ready(() => {
         methods: {
             // For some reason, () => doesn't work.
             update: function() {
-                $.ajax('/api/debug', {
-                    "data": {
-                        "pb": JSON.stringify({})
-                    }
-                }).done(data => {
+                call_fe('debug', {}).done(data => {
                     bs.$set('debug', JSON.stringify(data, null, 2));
                 });
             },

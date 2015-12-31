@@ -1,15 +1,5 @@
 "use strict";
 
-
-// Return ajax future (that is returned by $.ajax) for calling jsonpb RPC.
-function call_fe(rpc_name, data) {
-    return $.ajax('/api/' + rpc_name, {
-        "data": {
-            "pb": JSON.stringify(data)
-        }
-    });
-}
-
 // Separate into
 // 1. master class (holds chunk worker)
 // 1': 3D GUI class
