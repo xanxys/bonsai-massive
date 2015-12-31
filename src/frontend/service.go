@@ -20,6 +20,7 @@ const (
 type FeServiceImpl struct {
 	cred               *jwt.Config
 	chunkContainerName string
+	cmdQueue           chan *ControllerCommand
 }
 
 func NewFeService() *FeServiceImpl {
@@ -44,6 +45,8 @@ func NewFeService() *FeServiceImpl {
 		cred:               conf,
 		chunkContainerName: string(cont),
 	}
+	// TODO: Ensure one loop is always running.
+	fe.cmdQueue = make(chan *ControllerCommand, 50)
 	go fe.StatefulLoop()
 	return fe
 }
@@ -67,9 +70,4 @@ type BiosphereMeta struct {
 	Name string
 	Nx   int32
 	Ny   int32
-}
-
-// Arbitrary code that needs to run continuously forever on this server.
-func (fe *FeServiceImpl) StatefulLoop() {
-
 }

@@ -20,8 +20,18 @@ service ChunkService {
     // Get status of chunks.
     rpc Status(StatusQ) returns (StatusS);
 
+    // Return enough information for caller to balance chunks / reach taget state.
+    rpc ChunkSummary(ChunkSummaryQ) returns (ChunkSummaryS);
+
+    // Return snapshot of specified chunks.
+    //rpc Snapshot(SnapshotQ) returns (SnapshotS);
+
+    // FE should do blackbox testing of chunk server,
+    // but chunk server can also do whitebox self-inspection.
+    // TODO: Consider renaming to better name.
     rpc Benchmark(BenchmarkQ) returns (BenchmarkS);
 
+    // NOT-REALLY-USED; Just kept for historical reference.
     rpc ModifyChunk(ModifyChunkQ) returns (ModifyChunkS);
 
     rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
@@ -33,6 +43,44 @@ service ChunkService {
 // Spawn a chunk in this chunk server. This request itself is very lightweight.
 // (although server might slowdown afterwards).
 message SpawnChunkQ {
+    ChunkTopology topology = 2;
+
+    reserved 1;
+}
+
+message SpawnChunkS {
+}
+
+message StatusQ {
+}
+
+message StatusS {
+    ChunkSnapshot snapshot = 1;
+    uint64 snapshot_timestamp = 2;
+}
+
+message ChunkSummaryQ {
+}
+
+message ChunkSummaryS {
+    repeated ChunkTopology chunks = 1;
+}
+
+
+message SnapshotQ {
+    repeated string chunk_id = 1;
+}
+
+message SnapshotS {
+    message SnapshotWithMetadata {
+        string chunk_id = 1;
+        ChunkSnapshot snapshot = 2;
+        uint64 snapshot_timestamp = 3;
+    }
+    repeated SnapshotWithMetadata snapshot = 1;
+}
+
+message ChunkTopology {
     // Opaque unique id of this chunk. Caller will make sure this is actually
     // unique across all biospheres.
     string chunk_id = 1;
@@ -64,18 +112,6 @@ message SpawnChunkQ {
     // neighbor is a 4-neighbor).
     repeated ChunkNeighbor neighbors = 2;
 }
-
-message SpawnChunkS {
-}
-
-message StatusQ {
-}
-
-message StatusS {
-    ChunkSnapshot snapshot = 1;
-    uint64 snapshot_timestamp = 2;
-}
-
 
 message BenchmarkQ {
 }
