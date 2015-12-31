@@ -71,6 +71,7 @@ func JsonpbHandler(grpcServerMethod interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := MaybeExtractQ(w, r, reflect.New(reqType).Interface().(proto.Message))
 		if q != nil {
+			log.Printf("Request: %#v", *q)
 			retVals := reflect.ValueOf(grpcServerMethod).Call([]reflect.Value{
 				reflect.ValueOf(context.Background()),
 				reflect.ValueOf(*q),
