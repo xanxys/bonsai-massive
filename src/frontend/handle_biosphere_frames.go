@@ -22,7 +22,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	if err != nil {
 		return nil, err
 	}
-	key := datastore.NewKey(ctx, "BiosphereMeta", "0", int64(q.BiosphereId), nil)
+	key := datastore.NewKey(ctx, "BiosphereMeta", "", int64(q.BiosphereId), nil)
 	var meta BiosphereMeta
 	err = client.Get(ctx, key, &meta)
 	if err != nil {
