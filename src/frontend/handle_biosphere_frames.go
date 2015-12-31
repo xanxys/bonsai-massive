@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
 	"log"
 	"math/rand"
@@ -17,10 +18,22 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		return nil, err
 	}
 
+	client, err := fe.authDatastore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key := datastore.NewKey(ctx, "BiosphereMeta", "0", int64(q.BiosphereId), nil)
+	var meta BiosphereMeta
+	err = client.Get(ctx, key, &meta)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(chunks) == 0 {
 		log.Print("Active chunk server not found.")
 		if q.EnsureStart {
 			log.Print("Trying to start new chunk server and returning dummy frame for now")
+			log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
 			clientCompute, err := fe.authCompute(ctx)
 			if err != nil {
 				return nil, err
