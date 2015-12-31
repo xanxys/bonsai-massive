@@ -7,9 +7,7 @@ import (
 )
 
 func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*api.BiospheresS, error) {
-	var nCores uint32
 	var nTicks uint64
-	nCores = 42
 	nTicks = 38
 
 	client, err := fe.authDatastore(ctx)
@@ -28,7 +26,7 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		bios = append(bios, &api.BiosphereDesc{
 			BiosphereId: uint64(keys[ix].ID()),
 			Name:        meta.Name,
-			NumCores:    nCores,
+			NumCores:    uint32(meta.Nx*meta.Ny/5) + 1,
 			NumTicks:    nTicks,
 		})
 	}
