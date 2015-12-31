@@ -19,6 +19,13 @@ service FrontendService {
     // Endpoint: /api/biosphere_delta
     rpc BiosphereDelta(BiosphereDeltaQ) returns (BiospheresS);
 
+    // Change execution state of a biosphere.
+    // Intentionally kept simple for "emergency shutdown" to reliably work,
+    // regardless of other RPCs.
+    // Endpoint: /api/change_exec
+    rpc ChangeExec(ChangeExecQ) returns (ChangeExecS);
+
+    // <<DEPRECATED>>
     // In-Biosphere fetching
     // Endpoint: /api/chunk
     rpc Chunk(ChunkQ) returns (ChunkS);
@@ -92,6 +99,21 @@ message DebugS {
     // Returns all known (including running) chunk server descriptions,
     // excluding already terminated chunk servers.
     repeated ChunkServerState chunk_servers = 2;
+}
+
+
+message ChangeExecQ {
+    uint64 biosphere_id = 1;
+
+    enum State {
+        // Unknown command is interpreted as STOPPED as safeguard.
+        STOPPED = 0;
+        RUNNING = 1;
+    }
+    State target_state = 2;
+}
+
+message ChangeExecS {
 }
 
 
