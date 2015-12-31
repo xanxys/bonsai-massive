@@ -157,6 +157,13 @@ $(document).ready(function() {
         })
     });
 
+    $('#button_stop').click(() => {
+        call_fe('change_exec', {
+            biosphere_id: document.biosphere_id,
+            target_state: 0, // STOPPED
+        });
+    });
+
     var bs_main = new Vue({
         el: '#header',
         data: {
