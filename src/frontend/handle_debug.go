@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"log"
 	"time"
 )
 
@@ -25,10 +26,23 @@ func (fe *FeServiceImpl) Debug(ctx context.Context, q *api.DebugQ) (*api.DebugS,
 			IpAddress: ip,
 			Health:    api.DebugS_ALLOCATED,
 		}
-		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+		conn, ok := fe.chunkServices[instance.Name]
+		if !ok {
+			connStart := time.Now()
+			conn, err = grpc.Dial(fmt.Sprintf("%s:9000", ip),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(500*time.Millisecond))
+			if err != nil {
+				serverState.State = fmt.Sprintf("%v", err)
+			} else {
+				defer conn.Close()
+				log.Printf("grpc dial took: %f second", float32(time.Since(connStart))*1e-9)
+
+				log.Printf("Connection to %s (%s) established, caching it.", instance.Name, ip)
+				fe.chunkServices[instance.Name] = conn
+			}
+		}
+
 		if conn != nil {
-			defer conn.Close()
 			serverState.Health = api.DebugS_GRPC_OK
 			chunkService := api.NewChunkServiceClient(conn)
 			rpcStart := time.Now()
@@ -41,8 +55,6 @@ func (fe *FeServiceImpl) Debug(ctx context.Context, q *api.DebugQ) (*api.DebugS,
 				serverState.Rtt = float32(rpcRtt) * 1e-9
 				serverState.State = fmt.Sprintf("%v", resp)
 			}
-		} else {
-			serverState.State = fmt.Sprintf("%v", err)
 		}
 		chunkServers = append(chunkServers, &serverState)
 	}

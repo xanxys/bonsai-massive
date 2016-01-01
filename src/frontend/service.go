@@ -8,6 +8,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
+	"google.golang.org/grpc"
 	"io/ioutil"
 	"log"
 )
@@ -21,6 +22,10 @@ type FeServiceImpl struct {
 	cred               *jwt.Config
 	chunkContainerName string
 	cmdQueue           chan *ControllerCommand
+
+	// TODO: This is not thread safe! Protect it with a lock!
+	// TODO: this should be updated by controller.
+	chunkServices map[string]*grpc.ClientConn
 }
 
 func NewFeService() *FeServiceImpl {
@@ -44,6 +49,7 @@ func NewFeService() *FeServiceImpl {
 	fe := &FeServiceImpl{
 		cred:               conf,
 		chunkContainerName: string(cont),
+		chunkServices:      make(map[string]*grpc.ClientConn),
 	}
 	// TODO: Ensure one loop is always running.
 	fe.cmdQueue = make(chan *ControllerCommand, 50)
