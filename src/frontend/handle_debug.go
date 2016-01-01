@@ -31,11 +31,14 @@ func (fe *FeServiceImpl) Debug(ctx context.Context, q *api.DebugQ) (*api.DebugS,
 			defer conn.Close()
 			serverState.Health = api.DebugS_GRPC_OK
 			chunkService := api.NewChunkServiceClient(conn)
+			rpcStart := time.Now()
 			resp, err := chunkService.Status(ctx, &api.StatusQ{})
+			rpcRtt := time.Since(rpcStart)
 			if err != nil {
 				serverState.State = fmt.Sprintf("%v", err)
 			} else {
 				serverState.Health = api.DebugS_STATUS_OK
+				serverState.Rtt = float32(rpcRtt) * 1e-9
 				serverState.State = fmt.Sprintf("%v", resp)
 			}
 		} else {

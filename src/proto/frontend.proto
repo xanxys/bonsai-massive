@@ -90,6 +90,9 @@ message DebugS {
         string state = 2;
 
         ChunkServerHealth health = 3;
+
+        // Observed RTT (in second) when STATUS_OK.
+        float rtt = 4;
     }
     // Returns all known (including running) chunk server descriptions,
     // excluding already terminated chunk servers.
