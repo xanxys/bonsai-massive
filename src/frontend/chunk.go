@@ -100,3 +100,15 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 		}
 	}
 }
+
+func (fe *FeServiceImpl) deleteInstances(service *compute.Service, names []string) {
+	for _, name := range names {
+		op, err := service.Instances.Delete(ProjectId, zone, name).Do()
+		log.Printf("Op: %#v Err:%#v\n", op, err)
+		if op != nil {
+			if op.Error != nil {
+				log.Printf("Error while Instances.Delete: %#v", op.Error)
+			}
+		}
+	}
+}

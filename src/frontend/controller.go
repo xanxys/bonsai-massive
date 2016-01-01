@@ -72,6 +72,18 @@ func (fe *FeServiceImpl) applyDelta(ctx context.Context, targetState *Controller
 			}
 			fe.applyChunkDelta(ctx, ip, chunkService, targetState)
 		}
+	} else if targetState == nil && len(chunkInstances) > 0 {
+		log.Printf("Deallocating %d nodes", len(chunkInstances))
+		clientCompute, err := fe.authCompute(ctx)
+		if err != nil {
+			log.Printf("Error in compute auth: %v", err)
+			return
+		}
+		names := make([]string, len(chunkInstances))
+		for ix, chunkInstance := range chunkInstances {
+			names[ix] = chunkInstance.Name
+		}
+		fe.deleteInstances(clientCompute, names)
 	}
 }
 
