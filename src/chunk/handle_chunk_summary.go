@@ -6,5 +6,7 @@ import (
 )
 
 func (ck *CkServiceImpl) ChunkSummary(ctx context.Context, q *api.ChunkSummaryQ) (*api.ChunkSummaryS, error) {
-	return &api.ChunkSummaryS{}, nil
+	return &api.ChunkSummaryS{
+		Chunks: ck.ChunkRouter.GetChunks(),
+	}, nil
 }

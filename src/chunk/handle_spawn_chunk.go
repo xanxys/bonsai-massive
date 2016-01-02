@@ -32,8 +32,11 @@ func RunChunk(router *ChunkRouter, topo *api.ChunkTopology) {
 	}
 
 	chunk := NewGrainChunk()
-
-	// Need to post first state to unblock other chunks.
+	if !router.RegisterNewChunk(topo) {
+		log.Printf("RunChunk(%s) exiting because it's already running", topo.ChunkId)
+		return
+	}
+	// Post initial empty state to unblock other chunks.
 	grains := make([]*api.Grain, len(chunk.Grains))
 	for ix, grain := range chunk.Grains {
 		grains[ix] = ser(grain)

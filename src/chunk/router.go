@@ -3,6 +3,7 @@ package main
 import (
 	"./api"
 	"log"
+	"sync"
 )
 
 // Immutable structure that holds incoming grains from neighbor / env grains.
@@ -41,6 +42,9 @@ type ExportCache struct {
 type ChunkRouter struct {
 	requestQueue chan *ImportRequest
 	exportQueue  chan *ExportCache
+
+	stateMutex    sync.Mutex
+	runningChunks map[string]*api.ChunkTopology
 }
 
 // Interface to exchange / synchronize chunk information.
@@ -124,6 +128,31 @@ func maybeResolveRequests(reqs []ImportRequest, exportCache map[string]*ExportCa
 func (router *ChunkRouter) RequestSnapshot(chunkIds []string) chan *api.SnapshotS {
 	ch := make(chan *api.SnapshotS, 1)
 	return ch
+}
+
+func (router *ChunkRouter) GetChunks() []*api.ChunkTopology {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+	var topos []*api.ChunkTopology
+	for _, topo := range router.runningChunks {
+		topos = append(topos, topo)
+	}
+	return topos
+}
+
+// Returns true if caller should continue RequestNeighbor & NotifyResult.
+// When false is returned, caller must not touch router again because it's already
+// executed by other goroutine.
+func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) bool {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+
+	if router.runningChunks[topo.ChunkId] != nil {
+		log.Printf("Trying to run chunk %s even though it's running, ignoring", topo.ChunkId)
+		return false
+	}
+	router.runningChunks[topo.ChunkId] = topo
+	return true
 }
 
 // Request neighbors necessary for stepping chunk from timestap to timetamp+1,
