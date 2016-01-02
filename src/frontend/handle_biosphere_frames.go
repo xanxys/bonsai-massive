@@ -35,8 +35,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 			log.Print("Trying to start new chunk server and returning dummy frame for now")
 			log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
 			fe.cmdQueue <- &ControllerCommand{
-				Nx: int(meta.Nx),
-				Ny: int(meta.Ny),
+				bsTopo: NewCylinderTopology(int(meta.Nx), int(meta.Ny)),
 			}
 			return &api.BiosphereFramesS{
 				Content: fallbackContent(),

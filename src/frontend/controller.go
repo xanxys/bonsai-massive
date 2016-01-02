@@ -10,10 +10,14 @@ import (
 	"time"
 )
 
+type BiosphereTopology interface {
+	GetChunkTopos() []*api.ChunkTopology
+}
+
 // Issue-and-forget type of commands.
 type ControllerCommand struct {
 	// Start new biosphere.
-	Nx, Ny int
+	bsTopo BiosphereTopology
 }
 
 // Magically ensured (not yet) that only one instance of this code is always
@@ -97,10 +101,10 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 		return
 	}
 
-	if len(summary.Chunks) != targetState.Nx*targetState.Ny {
+	if len(summary.Chunks) != len(targetState.bsTopo.GetChunkTopos()) {
 		if len(summary.Chunks) == 0 {
-			topos := GetCylinderWorldTopology(targetState.Nx, targetState.Ny)
-			log.Printf("Spawning %d new chunks w/ %#v", len(topos), topos)
+			topos := targetState.bsTopo.GetChunkTopos()
+			log.Printf("Spawning %d new chunks", len(topos), topos)
 			for _, topo := range topos {
 				chunkService.SpawnChunk(ctx, &api.SpawnChunkQ{
 					Topology: topo,
@@ -116,31 +120,43 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 
 // Edge X=0, nx is connected with each other at same Y,
 // Y edges (0, ny) is walled.
-func GetCylinderWorldTopology(nx, ny int) []*api.ChunkTopology {
+type CylinderTopology struct {
+	Nx, Ny int
+	baseId string
+}
+
+func NewCylinderTopology(nx, ny int) *CylinderTopology {
+	return &CylinderTopology{
+		Nx:     nx,
+		Ny:     ny,
+		baseId: fmt.Sprintf("%d", rand.Int31()),
+	}
+}
+
+func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
 	const idFormat = "%s-%d:%d"
-	baseId := fmt.Sprintf("%d", rand.Int31())
 
 	var result []*api.ChunkTopology
-	for ix := 0; ix < nx; ix++ {
-		for iy := 0; iy < ny; iy++ {
+	for ix := 0; ix < cylinder.Nx; ix++ {
+		for iy := 0; iy < cylinder.Ny; iy++ {
 			topo := &api.ChunkTopology{
-				ChunkId: fmt.Sprintf(idFormat, baseId, ix, iy),
+				ChunkId: fmt.Sprintf(idFormat, cylinder.baseId, ix, iy),
 			}
 			for dx := -1; dx <= 1; dx++ {
 				for dy := -1; dy <= 1; dy++ {
 					if dx == 0 && dy == 0 {
 						continue
 					}
-					neighborIx := (ix + dx) % nx
+					neighborIx := (ix + dx) % cylinder.Nx
 					if neighborIx < 0 {
-						neighborIx += nx
+						neighborIx += cylinder.Nx
 					}
 					neighborIy := iy + dy
-					if neighborIy < 0 || neighborIy >= ny {
+					if neighborIy < 0 || neighborIy >= cylinder.Ny {
 						continue
 					}
 					topo.Neighbors = append(topo.Neighbors, &api.ChunkTopology_ChunkNeighbor{
-						ChunkId:  fmt.Sprintf(idFormat, baseId, neighborIx, neighborIy),
+						ChunkId:  fmt.Sprintf(idFormat, cylinder.baseId, neighborIx, neighborIy),
 						Internal: true,
 						Dx:       int32(dx),
 						Dy:       int32(dy),
