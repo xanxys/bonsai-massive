@@ -62,13 +62,17 @@ func StartNewRouter() *ChunkRouter {
 				// It's possible that new request is already satisfied by existing exports.
 				reqs = append(reqs, maybeResolveRequests([]ImportRequest{*req}, exportCache)...)
 			case export := <-router.exportQueue:
-				if export.timestamp != exportCache[export.chunkId].timestamp+1 {
-					log.Panicf("Invalid export (chunk id=%s), current cache HEAD=%d, exported=%d",
-						export.chunkId, exportCache[export.chunkId].timestamp, export.timestamp)
+				if exportCache[export.chunkId] == nil {
+					exportCache[export.chunkId] = export
+				} else {
+					if export.timestamp != exportCache[export.chunkId].timestamp+1 {
+						log.Panicf("Invalid export (chunk id=%s), current cache HEAD=%d, exported=%d",
+							export.chunkId, exportCache[export.chunkId].timestamp, export.timestamp)
+					}
+					exportCache[export.chunkId].timestamp++
+					exportCache[export.chunkId].prev = exportCache[export.chunkId].head
+					exportCache[export.chunkId].head = export.head
 				}
-				exportCache[export.chunkId].timestamp++
-				exportCache[export.chunkId].prev = exportCache[export.chunkId].head
-				exportCache[export.chunkId].head = export.head
 				reqs = maybeResolveRequests(reqs, exportCache)
 			}
 		}
