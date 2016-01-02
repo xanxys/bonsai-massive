@@ -81,7 +81,7 @@ class Client {
 
     // return :: ()
     init() {
-    	this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.005, 18);
+    	this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 30);
     	this.camera.up = new THREE.Vector3(0, 0, 1);
         this.camera.position.x = 1.5;
         this.camera.position.y = 2.0;
@@ -97,7 +97,7 @@ class Client {
     	this.scene.add(new THREE.AmbientLight(0x333333));
 
     	let bg = new THREE.Mesh(
-    		new THREE.IcosahedronGeometry(8, 1),
+    		new THREE.IcosahedronGeometry(15, 1),
     		new THREE.MeshBasicMaterial({
     			wireframe: true,
     			color: '#ccc'
@@ -129,7 +129,7 @@ class Client {
         this.controls.noZoom = false;
 		this.controls.noPan = false;
         let _this = this;
-    	this.controls.maxDistance = 8;
+    	this.controls.maxDistance = 15;
     }
 
     /* UI Utils */
