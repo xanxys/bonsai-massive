@@ -6,10 +6,5 @@ import (
 )
 
 func (ck *CkServiceImpl) Status(ctx context.Context, q *api.StatusQ) (*api.StatusS, error) {
-	ck.chunkQuery <- true
-	result := <-ck.chunkResult
-	return &api.StatusS{
-		Snapshot:          result.Snapshot,
-		SnapshotTimestamp: result.Timestamp,
-	}, nil
+	return &api.StatusS{}, nil
 }

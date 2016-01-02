@@ -128,3 +128,19 @@ func ser(grain *Grain) *api.Grain {
 		Kind: kind,
 	}
 }
+
+func ifloor(x float32) int {
+	if x >= 0 {
+		return int(x)
+	} else {
+		return int(x) - 1
+	}
+}
+
+func iabs(x int) int {
+	if x >= 0 {
+		return x
+	} else {
+		return -x
+	}
+}

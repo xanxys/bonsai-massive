@@ -23,16 +23,13 @@ service ChunkService {
     // Return enough information for caller to balance chunks / reach taget state.
     rpc ChunkSummary(ChunkSummaryQ) returns (ChunkSummaryS);
 
-    // Return snapshot of specified chunks.
-    //rpc Snapshot(SnapshotQ) returns (SnapshotS);
+    // Return synchronized snapshot at arbitrary timestamp.
+    rpc Snapshot(SnapshotQ) returns (SnapshotS);
 
     // FE should do blackbox testing of chunk server,
     // but chunk server can also do whitebox self-inspection.
     // TODO: Consider renaming to better name.
     rpc Benchmark(BenchmarkQ) returns (BenchmarkS);
-
-    // NOT-REALLY-USED; Just kept for historical reference.
-    rpc ModifyChunk(ModifyChunkQ) returns (ModifyChunkS);
 
     rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
 
@@ -55,8 +52,7 @@ message StatusQ {
 }
 
 message StatusS {
-    ChunkSnapshot snapshot = 1;
-    uint64 snapshot_timestamp = 2;
+    reserved 1, 2;
 }
 
 message ChunkSummaryQ {
@@ -72,12 +68,8 @@ message SnapshotQ {
 }
 
 message SnapshotS {
-    message SnapshotWithMetadata {
-        string chunk_id = 1;
-        ChunkSnapshot snapshot = 2;
-        uint64 snapshot_timestamp = 3;
-    }
-    repeated SnapshotWithMetadata snapshot = 1;
+    ChunkSnapshot snapshot = 1;
+    uint64 timestamp = 2;
 }
 
 message ChunkTopology {
@@ -119,40 +111,6 @@ message BenchmarkQ {
 message BenchmarkS {
     // Human-readable, multi line report of the benchmark.
     string report = 1;
-}
-
-
-message ModifyChunkQ {
-    enum Speed {
-        // Do not step.
-        ZERO = 0;
-
-        // Operate at close to realtime (best effort).
-        NORMAL = 1;
-
-        // Allocate as many cores as possible to the chunk to speed up thing,
-        // even though that's inefficient.
-        FASTEST = 2;
-    }
-
-    // Set chunk's speed.
-    Speed target_speed = 1;
-
-    // Target timestamp to step to. Specify max uint64 to represent "infinite".
-    // (all servers' behaviors are undefined after passing that max).
-    //
-    // Invariant: timestamp <= target_timestamp.
-    //
-    // TODO: what to do if timestamp of the past is specified?
-    uint64 target_timestamp = 2;
-}
-
-message ModifyChunkS {
-    // Current timestamp.
-    // It's guaranteed that
-    // * when stop: chunk will stay at timestamp until further requests.
-    // * when !stop; actual timestamp >= timestamp
-    uint64 timestamp = 1;
 }
 
 

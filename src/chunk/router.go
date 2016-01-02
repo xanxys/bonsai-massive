@@ -5,17 +5,6 @@ import (
 	"log"
 )
 
-// Interface to exchange / synchronize chunk information.
-//
-// All methods are thread-safe, and are supposed to be called from goroutines
-// simulating each chunk.
-/*
-type ChunkRouter interface {
-	RequestNeighbor(timestamp uint64, topo *api.ChunkTopology) chan *NeighborImport
-	NotifyResult(timestamp uint64, topo *api.ChunkTopology, export *NeighborExport)
-}
-*/
-
 // Immutable structure that holds incoming grains from neighbor / env grains.
 type NeighborImport struct {
 	// Incoming grains.
@@ -54,6 +43,10 @@ type ChunkRouter struct {
 	exportQueue  chan *ExportCache
 }
 
+// Interface to exchange / synchronize chunk information.
+//
+// All methods are thread-safe, and are supposed to be called from goroutines
+// simulating each chunk.
 func StartNewRouter() *ChunkRouter {
 	log.Printf("Starting chunk router")
 	router := &ChunkRouter{
@@ -120,10 +113,19 @@ func maybeResolveRequests(reqs []ImportRequest, exportCache map[string]*ExportCa
 	return pendingReqs
 }
 
+// Take synchronized snapshot of given chunks at earliest convenient timestamp.
+// Note that depending on given chunkIds and/or execution status, it might never
+// return and waste memory forever.
+// (e.g. when they're from different biospheres running at totally different timestamp)
+func (router *ChunkRouter) RequestSnapshot(chunkIds []string) chan *api.SnapshotS {
+	ch := make(chan *api.SnapshotS, 1)
+	return ch
+}
+
 // Request neighbors necessary for stepping chunk from timestap to timetamp+1,
 // with given topo. Returns a channel that returns that data once.
 func (router *ChunkRouter) RequestNeighbor(timestamp uint64, topo *api.ChunkTopology) chan *NeighborImport {
-	ch := make(chan *NeighborImport)
+	ch := make(chan *NeighborImport, 1)
 	router.requestQueue <- &ImportRequest{timestamp, topo, ch}
 	return ch
 }

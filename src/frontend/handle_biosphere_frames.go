@@ -59,7 +59,9 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 	defer conn.Close()
 	chunkService := api.NewChunkServiceClient(conn)
-	resp, err := chunkService.Status(ctx, &api.StatusQ{})
+	resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
+		ChunkId: nil,
+	})
 	if err != nil {
 		log.Printf("ChunkService.Status filed %v", err)
 		return nil, err
@@ -83,7 +85,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 	return &api.BiosphereFramesS{
 		Content:          mesh.Serialize(),
-		ContentTimestamp: resp.SnapshotTimestamp,
+		ContentTimestamp: resp.Timestamp,
 	}, nil
 
 }
