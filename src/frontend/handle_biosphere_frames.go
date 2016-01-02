@@ -70,7 +70,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 
 	var mesh Mesh
 	for _, grain := range resp.Snapshot.Grains {
-		pos := Vec3f{float32(grain.Pos.X), float32(grain.Pos.Y), float32(grain.Pos.Z)}.MultS(1e-4)
+		pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}
 		grainMesh := Icosahedron(pos, 0.06)
 		baseColor := Vec3f{0, 0, 0}
 		if grain.Kind == api.Grain_WATER {

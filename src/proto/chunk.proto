@@ -175,11 +175,12 @@ message ChunkSnapshot {
     reserved 3;
 }
 
-// Next Id: 4
+// Next Id: 5
 message Grain {
     uint64 id = 3;
 
     CkPosition pos = 1;
+    CkVelocity vel = 4;
     enum Kind {
         UNKNOWN = 0;
         WATER = 1;
@@ -224,10 +225,16 @@ message ParticleType {
     string composition = 1;
 }
 
-// Unit: 0.1mm
-// which means, each can be about [-200km, 200km].
+// Unit: meter
 message CkPosition {
-    int32 x = 1;
-    int32 y = 2;
-    int32 z = 3;
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+// Unit: meter/sec
+message CkVelocity {
+    float x = 1;
+    float y = 2;
+    float z = 3;
 }

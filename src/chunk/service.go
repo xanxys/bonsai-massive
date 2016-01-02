@@ -192,15 +192,12 @@ func worldController(ch chan *api.ModifyChunkQ, chQ chan bool, chR chan *ChunkRe
 					} else {
 						kind = api.Grain_SOIL
 					}
-					// round to unit (0.1mm)
-					p := grain.Position.Add(Vec3f{float32(eChunk.Key.Dx), float32(eChunk.Key.Dy), 0}).MultS(10000)
+					p := grain.Position.Add(Vec3f{float32(eChunk.Key.Dx), float32(eChunk.Key.Dy), 0})
+					v := grain.Velocity
 					snapshot.Grains[ix_offset+ix] = &api.Grain{
-						Id: grain.Id,
-						Pos: &api.CkPosition{
-							int32(p.X + 0.5),
-							int32(p.Y + 0.5),
-							int32(p.Z + 0.5),
-						},
+						Id:   grain.Id,
+						Pos:  &api.CkPosition{p.X, p.Y, p.Z},
+						Vel:  &api.CkVelocity{v.X, v.Y, v.Z},
 						Kind: kind,
 					}
 				}
