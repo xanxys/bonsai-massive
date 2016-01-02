@@ -18,13 +18,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		return nil, err
 	}
 
-	client, err := fe.authDatastore(ctx)
-	if err != nil {
-		return nil, err
-	}
-	key := datastore.NewKey(ctx, "BiosphereMeta", "", int64(q.BiosphereId), nil)
-	var meta BiosphereMeta
-	err = client.Get(ctx, key, &meta)
+	bsTopo, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
 	if err != nil {
 		return nil, err
 	}
@@ -33,10 +27,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		log.Print("Active chunk server not found.")
 		if q.EnsureStart {
 			log.Print("Trying to start new chunk server and returning dummy frame for now")
-			log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
-			fe.cmdQueue <- &ControllerCommand{
-				bsTopo: NewCylinderTopology(int(meta.Nx), int(meta.Ny)),
-			}
+			fe.cmdQueue <- &ControllerCommand{bsTopo}
 			return &api.BiosphereFramesS{
 				Content: fallbackContent(),
 			}, nil
@@ -51,6 +42,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	chunkInstance := chunks[0]
 	ip := chunkInstance.NetworkInterfaces[0].NetworkIP
 
+	// TODO: Reuse connection
 	conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
 		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
 	if err != nil {
@@ -58,19 +50,44 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 	defer conn.Close()
 	chunkService := api.NewChunkServiceClient(conn)
+	chunkIds := make([]string, len(bsTopo.GetChunkTopos()))
+	for ix, chunkTopo := range bsTopo.GetChunkTopos() {
+		chunkIds[ix] = chunkTopo.ChunkId
+	}
 	resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
-		ChunkId: nil,
+		ChunkId: chunkIds,
 	})
 	if err != nil {
-		log.Printf("ChunkService.Status filed %v", err)
+		log.Printf("ChunkService.Snapshot failed %v", err)
 		return nil, err
 	}
 	if resp.Snapshot == nil {
-		return nil, errors.New("ChunkServer.Status doesn't contain snapshot")
+		return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
 	}
+	return &api.BiosphereFramesS{
+		Content:          snapshotToMesh(resp.Snapshot).Serialize(),
+		ContentTimestamp: resp.Timestamp,
+	}, nil
+}
 
+func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint64) (BiosphereTopology, error) {
+	client, err := fe.authDatastore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key := datastore.NewKey(ctx, "BiosphereMeta", "", int64(biosphereId), nil)
+	var meta BiosphereMeta
+	err = client.Get(ctx, key, &meta)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
+	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), nil
+}
+
+func snapshotToMesh(snapshot *api.ChunkSnapshot) Mesh {
 	var mesh Mesh
-	for _, grain := range resp.Snapshot.Grains {
+	for _, grain := range snapshot.Grains {
 		pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}
 		grainMesh := Icosahedron(pos, 0.06)
 		baseColor := Vec3f{0, 0, 0}
@@ -82,11 +99,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
 		mesh = append(mesh, grainMesh...)
 	}
-	return &api.BiosphereFramesS{
-		Content:          mesh.Serialize(),
-		ContentTimestamp: resp.Timestamp,
-	}, nil
-
+	return mesh
 }
 
 func fallbackContent() *api.PolySoup {

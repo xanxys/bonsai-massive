@@ -6,7 +6,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
-	"math/rand"
 	"time"
 )
 
@@ -122,25 +121,25 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 // Y edges (0, ny) is walled.
 type CylinderTopology struct {
 	Nx, Ny int
-	baseId string
+	bsId   uint64
 }
 
-func NewCylinderTopology(nx, ny int) *CylinderTopology {
+func NewCylinderTopology(bsId uint64, nx, ny int) *CylinderTopology {
 	return &CylinderTopology{
-		Nx:     nx,
-		Ny:     ny,
-		baseId: fmt.Sprintf("%d", rand.Int31()),
+		Nx:   nx,
+		Ny:   ny,
+		bsId: bsId,
 	}
 }
 
 func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
-	const idFormat = "%s-%d:%d"
+	const idFormat = "%d-%d:%d"
 
 	var result []*api.ChunkTopology
 	for ix := 0; ix < cylinder.Nx; ix++ {
 		for iy := 0; iy < cylinder.Ny; iy++ {
 			topo := &api.ChunkTopology{
-				ChunkId: fmt.Sprintf(idFormat, cylinder.baseId, ix, iy),
+				ChunkId: fmt.Sprintf(idFormat, cylinder.bsId, ix, iy),
 			}
 			for dx := -1; dx <= 1; dx++ {
 				for dy := -1; dy <= 1; dy++ {
@@ -156,7 +155,7 @@ func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
 						continue
 					}
 					topo.Neighbors = append(topo.Neighbors, &api.ChunkTopology_ChunkNeighbor{
-						ChunkId:  fmt.Sprintf(idFormat, cylinder.baseId, neighborIx, neighborIy),
+						ChunkId:  fmt.Sprintf(idFormat, cylinder.bsId, neighborIx, neighborIy),
 						Internal: true,
 						Dx:       int32(dx),
 						Dy:       int32(dy),
