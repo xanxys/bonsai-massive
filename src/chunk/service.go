@@ -18,18 +18,22 @@ type CkServiceImpl struct {
 	chunkQuery chan bool
 
 	chunkResult chan *ChunkResult
+
+	*ChunkRouter
 }
 
 func NewCkService() *CkServiceImpl {
 	ch := make(chan *api.ModifyChunkQ, 5)
 	chQ := make(chan bool, 5)
 	chR := make(chan *ChunkResult, 5)
-	go worldController(ch, chQ, chR)
-	return &CkServiceImpl{
+	ck := &CkServiceImpl{
 		chunkCommand: ch,
 		chunkQuery:   chQ,
 		chunkResult:  chR,
+		ChunkRouter:  StartNewRouter(),
 	}
+	go worldController(ch, chQ, chR)
+	return ck
 }
 
 type World interface {

@@ -7,11 +7,11 @@ import (
 )
 
 func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*api.SpawnChunkS, error) {
-	go RunChunk(ck, q.Topology)
+	go RunChunk(ck.ChunkRouter, q.Topology)
 	return &api.SpawnChunkS{}, nil
 }
 
-func RunChunk(router ChunkRouter, topo *api.ChunkTopology) {
+func RunChunk(router *ChunkRouter, topo *api.ChunkTopology) {
 	// Decode topo once.
 	relToId := make(map[ChunkRel]string)
 	idToRel := make(map[string]ChunkRel)
