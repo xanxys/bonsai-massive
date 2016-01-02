@@ -65,7 +65,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
 	}
 	return &api.BiosphereFramesS{
-		Content:          snapshotToMesh(resp.Snapshot).Serialize(),
+		Content:          snapshotToMesh(bsTopo, resp.Snapshot).Serialize(),
 		ContentTimestamp: resp.Timestamp,
 	}, nil
 }
@@ -85,19 +85,23 @@ func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint6
 	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), nil
 }
 
-func snapshotToMesh(snapshot *api.ChunkSnapshot) Mesh {
+func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) Mesh {
+	offsets := bsTopo.GetGlobalOffsets()
 	var mesh Mesh
-	for _, grain := range snapshot.Grains {
-		pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}
-		grainMesh := Icosahedron(pos, 0.06)
-		baseColor := Vec3f{0, 0, 0}
-		if grain.Kind == api.Grain_WATER {
-			baseColor = Vec3f{0.4, 0.4, 1}
-		} else if grain.Kind == api.Grain_SOIL {
-			baseColor = Vec3f{0.8, 0.4, 0.3}
+	for chunkId, chunkSnapshot := range snapshot {
+		offset := offsets[chunkId]
+		for _, grain := range chunkSnapshot.Grains {
+			pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}.Add(offset)
+			grainMesh := Icosahedron(pos, 0.06)
+			baseColor := Vec3f{0, 0, 0}
+			if grain.Kind == api.Grain_WATER {
+				baseColor = Vec3f{0.4, 0.4, 1}
+			} else if grain.Kind == api.Grain_SOIL {
+				baseColor = Vec3f{0.8, 0.4, 0.3}
+			}
+			grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
+			mesh = append(mesh, grainMesh...)
 		}
-		grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
-		mesh = append(mesh, grainMesh...)
 	}
 	return mesh
 }

@@ -68,7 +68,7 @@ message SnapshotQ {
 }
 
 message SnapshotS {
-    ChunkSnapshot snapshot = 1;
+    map<string, ChunkSnapshot> snapshot = 1;
     uint64 timestamp = 2;
 }
 

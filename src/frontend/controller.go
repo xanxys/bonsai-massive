@@ -11,6 +11,7 @@ import (
 
 type BiosphereTopology interface {
 	GetChunkTopos() []*api.ChunkTopology
+	GetGlobalOffsets() map[string]Vec3f
 }
 
 // Issue-and-forget type of commands.
@@ -18,6 +19,8 @@ type ControllerCommand struct {
 	// Start new biosphere.
 	bsTopo BiosphereTopology
 }
+
+const chunkIdFormat = "%d-%d:%d"
 
 // Magically ensured (not yet) that only one instance of this code is always
 // running in FE cluster. (staging & prod will have different ones.)
@@ -133,13 +136,11 @@ func NewCylinderTopology(bsId uint64, nx, ny int) *CylinderTopology {
 }
 
 func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
-	const idFormat = "%d-%d:%d"
-
 	var result []*api.ChunkTopology
 	for ix := 0; ix < cylinder.Nx; ix++ {
 		for iy := 0; iy < cylinder.Ny; iy++ {
 			topo := &api.ChunkTopology{
-				ChunkId: fmt.Sprintf(idFormat, cylinder.bsId, ix, iy),
+				ChunkId: fmt.Sprintf(chunkIdFormat, cylinder.bsId, ix, iy),
 			}
 			for dx := -1; dx <= 1; dx++ {
 				for dy := -1; dy <= 1; dy++ {
@@ -155,7 +156,7 @@ func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
 						continue
 					}
 					topo.Neighbors = append(topo.Neighbors, &api.ChunkTopology_ChunkNeighbor{
-						ChunkId:  fmt.Sprintf(idFormat, cylinder.bsId, neighborIx, neighborIy),
+						ChunkId:  fmt.Sprintf(chunkIdFormat, cylinder.bsId, neighborIx, neighborIy),
 						Internal: true,
 						Dx:       int32(dx),
 						Dy:       int32(dy),
@@ -166,4 +167,18 @@ func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
 		}
 	}
 	return result
+}
+
+func (cylinder *CylinderTopology) GetGlobalOffsets() map[string]Vec3f {
+	offsets := make(map[string]Vec3f)
+	for ix := 0; ix < cylinder.Nx; ix++ {
+		for iy := 0; iy < cylinder.Ny; iy++ {
+			offsets[fmt.Sprintf(chunkIdFormat, cylinder.bsId, ix, iy)] = Vec3f{
+				X: float32(ix),
+				Y: float32(iy),
+				Z: 0.0,
+			}
+		}
+	}
+	return offsets
 }
