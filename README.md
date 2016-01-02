@@ -42,6 +42,7 @@ I did confirm these two results in visually identical simulation.
 ### Go Performance memo
 * chan int message latency: 1us
 * chan int message throughput: 5M messages / sec (no buffer), 20M messages / sec (w/ buffer len=100)
+* float <-> int conversion is 100x slower than serializing to proto
 
 ### GCE / gRPC performance memo
 * same-zone empty RPC RTT w/ connection reuse: 0.6ms-1ms
