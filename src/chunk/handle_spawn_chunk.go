@@ -32,6 +32,17 @@ func RunChunk(router *ChunkRouter, topo *api.ChunkTopology) {
 	}
 
 	chunk := NewGrainChunk()
+
+	// Need to post first state to unblock other chunks.
+	grains := make([]*api.Grain, len(chunk.Grains))
+	for ix, grain := range chunk.Grains {
+		grains[ix] = ser(grain)
+	}
+	router.NotifyResult(chunk.Timestamp, topo, &NeighborExport{
+		ChunkGrains:   grains,
+		EscapedGrains: make(map[string][]*api.Grain),
+	})
+
 	for {
 		nImport := <-router.RequestNeighbor(chunk.Timestamp, topo)
 
