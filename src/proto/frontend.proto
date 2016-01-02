@@ -16,6 +16,12 @@ service FrontendService {
     rpc Biospheres(BiospheresQ) returns (BiospheresS);
 
     // Administrative, write.
+    // Endpoint: /api/add_biosphere
+    rpc AddBiosphere(AddBiosphereQ) returns (AddBiosphereS);
+
+    // DEPRECATED: Divide into smaller requets that corresponds better with
+    // UI actions.
+    // Administrative, write.
     // Endpoint: /api/biosphere_delta
     rpc BiosphereDelta(BiosphereDeltaQ) returns (BiospheresS);
 
@@ -153,6 +159,29 @@ message BiospheresQ {
 
 message BiospheresS {
     repeated BiosphereDesc biospheres = 1;
+}
+
+
+message AddBiosphereQ {
+    // Must always set. Write permission is required even when test_only,
+    // to simulate actual effect.
+    UserAuth auth = 1;
+
+    // If this is true, just check config validity without actually adding.
+    bool test_only = 2;
+
+    BiosphereCreationConfig config = 3;
+}
+
+message AddBiosphereS {
+    // Indicates biosphere is:
+    // 1. actually created (when !AddBiosphereQ.test_only)
+    // 2. or creatable (when AddBiosphereQ.test_only)
+    bool success = 1;
+
+    // Description of the newly created biosphere (only valid when success is
+    // true AND request is not test_only).
+    BiosphereDesc biosphere_desc = 2;
 }
 
 

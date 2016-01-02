@@ -56,12 +56,9 @@ $(document).ready(() => {
             methods: {
                 // For some reason, () => doesn't get this.name properly.
                 create: function() {
-                    call_fe('biosphere_delta',  {
-                        type: 1, // ADD, see https://github.com/golang/protobuf/issues/59
-                        desc: {
-                            name: this.name
-                        },
-                        creation_config: {
+                    call_fe('add_biosphere',  {
+                        test_only: false,
+                        config: {
                             name: this.name,
                             nx: this.nx,
                             ny: this.ny,
