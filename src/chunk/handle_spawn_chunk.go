@@ -73,6 +73,9 @@ func RunChunk(router *ChunkRouter, topo *api.ChunkTopology) {
 		bins := make(map[string][]*api.Grain)
 		for _, escapedGrain := range escapedGrains {
 			coord := binExternal(relToId, escapedGrain.Position)
+			if coord == nil {
+				continue
+			}
 			sGrain := ser(escapedGrain)
 			sGrain.Pos = &api.CkPosition{
 				coord.Pos.X, coord.Pos.Y, coord.Pos.Z,
@@ -101,7 +104,7 @@ func binExternal(relToId map[ChunkRel]string, pos Vec3f) *WorldCoord2 {
 	ix := ifloor(pos.X)
 	iy := ifloor(pos.Y)
 	if ix == 0 && iy == 0 {
-		log.Panicf("Pos declared ougoing, but found in-chunk: %#v", pos)
+		log.Printf("Pos declared ougoing, but found in-chunk: %#v", pos)
 		return nil
 	}
 
@@ -109,7 +112,7 @@ func binExternal(relToId map[ChunkRel]string, pos Vec3f) *WorldCoord2 {
 	if ok {
 		return &WorldCoord2{key, pos.Sub(Vec3f{float32(ix), float32(iy), 0})}
 	} else {
-		log.Panicf("Grain (pos %v) escaped to walled region, returning (0.5, 0.5, 10)", pos)
+		log.Printf("Grain (pos %v) escaped to walled region, returning (0.5, 0.5, 10)", pos)
 		return nil
 	}
 }

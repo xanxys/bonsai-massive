@@ -436,6 +436,27 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 			}
 		}
 	}
+	// Force no-escape-through-wall.
+	for _, grain := range world.Grains {
+		if grain.positionNew.X < 0 {
+			if wall.Xm {
+				grain.positionNew.X *= -reflection_coeff
+			}
+		} else if grain.positionNew.X > 1 {
+			if wall.Xp {
+				grain.positionNew.X = 1 - (grain.positionNew.X-1)*reflection_coeff
+			}
+		}
+		if grain.positionNew.Y < 0 {
+			if wall.Ym {
+				grain.positionNew.Y *= -reflection_coeff
+			}
+		} else if grain.positionNew.Y > 1 {
+			if wall.Ym {
+				grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflection_coeff
+			}
+		}
+	}
 
 	// We don't need envGrains any more. Throw them away.
 	world.Grains = world.Grains[0 : len(world.Grains)-len(envGrains)]
