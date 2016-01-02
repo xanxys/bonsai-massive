@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
+	"math/rand"
 	"time"
 )
 
@@ -98,13 +99,12 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 
 	if len(summary.Chunks) != targetState.Nx*targetState.Ny {
 		if len(summary.Chunks) == 0 {
-			log.Printf("Spawning %d new chunks", targetState.Nx*targetState.Ny)
-			for ix := 0; ix < targetState.Nx; ix++ {
-				for iy := 0; iy < targetState.Ny; iy++ {
-					chunkService.SpawnChunk(ctx, &api.SpawnChunkQ{
-						Topology: &api.ChunkTopology{},
-					})
-				}
+			topos := GetCylinderWorldTopology(targetState.Nx, targetState.Ny)
+			log.Printf("Spawning %d new chunks w/ %#v", len(topos), topos)
+			for _, topo := range topos {
+				chunkService.SpawnChunk(ctx, &api.SpawnChunkQ{
+					Topology: topo,
+				})
 			}
 			return
 		} else {
@@ -112,4 +112,43 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 			return
 		}
 	}
+}
+
+// Edge X=0, nx is connected with each other at same Y,
+// Y edges (0, ny) is walled.
+func GetCylinderWorldTopology(nx, ny int) []*api.ChunkTopology {
+	const idFormat = "%s-%d:%d"
+	baseId := fmt.Sprintf("%d", rand.Int31())
+
+	var result []*api.ChunkTopology
+	for ix := 0; ix < nx; ix++ {
+		for iy := 0; iy < ny; iy++ {
+			topo := &api.ChunkTopology{
+				ChunkId: fmt.Sprintf(idFormat, baseId, ix, iy),
+			}
+			for dx := -1; dx <= 1; dx++ {
+				for dy := -1; dy <= 1; dy++ {
+					if dx == 0 && dy == 0 {
+						continue
+					}
+					neighborIx := (ix + dx) % nx
+					if neighborIx < 0 {
+						neighborIx += nx
+					}
+					neighborIy := iy + dy
+					if neighborIy < 0 || neighborIy >= ny {
+						continue
+					}
+					topo.Neighbors = append(topo.Neighbors, &api.ChunkTopology_ChunkNeighbor{
+						ChunkId:  fmt.Sprintf(idFormat, baseId, neighborIx, neighborIy),
+						Internal: true,
+						Dx:       int32(dx),
+						Dy:       int32(dy),
+					})
+				}
+			}
+			result = append(result, topo)
+		}
+	}
+	return result
 }
