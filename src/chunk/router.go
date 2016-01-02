@@ -54,8 +54,9 @@ type ChunkRouter struct {
 func StartNewRouter() *ChunkRouter {
 	log.Printf("Starting chunk router")
 	router := &ChunkRouter{
-		requestQueue: make(chan *ImportRequest, 10),
-		exportQueue:  make(chan *ExportCache, 10),
+		requestQueue:  make(chan *ImportRequest, 10),
+		exportQueue:   make(chan *ExportCache, 10),
+		runningChunks: make(map[string]*api.ChunkTopology),
 	}
 	go func() {
 		var reqs []ImportRequest
