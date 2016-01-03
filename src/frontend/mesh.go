@@ -6,17 +6,22 @@ import (
 	"math"
 )
 
-type Mesh []Vertex
+// Wrapper for PolySoup
+type Mesh struct {
+	vertices []Vertex
+	indices  []uint32
+}
 
-func (mesh Mesh) Serialize() *api.PolySoup {
-	if len(mesh)%3 != 0 {
-		log.Panicf("Trying to serialize broken mesh with #vertices=%d", len(mesh))
+func (mesh *Mesh) Serialize() *api.PolySoup {
+	if len(mesh.indices)%3 != 0 {
+		log.Panicf("Trying to serialize broken mesh with #vertices=%d #indices=%d", len(mesh.vertices), len(mesh.indices))
 	}
 
 	ps := api.PolySoup{
-		Vertices: make([]*api.PolySoup_Vertex, len(mesh)),
+		Vertices: make([]*api.PolySoup_Vertex, len(mesh.vertices)),
+		Indices:  make([]uint32, len(mesh.indices)),
 	}
-	for ix, vert := range mesh {
+	for ix, vert := range mesh.vertices {
 		ps.Vertices[ix] = &api.PolySoup_Vertex{
 			Px: round3(vert.Pos.X),
 			Py: round3(vert.Pos.Y),
@@ -26,7 +31,23 @@ func (mesh Mesh) Serialize() *api.PolySoup {
 			B:  round3(vert.Col.Z),
 		}
 	}
+	copy(ps.Indices, mesh.indices)
 	return &ps
+}
+
+func NewMesh() *Mesh {
+	return &Mesh{}
+}
+
+// Merge md to mesh. For efficiency, mesh should be bigger than md.
+func (mesh *Mesh) Merge(md *Mesh) {
+	delta_indices := make([]uint32, len(md.indices))
+	v_offset := uint32(len(mesh.vertices))
+	for ix, v_index := range md.indices {
+		delta_indices[ix] = v_offset + v_index
+	}
+	mesh.vertices = append(mesh.vertices, md.vertices...)
+	mesh.indices = append(mesh.indices, delta_indices...)
 }
 
 func round3(x float32) float32 {
@@ -42,14 +63,14 @@ type Vertex struct {
 
 // rgb must be in [0, 1]
 func (mesh *Mesh) SetColor(rgb Vec3f) {
-	for ix, _ := range *mesh {
-		(*mesh)[ix].Col = rgb
+	for ix, _ := range mesh.vertices {
+		mesh.vertices[ix].Col = rgb
 	}
 }
 
 // Create an icosahedron mesh. returned mesh will be approximation of
 // a sphere of given center and radius, but radius is actually ill-defined.
-func Icosahedron(center Vec3f, radius float32) Mesh {
+func Icosahedron(center Vec3f, radius float32) *Mesh {
 	// Icosahedron definition.
 	// Adopted from https://github.com/mrdoob/three.js/blob/master/src/extras/geometries/IcosahedronGeometry.js
 	t := float32((1 + math.Sqrt(5)) / 2)
@@ -58,19 +79,24 @@ func Icosahedron(center Vec3f, radius float32) Mesh {
 		0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t,
 		t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1,
 	}
-	indices := []int{
+	indices := []uint32{
 		0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
 		1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
 		3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
 		4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
 	}
 
-	var vs Mesh
-	for i := 0; i < len(indices); i++ {
-		posBase := Vec3f{vertices[indices[i]*3+0], vertices[indices[i]*3+1], vertices[indices[i]*3+2]}
-		vs = append(vs, Vertex{
-			Pos: posBase.MultS(radius * 0.5).Add(center),
-		})
+	num_vertices := len(vertices) / 3
+	mesh := &Mesh{
+		vertices: make([]Vertex, num_vertices),
+		indices:  make([]uint32, len(indices)),
 	}
-	return vs
+	copy(mesh.indices, indices)
+	for ix := 0; ix < num_vertices; ix++ {
+		posBase := Vec3f{vertices[ix*3+0], vertices[ix*3+1], vertices[ix*3+2]}
+		mesh.vertices[ix] = Vertex{
+			Pos: posBase.MultS(radius * 0.5).Add(center),
+		}
+	}
+	return mesh
 }

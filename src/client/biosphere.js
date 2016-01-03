@@ -57,6 +57,7 @@ class Client {
         let geom = new THREE.BufferGeometry();
         let vertices = new Float32Array(data.content.vertices.length * 3);
         let vertices_color = new Float32Array(data.content.vertices.length * 3);
+        let indices = new Uint32Array(data.content.indices.length);
         _.each(data.content.vertices, (vertex, ix) => {
             vertices[ix * 3 + 0] = vertex.px;
             vertices[ix * 3 + 1] = vertex.py;
@@ -65,6 +66,10 @@ class Client {
             vertices_color[ix * 3 + 1] = vertex.g;
             vertices_color[ix * 3 + 2] = vertex.b;
         });
+        _.each(data.content.indices, (v_index, ix) => {
+            indices[ix] = v_index;
+        });
+        geom.setIndex(new THREE.BufferAttribute(indices, 1));
         geom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
         geom.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
 

@@ -200,7 +200,7 @@ message BiosphereDesc {
     // Current timestamp of the world.
     uint64 num_ticks = 4;
 
-    BiosphereState state = 5; 
+    BiosphereState state = 5;
 }
 
 message PolySoup {
@@ -219,9 +219,12 @@ message PolySoup {
         float b = 9;
     }
 
-    // Vertices of triangles.
-    // Length must be multiple of 3.
+    // Shared vertices.
     repeated Vertex vertices = 1;
+
+    // Indices of vertices of triangles.
+    // Length must be multiple of 3.
+    repeated uint32 indices = 2 [packed=true];
 }
 
 // This structure is permanent.

@@ -92,9 +92,9 @@ func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint6
 	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), nil
 }
 
-func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) Mesh {
+func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *Mesh {
 	offsets := bsTopo.GetGlobalOffsets()
-	var mesh Mesh
+	mesh := NewMesh()
 	for chunkId, chunkSnapshot := range snapshot {
 		offset := offsets[chunkId]
 		for _, grain := range chunkSnapshot.Grains {
@@ -107,7 +107,7 @@ func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnap
 				baseColor = Vec3f{0.8, 0.4, 0.3}
 			}
 			grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
-			mesh = append(mesh, grainMesh...)
+			mesh.Merge(grainMesh)
 		}
 	}
 	return mesh
