@@ -173,7 +173,7 @@ $(document).ready(function() {
             update: function() {
                 var biospheres = this.biospheres;
                 this.loading = true;
-                call_fe('/biospheres', {}).done(data => {
+                call_fe('biospheres', {}).done(data => {
                     this.loading = false;
                     var name = _.find(data.biospheres, (biosphere) => {
                         return biosphere.biosphere_id === biosphere_id;
