@@ -107,6 +107,8 @@ message DebugS {
 
 
 message ChangeExecQ {
+    UserAuth auth = 3;
+
     uint64 biosphere_id = 1;
 
     enum State {
@@ -126,9 +128,9 @@ message BiosphereFramesQ {
 
     uint64 biosphere_id = 2;
 
-    bool ensure_start = 3;
-
     bytes cont_token = 1;
+
+    reserved 3;
 }
 
 // TODO: Level of details sharding

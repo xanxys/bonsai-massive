@@ -24,19 +24,10 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 
 	if len(chunks) == 0 {
-		log.Print("Active chunk server not found.")
-		if q.EnsureStart {
-			log.Print("Trying to start new chunk server and returning dummy frame for now")
-			fe.cmdQueue <- &ControllerCommand{bsTopo}
-			return &api.BiosphereFramesS{
-				Content: fallbackContent(),
-			}, nil
-		} else {
-			log.Print("Returning dummy frame")
-			return &api.BiosphereFramesS{
-				Content: fallbackContent(),
-			}, nil
-		}
+		log.Print("Active chunk server not found, returning dummy frame.")
+		return &api.BiosphereFramesS{
+			Content: fallbackContent(),
+		}, nil
 	}
 
 	chunkInstance := chunks[0]

@@ -149,12 +149,10 @@ $(document).ready(function() {
     document.biosphere_id = biosphere_id;
 
     $('#button_start').click(() => {
-        call_fe('biosphere_frames', {
-            'biosphere_id': document.biosphere_id,
-            "ensure_start": true,
-        }).done(data => {
-            console.log(data);
-        })
+        call_fe('change_exec', {
+            biosphere_id: document.biosphere_id,
+            target_state: 1, // RUNNING
+        }, true);
     });
 
     $('#button_stop').click(() => {
