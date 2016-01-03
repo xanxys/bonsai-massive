@@ -35,7 +35,7 @@ function call_fe(rpc_name, data, needs_auth) {
     var req_buffer = req_message.encode(data);
 
     // jquery <-> raw XHR compatibility layer.
-    var xhr = ProtoBuf.Util.XHR();
+    var xhr = new XMLHttpRequest();
     xhr.open(
         "POST" /* method */,
         '/api/' + rpc_name /* file */,
@@ -56,7 +56,7 @@ function call_fe(rpc_name, data, needs_auth) {
             jq_promise.message = msg;
         }
     }
-    xhr.send(req_buffer);
+    xhr.send(req_buffer.toArrayBuffer(false));
 
     return {
         "done": handler => {
