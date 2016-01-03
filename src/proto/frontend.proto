@@ -19,12 +19,6 @@ service FrontendService {
     // Endpoint: /api/add_biosphere
     rpc AddBiosphere(AddBiosphereQ) returns (AddBiosphereS);
 
-    // DEPRECATED: Divide into smaller requets that corresponds better with
-    // UI actions.
-    // Administrative, write.
-    // Endpoint: /api/biosphere_delta
-    rpc BiosphereDelta(BiosphereDeltaQ) returns (BiospheresS);
-
     // Change execution state of a biosphere.
     // Intentionally kept simple for "emergency shutdown" to reliably work,
     // regardless of other RPCs.
@@ -140,20 +134,6 @@ message BiosphereFramesS {
     bytes cont_token = 2;
 }
 
-
-// Next Id: 5
-message BiosphereDeltaQ {
-    UserAuth auth = 3;
-
-    //
-    DeltaType type = 1;
-
-    // Default values mean no change.
-    // In case of ADD, desc.world_id will be ignored.
-    BiosphereDesc desc = 2 [deprecated=true];
-
-    BiosphereCreationConfig creation_config = 4;
-}
 
 message BiospheresQ {
     UserAuth auth = 1;

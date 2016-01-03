@@ -131,7 +131,6 @@ func main() {
 	http.HandleFunc("/api/debug", GzipHandler(JsonpbHandler(fe.Debug)))
 	http.HandleFunc("/api/biospheres", GzipHandler(JsonpbHandler(fe.Biospheres)))
 	http.HandleFunc("/api/add_biosphere", GzipHandler(JsonpbHandler(fe.AddBiosphere)))
-	http.HandleFunc("/api/biosphere_delta", GzipHandler(JsonpbHandler(fe.BiosphereDelta)))
 	http.HandleFunc("/api/change_exec", JsonpbHandler(fe.ChangeExec))
 	http.HandleFunc("/api/biosphere_frames", GzipHandler(JsonpbHandler(fe.BiosphereFrames)))
 	// Static files.
