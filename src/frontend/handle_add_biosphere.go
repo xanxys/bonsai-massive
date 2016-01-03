@@ -15,7 +15,7 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 	if err != nil {
 		return nil, err
 	}
-	if canWrite {
+	if !canWrite {
 		return nil, errors.New("UI must disallow unauthorized actions")
 	}
 

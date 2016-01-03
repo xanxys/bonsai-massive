@@ -10,7 +10,9 @@ import (
 )
 
 type googleOAuth2V3Resp struct {
-	email string
+	Email   string `json:"email"`
+	Locale  string `json:"locale"`
+	Picture string `json:"picture"`
 }
 
 // Decided if the user is allowed to do write operations.
@@ -28,8 +30,8 @@ func (fe *FeServiceImpl) isWriteAuthorized(auth *api.UserAuth) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if m.email != "xanxys@gmail.com" {
-		log.Printf("Logged in as non-authorized user %s", m.email)
+	if m.Email != "xanxys@gmail.com" {
+		log.Printf("Logged in as non-authorized user %#v", m)
 		return false, nil
 	}
 	return true, nil
