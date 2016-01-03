@@ -160,6 +160,10 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
             print('STATIC %s -> %s' % (self.path, maybe_fn))
             self.do_get_static_file(mapping[maybe_fn])
 
+    def do_POST(self):
+        print('PROXYING(POST): %s' % self.path)
+        self.do_post_proxy()
+
     def do_get_static_file(self, file_path):
         ctype = self.guess_type(file_path)
         try:
@@ -221,6 +225,26 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         conn = http.client.HTTPConnection(host, port)
         conn.request('GET', 'http://%s:%d%s' % (
             host, port, self.path), None, {
+                'Accept-Encoding': self.parse_headers().get('accept-encoding', '')
+            })
+        resp = conn.getresponse()
+
+        self.send_response(resp.status)
+        self.send_header('Content-Encoding', resp.getheader('Content-Encoding'))
+        self.send_header('Content-Type', resp.getheader('Content-Type'))
+        self.end_headers()
+        shutil.copyfileobj(resp, self.wfile)
+        conn.close()
+
+    def do_post_proxy(self):
+        content_len = int(self.parse_headers().get('content-length', 0))
+        post_body = self.rfile.read(content_len)
+        print('post body: %d bytes' % len(post_body))
+
+        host, port = SERVERS[args.env]
+        conn = http.client.HTTPConnection(host, port)
+        conn.request('POST', 'http://%s:%d%s' % (
+            host, port, self.path), post_body, {
                 'Accept-Encoding': self.parse_headers().get('accept-encoding', '')
             })
         resp = conn.getresponse()
