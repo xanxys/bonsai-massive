@@ -3,6 +3,11 @@
 
 var ProtoBuf = dcodeIO.ProtoBuf;
 
+function onSignIn(googleUser) {
+    console.log(googleUser);
+    document.googleUser = googleUser;
+}
+
 $.ajax('/static/frontend.proto').done(data => {
     console.log('Creating proto builder');
     document.proto_builder = ProtoBuf.loadProto(data, 'frontend.proto');

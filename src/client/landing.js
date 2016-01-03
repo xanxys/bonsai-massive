@@ -1,13 +1,6 @@
 "use strict";
 // ECMAscript 6
 
-
-function onSignIn(googleUser) {
-    console.log(googleUser);
-    document.googleUser = googleUser;
-    //let id_token = googleUser.getAuthResponse().id_token;
-}
-
 $(document).ready(() => {
     var bs = new Vue({
         el: '#biospheres',
