@@ -23,3 +23,12 @@ genrule(
     local=1,
     cmd = "protoc --go_out=plugins=grpc:$$(dirname $(@D)) $(SRCS)",
 )
+
+# This rule is necessary to use https://github.com/dcodeIO/protobuf.js,
+# which requires .proto in runtime.
+filegroup(
+    name = "files",
+    srcs = glob([
+        "*.proto",
+    ]),
+)

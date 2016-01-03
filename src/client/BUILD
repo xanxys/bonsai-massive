@@ -4,6 +4,7 @@ genrule(
     name = "static",
     srcs = [
         ":client",
+        "//proto:files",
     ],
     outs = ["static.tar"],
     cmd = "tar -c --xform s:^.*/:: $(SRCS) > $@",

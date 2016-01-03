@@ -47,15 +47,12 @@ func WriteS(
 		fmt.Fprintf(w, "internal error: %v", e)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	marshaler := jsonpb.Marshaler{
-		EnumsAsString: true,
-		Indent:        "",
-	}
-	err := marshaler.Marshal(w, s)
+	w.Header().Set("Content-Type", "application/x-protobuf")
+	data, err := proto.Marshal(s)
 	if err != nil {
 		fmt.Fprintf(w, "{\"error\": \"Internal error: failed to encode return pb\"}")
 	}
+	w.Write(data)
 }
 
 // JsonpbHandler converts given grpc server method of type
