@@ -18,15 +18,19 @@ func (mesh Mesh) Serialize() *api.PolySoup {
 	}
 	for ix, vert := range mesh {
 		ps.Vertices[ix] = &api.PolySoup_Vertex{
-			Px: vert.Pos.X,
-			Py: vert.Pos.Y,
-			Pz: vert.Pos.Z,
-			R:  vert.Col.X,
-			G:  vert.Col.Y,
-			B:  vert.Col.Z,
+			Px: round3(vert.Pos.X),
+			Py: round3(vert.Pos.Y),
+			Pz: round3(vert.Pos.Z),
+			R:  round3(vert.Col.X),
+			G:  round3(vert.Col.Y),
+			B:  round3(vert.Col.Z),
 		}
 	}
 	return &ps
+}
+
+func round3(x float32) float32 {
+	return float32(math.Floor(float64(x)*1e3+0.5) * 1e-3)
 }
 
 // Vertex is a wrapper for PolySoup_Vertex using Vector.
