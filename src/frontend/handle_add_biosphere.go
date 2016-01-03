@@ -28,7 +28,7 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 	if err != nil {
 		return nil, err
 	}
-	if q.TestOnly {
+	if !valid || q.TestOnly {
 		return &api.AddBiosphereS{Success: valid}, nil
 	}
 
@@ -61,7 +61,7 @@ func (fe *FeServiceImpl) isValidNewConfig(ctx context.Context, dsClient *datasto
 		return false, nil
 	}
 	// Name must be unique.
-	qSameName := datastore.NewQuery("BiosphereMeta").Filter("Name=", config.Name)
+	qSameName := datastore.NewQuery("BiosphereMeta").Filter("Name =", config.Name)
 	numSameName, err := dsClient.Count(ctx, qSameName)
 	if err != nil {
 		return false, err
