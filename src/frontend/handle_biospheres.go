@@ -28,6 +28,7 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 			Name:        meta.Name,
 			NumCores:    uint32(meta.Nx*meta.Ny/5) + 1,
 			NumTicks:    nTicks,
+			State:       api.BiosphereState_STOPPED,
 		})
 	}
 	return &api.BiospheresS{

@@ -166,13 +166,6 @@ message AddBiosphereS {
     BiosphereDesc biosphere_desc = 2;
 }
 
-
-enum DeltaType {
-    MODIFY = 0;
-    ADD = 1;
-    DELETE = 2;
-}
-
 enum BiosphereState {
     // Should never happen.
     UNKNOWN = 0;
@@ -206,6 +199,8 @@ message BiosphereDesc {
 
     // Current timestamp of the world.
     uint64 num_ticks = 4;
+
+    BiosphereState state = 5; 
 }
 
 message PolySoup {
