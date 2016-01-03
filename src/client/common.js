@@ -19,6 +19,7 @@ function call_fe(rpc_name, data, needs_auth) {
             }
         };
     }
+    var req_message = document.proto_builder.build('api.' + convert_rpc_name_to_proto(rpc_name) + 'Q');
     var resp_message = document.proto_builder.build('api.' + convert_rpc_name_to_proto(rpc_name) + 'S');
 
     if (needs_auth) {
@@ -31,12 +32,14 @@ function call_fe(rpc_name, data, needs_auth) {
         }
     }
 
+    var req_buffer = req_message.encode(data);
+
     // jquery <-> raw XHR compatibility layer.
     var xhr = ProtoBuf.Util.XHR();
     xhr.open(
-        /* method */ "GET",
-        /* file */ '/api/' + rpc_name + '?pb=' + JSON.stringify(data),
-        /* async */ true
+        "POST" /* method */,
+        '/api/' + rpc_name /* file */,
+        true /* async */
     );
     xhr.responseType = "arraybuffer";
     var jq_promise = {
@@ -53,7 +56,7 @@ function call_fe(rpc_name, data, needs_auth) {
             jq_promise.message = msg;
         }
     }
-    xhr.send(null);
+    xhr.send(req_buffer);
 
     return {
         "done": handler => {

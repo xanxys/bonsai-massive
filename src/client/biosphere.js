@@ -1,5 +1,7 @@
 "use strict";
 
+var Long = dcodeIO.Long;
+
 // Separate into
 // 1. master class (holds chunk worker)
 // 1': 3D GUI class
@@ -145,8 +147,8 @@ class Client {
 
 // run app
 $(document).ready(function() {
-    var biosphere_id = document.location.pathname.split('/')[2];
-    document.biosphere_id = biosphere_id;
+    document.biosphere_id = Long.fromString(
+        document.location.pathname.split('/')[2], true);
 
     $('#button_start').click(() => {
         call_fe('change_exec', {
@@ -176,7 +178,7 @@ $(document).ready(function() {
                 call_fe('biospheres', {}).done(data => {
                     this.loading = false;
                     var name = _.find(data.biospheres, (biosphere) => {
-                        return biosphere.biosphere_id === biosphere_id;
+                        return document.biosphere_id.eq(biosphere.biosphere_id);
                     }).name;
                     bs_main.$set('biosphere_name', name);
                 });

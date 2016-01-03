@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
@@ -20,22 +21,35 @@ import (
 // to response.
 func MaybeExtractQ(w http.ResponseWriter, r *http.Request, defaultQ proto.Message) *proto.Message {
 	q := proto.Clone(defaultQ)
-	err := r.ParseForm()
-	if err != nil {
-		http.NotFound(w, r)
-		fmt.Fprintf(w, "strange query %v", err)
-		return nil
-	}
-	pb := r.Form.Get("pb")
-	if pb == "" {
-		http.NotFound(w, r)
-		fmt.Fprintf(w, "Non-empty pb param required")
-		return nil
-	}
-	err = jsonpb.UnmarshalString(pb, q)
-	if err != nil {
-		fmt.Fprintf(w, "Failed to parse pb param %v", err)
-		return nil
+	if r.Method == "POST" {
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Fprintf(w, "Failed to read POST body %v", err)
+			return nil
+		}
+		err = proto.Unmarshal(reqBody, q)
+		if err != nil {
+			fmt.Fprintf(w, "Failed to parse POST body as binary proto: %v", err)
+			return nil
+		}
+	} else {
+		err := r.ParseForm()
+		if err != nil {
+			http.NotFound(w, r)
+			fmt.Fprintf(w, "strange query %v", err)
+			return nil
+		}
+		pb := r.Form.Get("pb")
+		if pb == "" {
+			http.NotFound(w, r)
+			fmt.Fprintf(w, "Non-empty jsonpb-encoded pb param required for GET")
+			return nil
+		}
+		err = jsonpb.UnmarshalString(pb, q)
+		if err != nil {
+			fmt.Fprintf(w, "Failed to parse pb param %v", err)
+			return nil
+		}
 	}
 	return &q
 }
@@ -47,12 +61,14 @@ func WriteS(
 		fmt.Fprintf(w, "internal error: %v", e)
 		return
 	}
-	w.Header().Set("Content-Type", "application/x-protobuf")
 	data, err := proto.Marshal(s)
 	if err != nil {
+		w.Header().Set("Content-Type", "text/json")
 		fmt.Fprintf(w, "{\"error\": \"Internal error: failed to encode return pb\"}")
+	} else {
+		w.Header().Set("Content-Type", "application/x-protobuf")
+		w.Write(data)
 	}
-	w.Write(data)
 }
 
 // JsonpbHandler converts given grpc server method of type
