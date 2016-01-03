@@ -147,7 +147,6 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
     """
 
     def do_GET(self):
-        base_dir = './src/client'
         maybe_fn = self.get_filename_from_url()
         mapping = self.emulate_build()
         if maybe_fn == True:
@@ -206,6 +205,11 @@ class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
         filename_blacklist = set(['BUILD', '.gitignore'])
         mapping = {}
         for (dir_path, dir_names, file_names) in os.walk('src/client'):
+            for file_name in file_names:
+                if file_name in filename_blacklist:
+                    continue
+                mapping[file_name] = os.path.join(dir_path, file_name)
+        for (dir_path, dir_names, file_names) in os.walk('src/proto'):
             for file_name in file_names:
                 if file_name in filename_blacklist:
                     continue
