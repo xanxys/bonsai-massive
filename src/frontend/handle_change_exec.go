@@ -17,11 +17,11 @@ func (fe *FeServiceImpl) ChangeExec(ctx context.Context, q *api.ChangeExecQ) (*a
 		if !canWrite {
 			return nil, errors.New("UI must disallow unauthorized START action")
 		}
-		bsTopo, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
+		bsTopo, envConfig, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
 		if err != nil {
 			return nil, err
 		}
-		fe.cmdQueue <- &ControllerCommand{bsTopo}
+		fe.cmdQueue <- &ControllerCommand{bsTopo, envConfig}
 	}
 	return &api.ChangeExecS{}, nil
 }

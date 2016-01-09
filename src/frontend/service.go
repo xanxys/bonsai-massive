@@ -1,6 +1,8 @@
 package main
 
 import (
+	"./api"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -70,6 +72,26 @@ func (fe *FeServiceImpl) authCompute(ctx context.Context) (*compute.Service, err
 	client := fe.cred.Client(oauth2.NoContext)
 	service, err := compute.New(client)
 	return service, err
+}
+
+func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint64) (BiosphereTopology, *api.BiosphereEnvConfig, error) {
+	client, err := fe.authDatastore(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	key := datastore.NewKey(ctx, "BiosphereMeta", "", int64(biosphereId), nil)
+	var meta BiosphereMeta
+	err = client.Get(ctx, key, &meta)
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
+	envConfig := api.BiosphereEnvConfig{}
+	err = proto.Unmarshal(meta.Env, &envConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), &envConfig, nil
 }
 
 type BiosphereMeta struct {

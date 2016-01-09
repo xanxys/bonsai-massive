@@ -13,6 +13,8 @@ import (
 type ControllerCommand struct {
 	// Start new biosphere.
 	bsTopo BiosphereTopology
+
+	env *api.BiosphereEnvConfig
 }
 
 const chunkIdFormat = "%d-%d:%d"

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
 	"log"
 	"math/rand"
@@ -34,7 +33,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		return nil, err
 	}
 
-	bsTopo, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
+	bsTopo, _, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
 	if err != nil {
 		return nil, err
 	}
@@ -75,21 +74,6 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		ContentTimestamp: resp.Timestamp,
 	}, nil
 
-}
-
-func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint64) (BiosphereTopology, error) {
-	client, err := fe.authDatastore(ctx)
-	if err != nil {
-		return nil, err
-	}
-	key := datastore.NewKey(ctx, "BiosphereMeta", "", int64(biosphereId), nil)
-	var meta BiosphereMeta
-	err = client.Get(ctx, key, &meta)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
-	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), nil
 }
 
 func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *Mesh {
