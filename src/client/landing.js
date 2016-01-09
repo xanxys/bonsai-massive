@@ -55,6 +55,9 @@ $(document).ready(() => {
                             name: this.name,
                             nx: this.nx,
                             ny: this.ny,
+                            env: {
+                                seed: Math.floor(Math.random() * 1e9),
+                            },
                         }
                     }, true).done(data => {
                         console.log(data);

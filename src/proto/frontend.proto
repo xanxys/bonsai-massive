@@ -178,6 +178,7 @@ enum BiosphereState {
     T_STOP = 4;
 }
 
+// Next ID: 5
 message BiosphereCreationConfig {
     string name = 1;
 
@@ -185,7 +186,19 @@ message BiosphereCreationConfig {
     // all relevant world topology.
     int32 nx = 2;
     int32 ny = 3;
+
+    BiosphereEnvConfig env = 4;
 }
+
+// Immutable, reproducible initialization scheme of a biosphere.
+// In most case, actual pattern is generated randomly.
+// A given EnvConfig must be usable for any size of biosphere.
+message BiosphereEnvConfig {
+    // Randomness seed of this config. Result for same (nx, ny) must be same.
+    // But there's no point in showing this parameter.
+    int32 seed = 1;
+}
+
 
 message BiosphereDesc {
     uint64 biosphere_id = 1;
