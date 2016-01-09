@@ -76,4 +76,6 @@ type BiosphereMeta struct {
 	Name string
 	Nx   int32
 	Ny   int32
+	// Serialized api.BiosphereEnvConfig.
+	Env []byte
 }

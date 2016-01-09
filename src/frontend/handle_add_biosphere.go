@@ -3,6 +3,7 @@ package main
 import (
 	"./api"
 	"errors"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 )
@@ -32,11 +33,16 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 		return &api.AddBiosphereS{Success: valid}, nil
 	}
 
+	envBlob, err := proto.Marshal(q.Config.Env)
+	if err != nil {
+		return nil, err
+	}
 	key := datastore.NewIncompleteKey(ctx, "BiosphereMeta", nil)
 	meta := &BiosphereMeta{
 		Name: q.Config.Name,
 		Nx:   q.Config.Nx,
 		Ny:   q.Config.Ny,
+		Env:  envBlob,
 	}
 	key, err = client.Put(ctx, key, meta)
 	if err != nil {

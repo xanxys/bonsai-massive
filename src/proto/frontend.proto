@@ -193,6 +193,8 @@ message BiosphereCreationConfig {
 // Immutable, reproducible initialization scheme of a biosphere.
 // In most case, actual pattern is generated randomly.
 // A given EnvConfig must be usable for any size of biosphere.
+//
+// Need to keep compatibility, since serialized EnvConfig is stored in datastore.
 message BiosphereEnvConfig {
     // Randomness seed of this config. Result for same (nx, ny) must be same.
     // But there's no point in showing this parameter.
