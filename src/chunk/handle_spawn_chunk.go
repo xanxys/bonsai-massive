@@ -7,11 +7,13 @@ import (
 )
 
 func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*api.SpawnChunkS, error) {
-	go RunChunk(ck.ChunkRouter, q.Topology)
+	go RunChunk(ck.ChunkRouter, q)
 	return &api.SpawnChunkS{}, nil
 }
 
-func RunChunk(router *ChunkRouter, topo *api.ChunkTopology) {
+func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
+	topo := q.Topology
+
 	// Decode topo once.
 	relToId := make(map[ChunkRel]string)
 	idToRel := make(map[string]ChunkRel)
@@ -32,6 +34,13 @@ func RunChunk(router *ChunkRouter, topo *api.ChunkTopology) {
 	}
 
 	chunk := NewGrainChunk()
+	if q.NumSoil > 0 {
+		chunk.Sources = append(chunk.Sources, NewParticleSource(false, int(q.NumSoil), Vec3f{0.5, 0.5, 2.0}))
+	}
+	if q.NumWater > 0 {
+		chunk.Sources = append(chunk.Sources, NewParticleSource(true, int(q.NumWater), Vec3f{0.5, 0.5, 2.0}))
+	}
+
 	if !router.RegisterNewChunk(topo) {
 		log.Printf("RunChunk(%s) exiting because it's already running", topo.ChunkId)
 		return

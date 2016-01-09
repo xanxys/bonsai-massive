@@ -155,11 +155,6 @@ type ChunkWall struct {
 
 func NewGrainChunk() *GrainChunk {
 	return &GrainChunk{
-		Grains: []*Grain{},
-		Sources: []*ParticleSource{
-			NewParticleSource(true, 300, Vec3f{0.5, 0.5, 2.0}),
-			NewParticleSource(false, 300, Vec3f{0.1, 0.1, 1.0}),
-		},
 		Timestamp: 0,
 	}
 }

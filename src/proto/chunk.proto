@@ -42,6 +42,11 @@ service ChunkService {
 message SpawnChunkQ {
     ChunkTopology topology = 2;
 
+    // In initialization cycle, num_soil, and then num_water grains are
+    // emitted from (0.5, 0.5, 2).
+    int32 num_soil = 3;
+    int32 num_water = 4;
+
     reserved 1;
 }
 
