@@ -102,12 +102,10 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 
 	if len(summary.Chunks) != len(targetState.bsTopo.GetChunkTopos()) {
 		if len(summary.Chunks) == 0 {
-			topos := targetState.bsTopo.GetChunkTopos()
-			log.Printf("Spawning %d new chunks", len(topos), topos)
-			for _, topo := range topos {
-				chunkService.SpawnChunk(ctx, &api.SpawnChunkQ{
-					Topology: topo,
-				})
+			chunkGens := GenerateEnv(targetState.bsTopo, targetState.env)
+			log.Printf("Spawning %d new chunks: %#v", len(chunkGens), chunkGens)
+			for _, chunkGen := range chunkGens {
+				chunkService.SpawnChunk(ctx, chunkGen)
 			}
 			return
 		} else {
