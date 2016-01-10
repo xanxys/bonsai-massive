@@ -17,6 +17,13 @@ func hashFnv1(data []byte) uint64 {
 	return hash
 }
 
+func random1(seed uint64, x int32) float64 {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, seed)
+	binary.Write(buf, binary.BigEndian, x)
+	return float64(hashFnv1(buf.Bytes())) / math.Pow(2, 64)
+}
+
 // Return deterministic random value in [0, 1].
 func random2(seed uint64, x, y int32) float64 {
 	buf := new(bytes.Buffer)

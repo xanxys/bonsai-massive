@@ -7,7 +7,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
-	"math/rand"
 	"time"
 )
 
@@ -90,7 +89,7 @@ func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnap
 			} else if grain.Kind == api.Grain_SOIL {
 				baseColor = Vec3f{0.8, 0.4, 0.3}
 			}
-			grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
+			grainMesh.SetColor(baseColor.Add(Vec3f{float32(random1(grain.Id, 1416028811)), float32(random1(grain.Id, 456307397)), float32(random1(grain.Id, 386052383))}.MultS(0.2)))
 			mesh.Merge(grainMesh)
 		}
 	}
