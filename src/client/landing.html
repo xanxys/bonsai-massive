@@ -12,6 +12,7 @@
 	<link rel="stylesheet" href="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.indigo-light_blue.min.css" />
 	<script src="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.min.js"></script>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+	<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
 
 	<script src="//cdn.rawgit.com/dcodeIO/long.js/3.0.1/dist/long.js"></script>
 	<script src="//cdn.rawgit.com/dcodeIO/bytebuffer.js/5.0.0/dist/bytebuffer.js"></script>
@@ -24,6 +25,7 @@
 
 	<!-- Bonsai -->
 	<link rel="stylesheet" href="/static/material.css" type="text/css" />
+	<link rel="stylesheet" href="/static/landing.css" type="text/css" />
 
 	<script src="/static/common.js"></script>
 	<script src="/static/landing.js"></script>
@@ -109,11 +111,19 @@
 			<i class="material-icons">attach_money</i> {{est_price_usd}} USD / hour
 		</div>
 
+		<div class="error_desc" v-if="failed_to_create">
+			Failed to create. Most likely, the name is already used by other biospheres.
+		</div>
+
 		<div style="float: right">
 			<button v-on="click: cancel" class="mdl-button mdl-js-button">No</button>
 			<button v-on="click: create" v-attr="disabled:!create_ready" class="mdl-button mdl-js-button mdl-button--primary">
 				Create
 			</button>
+		</div>
+
+		<div class="progress_overlay" v-if="creating">
+			<div class="mdl-spinner mdl-js-spinner is-active"></div>
 		</div>
 	</div>
 

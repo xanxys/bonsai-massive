@@ -35,6 +35,8 @@ $(document).ready(() => {
             el: '#create_biosphere_dialog',
             data: {
                 name: "",
+                creating: false,
+                failed_to_create: false,
             },
             computed: {
                 // For some reason, when I write ""() => ..." here, vue.js
@@ -61,9 +63,16 @@ $(document).ready(() => {
                         }
                     }, true).done(data => {
                         console.log(data);
-                    })
-                    $('#create_biosphere_dialog').hide();
-                    $('#create_biosphere').show();
+                        if (data.success) {
+                            $('#create_biosphere_dialog').hide();
+                            $('#create_biosphere').show();
+
+                        } else {
+                            this.creating = false;
+                            this.failed_to_create = true;
+                        }
+                    });
+                    this.creating = true;
                 },
                 cancel: () => {
                     $('#create_biosphere_dialog').hide();

@@ -1,0 +1,19 @@
+.progress_overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+.error_desc {
+    color: #F44336;
+    font-weight: 700;
+}
+.progress_overlay .mdl-spinner {
+    position: relative;
+    left: calc(50% - 0.5cm);
+    top: calc(50% - 0.5cm);
+    width: 1cm;
+    height: 1cm;
+}
