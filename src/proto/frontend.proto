@@ -117,13 +117,20 @@ message ChangeExecS {
 }
 
 
+// Next ID: 6
 message BiosphereFramesQ {
     UserAuth auth = 4;
 
     uint64 biosphere_id = 2;
 
-    bytes cont_token = 1;
+    // Center line is considered most important,
+    // but things within cone will be rendered mostly same.
+    // Everything outside might or might not be dropped.
+    //
+    // Render everything uniform if not set.
+    OrientedCone visible_region = 5;
 
+    bytes cont_token = 1;
     reserved 3;
 }
 
@@ -164,6 +171,25 @@ message AddBiosphereS {
     // Description of the newly created biosphere (only valid when success is
     // true AND request is not test_only).
     BiosphereDesc biosphere_desc = 2;
+}
+
+// Client viewer information. This is used to cull unnecessary pats / details
+// when creating PolySoup.
+message OrientedCone {
+    // Camera position.
+    float px = 1;
+    float py = 2;
+    float pz = 3;
+
+    // Camera orientation. (normalized)
+    float dx = 4;
+    float dy = 5;
+    float dz = 6;
+
+    // half angle (angle between normal and line on conical surface passing)
+    // in radian.
+    // must be in (0, pi / 2).
+    float half_angle = 7;
 }
 
 enum BiosphereState {
