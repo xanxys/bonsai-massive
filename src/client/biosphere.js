@@ -25,8 +25,18 @@ class Client {
 
     refresh_data() {
         var _this = this;
+        var c_dir = this.camera.getWorldDirection();
         call_fe('biosphere_frames', {
-            "biosphere_id": document.biosphere_id,
+            biosphere_id: document.biosphere_id,
+            visible_region: {
+                px: this.camera.position.x,
+                py: this.camera.position.y,
+                pz: this.camera.position.z,
+                dx: c_dir.x,
+                dy: c_dir.y,
+                dz: c_dir.z,
+                half_angle: this.get_cone_half_angle(),
+            },
         }).done(function(data) {
             var current_day = Math.floor(data.content_timestamp/5000);
             var years = _.map(_.range(Math.ceil(data.content_timestamp/(5000 * 10))), (year_index) => {
@@ -51,6 +61,15 @@ class Client {
             _this.on_frame_received(data);
             _this.refresh_data();
         });
+    }
+
+    // Get half angle of cone that contains camera. The angle is same as
+    // diagonal fov / 2, in radians.
+    get_cone_half_angle() {
+        let vert_half_sz = Math.tan(this.camera.fov / 180 * Math.PI / 2);
+        let horz_half_sz = vert_half_sz * this.camera.aspect;
+        let diag_half_sz = Math.hypot(vert_half_sz, horz_half_sz);
+        return Math.atan(diag_half_sz);
     }
 
     on_frame_received(data) {
