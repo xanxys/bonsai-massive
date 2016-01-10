@@ -36,7 +36,7 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			fmt.Sprintf(`docker run -d --log-driver=fluentd --publish 9000:9000 %s`, fe.chunkContainerName),
 		}, "\n")
 
-	bonsaiType := "chunk"
+	bonsaiType := "chunk-" + fe.envType
 
 	instance := &compute.Instance{
 		Name:        name,

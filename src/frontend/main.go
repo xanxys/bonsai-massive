@@ -132,15 +132,38 @@ func FileServingHandler(filename string) http.HandlerFunc {
 	}
 }
 
+// Return "prod" or "staging" (or other env type).
+// This function might break when kubernetes spec changes.
+// When validation fails, it returns "".
+func GetEnvType() string {
+	val, ok := os.LookupEnv("HOSTNAME")
+	if !ok {
+		return ""
+	}
+	tokens := strings.Split(val, "-")
+	if len(tokens) < 3 {
+		return ""
+	}
+	if tokens[0] != "bonsai" || tokens[2] != "frontend" {
+		return ""
+	}
+	return tokens[1]
+}
+
 func main() {
 	const port = 8000
 	log.Printf("Starting frontend server http://localhost:%d\n", port)
 	log.Printf("Env: %#v", os.Environ())
+	envType := GetEnvType()
+	if envType == "" {
+		log.Panic("Failed to extract env type from HOSTNAME. Crashing")
+	}
+	log.Printf("EnvType: %s", envType)
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
 	// Enforce that NewFeService implements the service defined in proto.
 	var fe api.FrontendServiceServer
-	fe = NewFeService()
+	fe = NewFeService(envType)
 
 	// Dispatchers.
 	http.HandleFunc("/api/debug", GzipHandler(JsonpbHandler(fe.Debug)))

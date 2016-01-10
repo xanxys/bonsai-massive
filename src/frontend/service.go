@@ -21,6 +21,8 @@ const (
 )
 
 type FeServiceImpl struct {
+	envType string
+
 	cred               *jwt.Config
 	chunkContainerName string
 	cmdQueue           chan *ControllerCommand
@@ -30,7 +32,7 @@ type FeServiceImpl struct {
 	chunkServices map[string]*grpc.ClientConn
 }
 
-func NewFeService() *FeServiceImpl {
+func NewFeService(envType string) *FeServiceImpl {
 	jsonKey, err := ioutil.ReadFile("/root/bonsai/key.json")
 	if err != nil {
 		log.Fatal(err)
@@ -49,6 +51,7 @@ func NewFeService() *FeServiceImpl {
 		log.Fatal(err)
 	}
 	fe := &FeServiceImpl{
+		envType:            envType,
 		cred:               conf,
 		chunkContainerName: string(cont),
 		chunkServices:      make(map[string]*grpc.ClientConn),

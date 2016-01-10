@@ -25,7 +25,7 @@ func (fe *FeServiceImpl) GetChunkServerInstances(ctx context.Context) ([]*comput
 			metadata[item.Key] = *item.Value
 		}
 		ty, ok := metadata["bonsai-type"]
-		if ok && ty == "chunk" {
+		if ok && ty == "chunk-"+fe.envType {
 			chunkServers = append(chunkServers, instance)
 		}
 	}
