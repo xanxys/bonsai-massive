@@ -66,7 +66,7 @@ $(document).ready(() => {
                         if (data.success) {
                             $('#create_biosphere_dialog').hide();
                             $('#create_biosphere').show();
-
+                            window.location.href = '/biosphere/' + data.biosphere_desc.biosphere_id.toString();
                         } else {
                             this.creating = false;
                             this.failed_to_create = true;
