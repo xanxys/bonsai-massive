@@ -5,7 +5,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"log"
 	"math/rand"
-	"strings"
+	//"strings"
 )
 
 const GoogleCloudLoggingScope = "https://www.googleapis.com/auth/logging.write"
@@ -20,21 +20,69 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	imageURL := "https://www.googleapis.com/compute/v1/projects/google-containers/global/images/container-vm-v20151215"
 
 	// TODO: migrate to kubelet manifest file.
-	startupScript := strings.Join(
-		[]string{
-			`#!/bin/bash`,
-			`METADATA=http://metadata.google.internal./computeMetadata/v1`,
-			`SVC_ACCT=$METADATA/instance/service-accounts/default`,
-			`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
-			`docker login -e dummy@example.com -u _token -p $ACCESS_TOKEN https://gcr.io`,
-			`curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh`,
-			`sha256sum install-logging-agent.sh`,
-			`bash install-logging-agent.sh`,
-			`printf '<source>\ntype forward \nport 24224\n</source>\n' > /etc/google-fluentd/config.d/docker.conf`,
-			`service google-fluentd restart`,
-			fmt.Sprintf(`docker pull %s`, fe.chunkContainerName),
-			fmt.Sprintf(`docker run -d --log-driver=fluentd --publish 9000:9000 %s`, fe.chunkContainerName),
-		}, "\n")
+	/*
+		startupScript := strings.Join(
+			[]string{
+				`#!/bin/bash`,
+				`METADATA=http://metadata.google.internal./computeMetadata/v1`,
+				`SVC_ACCT=$METADATA/instance/service-accounts/default`,
+				`ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' $SVC_ACCT/token | cut -d'"' -f 4)`,
+				`docker login -e dummy@example.com -u _token -p $ACCESS_TOKEN https://gcr.io`,
+				`curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh`,
+				`sha256sum install-logging-agent.sh`,
+				`bash install-logging-agent.sh`,
+				`printf '<source>\ntype forward \nport 24224\n</source>\n' > /etc/google-fluentd/config.d/docker.conf`,
+				`service google-fluentd restart`,
+				fmt.Sprintf(`docker pull %s`, fe.chunkContainerName),
+				fmt.Sprintf(`docker run -d --log-driver=fluentd --publish 9000:9000 %s`, fe.chunkContainerName),
+			}, "\n")
+	*/
+
+	containerManifest := fmt.Sprintf(`
+		{
+			"apiVersion": "v1",
+			"kind": "Pod",
+			"metadata": {
+				"name": "bonsai-chunk"
+			},
+			"spec": {
+				"volumes": [{
+					"name": "log-storage",
+					"emptyDir": {
+						"medium": "Memory"
+					}
+				}],
+				"containers": [
+					{
+						"name": "bonsai-chunk-server",
+						"image": "%s",
+						"imagePullPolicy": "Always",
+						"ports": [{"containerPort": 9000, "hostPort": 9000}],
+						"env": [{
+							"name": "LOG_PATH",
+							"value": "/mnt/log/CHUNK_LOG"
+						}],
+						"volumeMounts": [{
+							"name": "log-storage",
+							"mountPath": "/mnt/log"
+						}]
+					},
+					{
+						"name": "bonsai-chunk-log-collector",
+						"image": "gcr.io/google_containers/fluentd-sidecar-gcp:1.1",
+						"env": [{
+							"name": "FILES_TO_COLLECT",
+							"value": "/mnt/log/CHUNK_LOG"
+						}],
+						"volumeMounts": [{
+							"name": "log-storage",
+							"readOnly": true,
+							"mountPath": "/mnt/log"
+						}]
+					}
+				]
+			}
+		}`, fe.chunkContainerName)
 
 	bonsaiType := "chunk-" + fe.envType
 
@@ -80,13 +128,19 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 		},
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
-				{
-					Key:   "startup-script",
-					Value: &startupScript,
-				},
+				/*
+					{
+						Key:   "startup-script",
+						Value: &startupScript,
+					},
+				*/
 				{
 					Key:   "bonsai-type",
 					Value: &bonsaiType,
+				},
+				{
+					Key:   "google-container-manifest",
+					Value: &containerManifest,
 				},
 			},
 		},
