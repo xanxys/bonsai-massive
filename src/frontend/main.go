@@ -12,6 +12,7 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -134,6 +135,7 @@ func FileServingHandler(filename string) http.HandlerFunc {
 func main() {
 	const port = 8000
 	log.Printf("Starting frontend server http://localhost:%d\n", port)
+	log.Printf("Env: %#v", os.Environ())
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
 	// Enforce that NewFeService implements the service defined in proto.
