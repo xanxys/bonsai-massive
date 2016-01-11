@@ -105,14 +105,6 @@ message ChunkTopology {
     repeated ChunkNeighbor neighbors = 2;
 }
 
-message BenchmarkQ {
-}
-
-message BenchmarkS {
-    // Human-readable, multi line report of the benchmark.
-    string report = 1;
-}
-
 
 // Snapshot of a chunk at given timestamp.
 // This contains enough and just enough information for reconstructing it on
