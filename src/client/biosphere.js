@@ -100,6 +100,8 @@ class Client {
 
         if (this.received_mesh !== undefined) {
             this.scene.remove(this.received_mesh);
+            this.received_mesh.geometry.dispose();
+            this.received_mesh.material.dispose();
         }
         this.received_mesh = mesh;
         this.scene.add(mesh);
