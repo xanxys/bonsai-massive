@@ -127,10 +127,9 @@ message ChunkSnapshot {
     // Should be negative for normal gravity.
     int32 gravity_z = 1;
 
-    repeated Cell cells = 2;
     repeated Grain grains = 4;
 
-    reserved 3;
+    reserved 2, 3;
 }
 
 // Next Id: 5
@@ -143,6 +142,7 @@ message Grain {
         UNKNOWN = 0;
         WATER = 1;
         SOIL = 2;
+        CELL = 3;
     }
     Kind kind = 2;
 }
@@ -151,10 +151,7 @@ message Grain {
 // Cell doesn't have rotation or angular velocity.
 //
 // Mass is derived property.
-message Cell {
-    // Location of the center of the cell.
-    CkPosition pos = 1;
-
+message CellProp {
     // Chemical compounds contained in the cell.
     // This must be treated like MultiSet ParticleType.
     message ParticleCount {
@@ -175,6 +172,8 @@ message Cell {
         int32 division_count = 2;
     }
     Cycle cycle = 3;
+
+    reserved 1;
 }
 
 
