@@ -1,9 +1,6 @@
 package main
 
-import (
-	"./api"
-	"golang.org/x/net/context"
-)
+import ()
 
 type CkServiceImpl struct {
 	*ChunkRouter
@@ -14,11 +11,4 @@ func NewCkService() *CkServiceImpl {
 		ChunkRouter: StartNewRouter(),
 	}
 	return ck
-}
-
-func (ck *CkServiceImpl) Benchmark(ctx context.Context, q *api.BenchmarkQ) (*api.BenchmarkS, error) {
-	Benchmark()
-	return &api.BenchmarkS{
-		Report: "No report",
-	}, nil
 }

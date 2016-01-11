@@ -26,11 +26,6 @@ service ChunkService {
     // Return synchronized snapshot at arbitrary timestamp.
     rpc Snapshot(SnapshotQ) returns (SnapshotS);
 
-    // FE should do blackbox testing of chunk server,
-    // but chunk server can also do whitebox self-inspection.
-    // TODO: Consider renaming to better name.
-    rpc Benchmark(BenchmarkQ) returns (BenchmarkS);
-
     rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
 
     // Move some chunks to other chunk server?

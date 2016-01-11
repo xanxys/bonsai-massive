@@ -2,14 +2,9 @@ package main
 
 import (
 	"./api"
-	"bufio"
-	"fmt"
 	"log"
 	"math"
 	"math/rand"
-	"os"
-	"runtime/pprof"
-	"time"
 )
 
 // Global world config.
@@ -482,67 +477,4 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	world.Grains = internalGrains
 	world.Timestamp++
 	return externalGrains
-}
-
-// Run chunk benchmark and output to local files.
-func Benchmark() {
-	confined := &ChunkWall{
-		Xm: true,
-		Xp: true,
-		Ym: true,
-		Yp: true,
-	}
-	t0 := time.Now()
-	world := NewGrainChunk()
-	steps := 300 * 4
-	for iter := 0; iter < steps; iter++ {
-		world.Step(nil, nil, confined)
-	}
-	log.Printf("Benchmark: %.3fs for %d steps\n", float64(time.Since(t0))*1e-9, steps)
-
-	log.Printf("Profiling\n")
-	world = NewGrainChunk()
-	f, err := os.Create("chunk-grains-benchmark.prof")
-	if err != nil {
-		log.Fatal("Failed to output profile file")
-	}
-	pprof.StartCPUProfile(f)
-	for iter := 0; iter < steps; iter++ {
-		world.Step(nil, nil, confined)
-	}
-	pprof.StopCPUProfile()
-	log.Printf("Done\n")
-
-	log.Printf("Dumping\n")
-
-	f, err = os.Create("./client/grains-dump.json")
-	if err != nil {
-		log.Fatal("Failed to open dump file")
-	}
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	w.WriteString("[")
-	world = NewGrainChunk()
-	for iter := 0; iter < steps; iter++ {
-		world.Step(nil, nil, confined)
-		w.WriteString("[")
-		for ix, grain := range world.Grains {
-			w.WriteString("{")
-			fmt.Fprintf(w, "\"kind\": %t,", grain.Kind)
-			fmt.Fprintf(w, "\"position\": [%f, %f, %f]",
-				grain.Position.X, grain.Position.Y, grain.Position.Z)
-			w.WriteString("}")
-			if ix == len(world.Grains)-1 {
-				w.WriteString("]")
-			} else {
-				w.WriteString(",")
-			}
-		}
-		if iter == steps-1 {
-			w.WriteString("]\n")
-		} else {
-			w.WriteString(",\n")
-		}
-	}
-	log.Print("Done\n")
 }
