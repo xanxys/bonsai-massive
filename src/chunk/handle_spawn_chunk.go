@@ -136,22 +136,18 @@ func deser(grain *api.Grain) *Grain {
 		Id:       grain.Id,
 		Position: Vec3f{p.X, p.Y, p.Z},
 		Velocity: Vec3f{v.X, v.Y, v.Z},
-		IsWater:  grain.Kind == api.Grain_WATER,
+		Kind:     grain.Kind,
 	}
 }
 
 func ser(grain *Grain) *api.Grain {
 	p := grain.Position
 	v := grain.Velocity
-	kind := api.Grain_WATER
-	if !grain.IsWater {
-		kind = api.Grain_SOIL
-	}
 	return &api.Grain{
 		Id:   grain.Id,
 		Pos:  &api.CkPosition{p.X, p.Y, p.Z},
 		Vel:  &api.CkVelocity{v.X, v.Y, v.Z},
-		Kind: kind,
+		Kind: grain.Kind,
 	}
 }
 

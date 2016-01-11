@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./api"
 	"bufio"
 	"fmt"
 	"log"
@@ -34,7 +35,8 @@ const friction_static = 0.5  // must be in [0, 1)
 const friction_dynamic = 0.3 // must be in [0, friction_static)
 
 type Grain struct {
-	IsWater  bool
+	Kind api.Grain_Kind
+
 	Position Vec3f
 	Velocity Vec3f
 
@@ -48,8 +50,12 @@ type Grain struct {
 func NewGrain(isWater bool, initialPos Vec3f) *Grain {
 	// It's no longer safe to issue ids randomly when we issue more than a few
 	// million ids. But for now, it's ok.
+	kind := api.Grain_SOIL
+	if isWater {
+		kind = api.Grain_WATER
+	}
 	return &Grain{
-		IsWater:  isWater,
+		Kind:     kind,
 		Position: initialPos,
 		Velocity: NewVec3f0(),
 		Id:       uint64(rand.Uint32())<<32 | uint64(rand.Uint32()),
@@ -226,13 +232,13 @@ type CGrad struct {
 // gradient(ix) == Deriv[constraint, pos[ix]]
 func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Constraint {
 	density := func() float32 {
-		if !world.Grains[ixTarget].IsWater {
+		if world.Grains[ixTarget].Kind != api.Grain_WATER {
 			log.Fatal("density is only applicable to water grains")
 		}
 		var acc float32
 		for _, ixOther := range neighbors[ixTarget] {
 			equiv := float32(1.0)
-			if !world.Grains[ixOther].IsWater {
+			if world.Grains[ixOther].Kind == api.Grain_SOIL {
 				equiv = sand_water_equiv
 			}
 			weight := SphKernel(world.Grains[ixTarget].positionNew.Sub(world.Grains[ixOther].positionNew), h)
@@ -242,13 +248,13 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 	}
 
 	density_constraint_deriv := func() []CGrad {
-		if !world.Grains[ixTarget].IsWater {
+		if world.Grains[ixTarget].Kind != api.Grain_WATER {
 			log.Fatal("gradient of density is only defined for water")
 		}
 		grads := make([]CGrad, 0, len(neighbors[ixTarget])-1)
 		for _, ixDeriv := range neighbors[ixTarget] {
 			equiv := float32(1.0)
-			if !world.Grains[ixDeriv].IsWater {
+			if world.Grains[ixDeriv].Kind == api.Grain_SOIL {
 				equiv = sand_water_equiv
 			}
 
@@ -258,7 +264,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 					continue
 				}
 				other_equiv := float32(1.0)
-				if !world.Grains[ixOther].IsWater {
+				if world.Grains[ixOther].Kind == api.Grain_SOIL {
 					other_equiv = sand_water_equiv
 				}
 
@@ -282,7 +288,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		return grads
 	}
 
-	if world.Grains[ixTarget].IsWater {
+	if world.Grains[ixTarget].Kind == api.Grain_WATER {
 		return []Constraint{
 			Constraint{
 				Value: density()/density_base - 1,
@@ -298,7 +304,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			if ixTarget == ixOther {
 				continue // no collision with self
 			}
-			if world.Grains[ixOther].IsWater {
+			if world.Grains[ixOther].Kind == api.Grain_WATER {
 				continue // No sand-other interaction for now.
 			}
 			dp := world.Grains[ixTarget].positionNew.Sub(world.Grains[ixOther].positionNew)
@@ -522,7 +528,7 @@ func Benchmark() {
 		w.WriteString("[")
 		for ix, grain := range world.Grains {
 			w.WriteString("{")
-			fmt.Fprintf(w, "\"is_water\": %t,", grain.IsWater)
+			fmt.Fprintf(w, "\"kind\": %t,", grain.Kind)
 			fmt.Fprintf(w, "\"position\": [%f, %f, %f]",
 				grain.Position.X, grain.Position.Y, grain.Position.Z)
 			w.WriteString("}")
