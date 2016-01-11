@@ -43,13 +43,9 @@ type Grain struct {
 	positionNew Vec3f
 }
 
-func NewGrain(isWater bool, initialPos Vec3f) *Grain {
+func NewGrain(kind api.Grain_Kind, initialPos Vec3f) *Grain {
 	// It's no longer safe to issue ids randomly when we issue more than a few
 	// million ids. But for now, it's ok.
-	kind := api.Grain_SOIL
-	if isWater {
-		kind = api.Grain_WATER
-	}
 	return &Grain{
 		Kind:     kind,
 		Position: initialPos,
@@ -103,15 +99,15 @@ func SphKernelGrad(dp Vec3f, h float32) Vec3f {
 // ParticleSource is physically implausible, so it has high change of being
 // removed in final version, but very useful for debugging / showing demo.
 type ParticleSource struct {
-	isWater           bool
+	kind              api.Grain_Kind
 	totalNum          int
 	framesPerParticle int
 	basePositions     []Vec3f
 }
 
-func NewParticleSource(isWater bool, totalNum int, centerPos Vec3f) *ParticleSource {
+func NewParticleSource(kind api.Grain_Kind, totalNum int, centerPos Vec3f) *ParticleSource {
 	return &ParticleSource{
-		isWater:           isWater,
+		kind:              kind,
 		totalNum:          totalNum,
 		framesPerParticle: 4,
 		basePositions: []Vec3f{
@@ -136,7 +132,7 @@ func (ps *ParticleSource) MaybeEmit(timestamp uint64) []*Grain {
 	phase := (ts / ps.framesPerParticle) % len(ps.basePositions)
 	initialPos := ps.basePositions[phase].Add(
 		Vec3f{rand.Float32() * 0.01, rand.Float32() * 0.01, 0})
-	return []*Grain{NewGrain(ps.isWater, initialPos)}
+	return []*Grain{NewGrain(ps.kind, initialPos)}
 }
 
 // Separate into
