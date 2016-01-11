@@ -7,26 +7,12 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
+	"math"
+	"math/rand"
 	"time"
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
-	/*
-		var mesh Mesh
-		for ix := 0; ix < 10000; ix++ {
-			pos := Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}
-			grainMesh := Icosahedron(pos, 0.06)
-			baseColor := Vec3f{0.5, 0.5, 0.5}
-			grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
-			mesh = append(mesh, grainMesh...)
-		}
-
-		return &api.BiosphereFramesS{
-			Content:          mesh.Serialize(),
-			ContentTimestamp: 0,
-		}, nil
-	*/
-
 	chunks, err := fe.GetChunkServerInstances(ctx)
 	if err != nil {
 		return nil, err
@@ -68,20 +54,29 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	if resp.Snapshot == nil {
 		return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
 	}
+	var maybeCone *OrientedCone
+	if q.VisibleRegion != nil {
+		maybeCone = NewCone(q.VisibleRegion)
+	}
 	return &api.BiosphereFramesS{
-		Content:          snapshotToMesh(bsTopo, resp.Snapshot).Serialize(),
+		Content:          snapshotToMesh(maybeCone, bsTopo, resp.Snapshot).Serialize(),
 		ContentTimestamp: resp.Timestamp,
 	}, nil
-
 }
 
-func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *Mesh {
+func snapshotToMesh(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *Mesh {
 	offsets := bsTopo.GetGlobalOffsets()
 	mesh := NewMesh()
+	countTotal := 0
+	countDropped := 0
 	for chunkId, chunkSnapshot := range snapshot {
 		offset := offsets[chunkId]
 		for _, grain := range chunkSnapshot.Grains {
 			pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}.Add(offset)
+			if maybeCone != nil && !maybeCone.Contains(pos) {
+				countDropped++
+				continue
+			}
 			grainMesh := Icosahedron(pos, 0.06)
 			baseColor := Vec3f{0, 0, 0}
 			if grain.Kind == api.Grain_WATER {
@@ -92,8 +87,47 @@ func snapshotToMesh(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnap
 			grainMesh.SetColor(baseColor.Add(Vec3f{float32(random1(grain.Id, 1416028811)), float32(random1(grain.Id, 456307397)), float32(random1(grain.Id, 386052383))}.MultS(0.2)))
 			mesh.Merge(grainMesh)
 		}
+		countTotal += len(chunkSnapshot.Grains)
 	}
+	log.Printf("Mesh serializer: %d grains dropped (%f %%)", countDropped, float32(countDropped)/float32(countTotal)*100)
 	return mesh
+}
+
+// Wrapper of api.OrientedCone.
+type OrientedCone struct {
+	Pos, Dir     Vec3f
+	HalfAngle    float32
+	cosHalfAngle float32
+}
+
+func NewCone(cone *api.OrientedCone) *OrientedCone {
+	return &OrientedCone{
+		Pos:          Vec3f{cone.Px, cone.Py, cone.Pz},
+		Dir:          Vec3f{cone.Dx, cone.Dy, cone.Dz},
+		HalfAngle:    cone.HalfAngle,
+		cosHalfAngle: float32(math.Cos(float64(cone.HalfAngle))),
+	}
+}
+
+func (cone *OrientedCone) Contains(pt Vec3f) bool {
+	delta := pt.Sub(cone.Pos)
+	cosine := delta.Dot(cone.Dir) / delta.Length()
+	return cosine >= cone.cosHalfAngle
+}
+
+func createRandomReponseForBenchmark() *api.BiosphereFramesS {
+	var mesh Mesh
+	for ix := 0; ix < 10000; ix++ {
+		pos := Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}
+		grainMesh := Icosahedron(pos, 0.06)
+		baseColor := Vec3f{0.5, 0.5, 0.5}
+		grainMesh.SetColor(baseColor.Add(Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(0.2)))
+		mesh.Merge(grainMesh)
+	}
+	return &api.BiosphereFramesS{
+		Content:          mesh.Serialize(),
+		ContentTimestamp: 0,
+	}
 }
 
 func fallbackContent() *api.PolySoup {
