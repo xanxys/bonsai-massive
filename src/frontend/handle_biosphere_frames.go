@@ -83,6 +83,8 @@ func snapshotToMesh(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot 
 				baseColor = Vec3f{0.4, 0.4, 1}
 			} else if grain.Kind == api.Grain_SOIL {
 				baseColor = Vec3f{0.8, 0.4, 0.3}
+			} else if grain.Kind == api.Grain_CELL {
+				baseColor = Vec3f{0.8, 0.8, 0.8}
 			}
 			grainMesh.SetColor(baseColor.Add(Vec3f{float32(random1(grain.Id, 1416028811)), float32(random1(grain.Id, 456307397)), float32(random1(grain.Id, 386052383))}.MultS(0.2)))
 			mesh.Merge(grainMesh)

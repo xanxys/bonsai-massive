@@ -15,6 +15,7 @@ const floor_static = 0.7
 const floor_dynamic = 0.5
 const cfm_epsilon = 1e-3
 const sand_water_equiv = 0.3
+const cell_water_equiv = 0.5
 
 // Global water config.
 const reflection_coeff = 0.3 // Must be in (0, 1)
@@ -228,13 +229,15 @@ type CGrad struct {
 func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Constraint {
 	density := func() float32 {
 		if world.Grains[ixTarget].Kind != api.Grain_WATER {
-			log.Fatal("density is only applicable to water grains")
+			log.Fatal("density is only defined for water grains")
 		}
 		var acc float32
 		for _, ixOther := range neighbors[ixTarget] {
 			equiv := float32(1.0)
 			if world.Grains[ixOther].Kind == api.Grain_SOIL {
 				equiv = sand_water_equiv
+			} else if world.Grains[ixOther].Kind == api.Grain_CELL {
+				equiv = cell_water_equiv
 			}
 			weight := SphKernel(world.Grains[ixTarget].positionNew.Sub(world.Grains[ixOther].positionNew), h)
 			acc += weight * mass_grain * equiv
@@ -251,6 +254,8 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			equiv := float32(1.0)
 			if world.Grains[ixDeriv].Kind == api.Grain_SOIL {
 				equiv = sand_water_equiv
+			} else if world.Grains[ixDeriv].Kind == api.Grain_CELL {
+				equiv = cell_water_equiv
 			}
 
 			gradAccum := NewVec3f0()
@@ -291,6 +296,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			},
 		}
 	} else {
+		// SOIL & CELL
 		cs := make([]Constraint, 0, len(neighbors[ixTarget]))
 		// This will result in 2 same constraints per particle pair,
 		// but there's no problem (other than performance) for repeating
