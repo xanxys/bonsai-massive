@@ -1,11 +1,3 @@
-go_binary(
-    name="server_not_working_now_do_not_use",
-    srcs=[
-        "//proto:proto_go_src",
-        "main.go",
-    ],
-)
-
 # HACK: go complains if all files are not in a same directory.
 genrule(
     name="server",
