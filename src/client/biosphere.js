@@ -218,8 +218,20 @@ $(document).ready(function() {
     var bs_time = new Vue({
         el: '#time',
         data: {
+            is_running: false,
+            is_playing: false,  // only applicable when is_running.
             current_timestamp: null,
             years: [],
+        },
+        computed: {
+            // For some reason, when I write ""() => ..." here, vue.js
+            // fails to detect dependency and do not auto-update.
+            play_visible: function() {
+                return !this.is_playing;
+            },
+            pause_visible: function() {
+                return this.is_playing;
+            },
         },
     });
     bs_main.update();
