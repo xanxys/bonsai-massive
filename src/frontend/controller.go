@@ -12,7 +12,7 @@ import (
 // Issue-and-forget type of commands.
 type ControllerCommand struct {
 	// Start new biosphere.
-	bsId   string
+	bsId   uint64
 	bsTopo BiosphereTopology
 	env    *api.BiosphereEnvConfig
 
@@ -37,7 +37,7 @@ func (fe *FeServiceImpl) StatefulLoop() {
 			log.Printf("Received controller command: %v", cmd)
 			if cmd == nil {
 				targetState = nil
-				latestState := make(map[uint64]api.BiosphereState)
+				latestState = make(map[uint64]api.BiosphereState)
 			} else if cmd.getBiosphereStates != nil {
 				frozenState := make(map[uint64]api.BiosphereState)
 				for k, v := range latestState {
