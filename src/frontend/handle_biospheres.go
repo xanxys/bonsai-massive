@@ -10,6 +10,9 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 	var nTicks uint64
 	nTicks = 38
 
+	stateReceiver := make(chan map[uint64]api.BiosphereState, 1)
+	fe.cmdQueue <- &ControllerCommand{getBiosphereStates: stateReceiver}
+
 	client, err := fe.authDatastore(ctx)
 	if err != nil {
 		return nil, err
@@ -21,14 +24,20 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 	if err != nil {
 		return nil, err
 	}
+
+	chunkState := <-stateReceiver
 	var bios []*api.BiosphereDesc
 	for ix, meta := range metas {
+		state, ok := chunkState[uint64(keys[ix].ID())]
+		if !ok {
+			state = api.BiosphereState_STOPPED
+		}
 		bios = append(bios, &api.BiosphereDesc{
 			BiosphereId: uint64(keys[ix].ID()),
 			Name:        meta.Name,
 			NumCores:    uint32(meta.Nx*meta.Ny/5) + 1,
 			NumTicks:    nTicks,
-			State:       api.BiosphereState_STOPPED,
+			State:       state,
 		})
 	}
 	return &api.BiospheresS{

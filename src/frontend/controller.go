@@ -12,9 +12,13 @@ import (
 // Issue-and-forget type of commands.
 type ControllerCommand struct {
 	// Start new biosphere.
+	bsId   string
 	bsTopo BiosphereTopology
+	env    *api.BiosphereEnvConfig
 
-	env *api.BiosphereEnvConfig
+	// Query managed biospheres and their states.
+	// This is a few seconds old. (depending on polling interval)
+	getBiosphereStates chan map[uint64]api.BiosphereState
 }
 
 const chunkIdFormat = "%d-%d:%d"
@@ -26,14 +30,26 @@ const chunkIdFormat = "%d-%d:%d"
 func (fe *FeServiceImpl) StatefulLoop() {
 	log.Println("Starting stateful loop")
 	var targetState *ControllerCommand
+	latestState := make(map[uint64]api.BiosphereState)
 	for {
 		select {
 		case cmd := <-fe.cmdQueue:
 			log.Printf("Received controller command: %v", cmd)
-			targetState = cmd
+			if cmd == nil {
+				targetState = nil
+				latestState := make(map[uint64]api.BiosphereState)
+			} else if cmd.getBiosphereStates != nil {
+				frozenState := make(map[uint64]api.BiosphereState)
+				for k, v := range latestState {
+					frozenState[k] = v
+				}
+				cmd.getBiosphereStates <- frozenState
+			} else {
+				targetState = cmd
+			}
 		case <-time.After(10 * time.Second):
 			ctx := context.Background()
-			fe.applyDelta(ctx, targetState)
+			fe.applyDelta(ctx, latestState, targetState)
 		}
 	}
 }
@@ -44,7 +60,7 @@ func (fe *FeServiceImpl) StatefulLoop() {
 // This function just ensures proper number of chunk servers is running.
 // It's basically same as kubernetes replication controller, but GKE price model
 // is not suitable for me, so I'll manage chunk servers here... for now.
-func (fe *FeServiceImpl) applyDelta(ctx context.Context, targetState *ControllerCommand) {
+func (fe *FeServiceImpl) applyDelta(ctx context.Context, latestState map[uint64]api.BiosphereState, targetState *ControllerCommand) {
 	chunkInstances, err := fe.GetChunkServerInstances(ctx)
 	if err != nil {
 		log.Printf("Error while fetching instance list %v", err)
@@ -52,6 +68,7 @@ func (fe *FeServiceImpl) applyDelta(ctx context.Context, targetState *Controller
 	}
 	if targetState != nil && len(chunkInstances) == 0 {
 		log.Printf("Allocating 1 node")
+		latestState[targetState.bsId] = api.BiosphereState_T_RUN
 		clientCompute, err := fe.authCompute(ctx)
 		if err != nil {
 			log.Printf("Error in allocation: %v", err)
@@ -74,7 +91,7 @@ func (fe *FeServiceImpl) applyDelta(ctx context.Context, targetState *Controller
 				// Server not ready yet. This is expected, so don't do anything and just wait for next cycle.
 				return
 			}
-			fe.applyChunkDelta(ctx, ip, chunkService, targetState)
+			fe.applyChunkDelta(ctx, ip, chunkService, latestState, targetState)
 		}
 	} else if targetState == nil && len(chunkInstances) > 0 {
 		log.Printf("Deallocating %d nodes", len(chunkInstances))
@@ -93,7 +110,7 @@ func (fe *FeServiceImpl) applyDelta(ctx context.Context, targetState *Controller
 
 // After confirming chunk sever is properly responding at ipAddress, try to
 // match its state to targetState.
-func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, chunkService api.ChunkServiceClient, targetState *ControllerCommand) {
+func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, chunkService api.ChunkServiceClient, latestState map[uint64]api.BiosphereState, targetState *ControllerCommand) {
 	summary, err := chunkService.ChunkSummary(ctx, &api.ChunkSummaryQ{})
 	if err != nil {
 		log.Printf("Supposed-to-be-alive failed to return ChunkSummaryQ with error %v", err)
@@ -112,5 +129,7 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 			log.Printf("Some strange number (%d) of chunks found; probably some bug", len(summary.Chunks))
 			return
 		}
+	} else {
+		latestState[targetState.bsId] = api.BiosphereState_RUNNING
 	}
 }
