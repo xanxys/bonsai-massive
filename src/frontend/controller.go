@@ -46,6 +46,7 @@ func (fe *FeServiceImpl) StatefulLoop() {
 				cmd.getBiosphereStates <- frozenState
 			} else {
 				targetState = cmd
+				latestState[cmd.bsId] = api.BiosphereState_T_RUN
 			}
 		case <-time.After(10 * time.Second):
 			ctx := context.Background()

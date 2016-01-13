@@ -13,6 +13,7 @@ class Client {
         this.bs_time = bs_time;
     	this.init();
 
+        this.paused = true;
         this.refresh_data();
 
         let _this = this;
@@ -25,6 +26,13 @@ class Client {
 
     refresh_data() {
         var _this = this;
+        if (this.paused) {
+            setTimeout(()=> {
+                _this.refresh_data();
+            }, 1000);
+            return;
+        }
+
         var c_dir = this.camera.getWorldDirection();
         call_fe('biosphere_frames', {
             biosphere_id: document.biosphere_id,
@@ -176,20 +184,6 @@ $(document).ready(function() {
     document.biosphere_id = Long.fromString(
         document.location.pathname.split('/')[2], true);
 
-    $('#button_start').click(() => {
-        call_fe('change_exec', {
-            biosphere_id: document.biosphere_id,
-            target_state: 1, // RUNNING
-        }, true);
-    });
-
-    $('#button_stop').click(() => {
-        call_fe('change_exec', {
-            biosphere_id: document.biosphere_id,
-            target_state: 0, // STOPPED
-        });
-    });
-
     var bs_main = new Vue({
         el: '#header',
         data: {
@@ -203,10 +197,18 @@ $(document).ready(function() {
                 this.loading = true;
                 call_fe('biospheres', {}).done(data => {
                     this.loading = false;
-                    var name = _.find(data.biospheres, (biosphere) => {
+                    var bs = _.find(data.biospheres, (biosphere) => {
                         return document.biosphere_id.eq(biosphere.biosphere_id);
-                    }).name;
-                    bs_main.$set('biosphere_name', name);
+                    });
+                    console.log('This biosphere:', bs);
+                    if (bs.state === 1) {
+                        bs_time.is_running = true;
+                        bs_time.is_stopped = false;
+                    } else if (bs.state === 2) {
+                        bs_time.is_running = false;
+                        bs_time.is_stopped = true;
+                    }
+                    bs_main.$set('biosphere_name', bs.name);
                 });
             },
             enter: function(biosphere) {
@@ -218,6 +220,7 @@ $(document).ready(function() {
     var bs_time = new Vue({
         el: '#time',
         data: {
+            is_stopped: false,
             is_running: false,
             is_playing: false,  // only applicable when is_running.
             current_timestamp: null,
@@ -227,14 +230,75 @@ $(document).ready(function() {
             // For some reason, when I write ""() => ..." here, vue.js
             // fails to detect dependency and do not auto-update.
             play_visible: function() {
-                return !this.is_playing;
+                return this.is_running && !this.is_playing;
             },
             pause_visible: function() {
-                return this.is_playing;
+                return  this.is_running && this.is_playing;
+            },
+            processing: function() {
+                return !this.is_stopped && !this.is_running;
+            }
+        },
+        methods: {
+            start: function() {
+                var _this = this;
+                this.is_stopped = false;
+                call_fe('change_exec', {
+                    biosphere_id: document.biosphere_id,
+                    target_state: 1, // RUNNING
+                }, true).done((data) => {
+                    _this.poll_until_stable();
+                });
+            },
+            stop: function() {
+                var _this = this;
+                this.is_running = false;
+                call_fe('change_exec', {
+                    biosphere_id: document.biosphere_id,
+                    target_state: 0, // STOPPED
+                }).done((data) => {
+                    _this.poll_until_stable();
+                });
+            },
+            play: function() {
+                this.is_playing = true;
+                client.paused = false;
+            },
+            pause: function() {
+                this.is_playing = false;
+                client.paused = true;
+            },
+            poll_until_stable: function() {
+                var _this = this;
+                call_fe('biospheres', {}).done(data => {
+                    var bs = _.find(data.biospheres, (biosphere) => {
+                        return document.biosphere_id.eq(biosphere.biosphere_id);
+                    });
+                    if (bs.state === 1) {
+                        bs_time.is_running = true;
+                        bs_time.is_stopped = false;
+                    } else if (bs.state === 2) {
+                        bs_time.is_running = false;
+                        bs_time.is_stopped = true;
+                    } else if (bs.state === 3) {
+                        bs_time.is_running = false;
+                        bs_time.is_stopped = false;
+                        setTimeout(() => {
+                            _this.poll_until_stable();
+                        }, 5000);
+                    } else if (bs.state === 4) {
+                        bs_time.is_running = false;
+                        bs_time.is_stopped = false;
+                        setTimeout(() => {
+                            _this.poll_until_stable();
+                        }, 5000);
+                    }
+                });
             },
         },
     });
     bs_main.update();
 
-    new Client(bs_time).animate();
+    var client = new Client(bs_time);
+    client.animate();
 });

@@ -56,14 +56,14 @@
 				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
 					<div>
 						<h5>Time Control</h5>
+						<div v-style="vertical-align: middle" class="mdl-spinner mdl-js-spinner" v-class="is-active: processing"></div>
+						<button v-on="click: start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
+						<button v-on="click: stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
 
-						<button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="button_start">Start</button>
-						<button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="button_stop">Stop</button>
-
-						<button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_pause" v-if="pause_visible">
+						<button v-on="click: pause" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_pause" v-if="pause_visible">
 							<i class="material-icons">pause</i>
 						</button>
-						<button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_play" v-if="play_visible">
+						<button v-on="click: play" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_play" v-if="play_visible">
 							<i class="material-icons">play_arrow</i>
 						</button>
 
