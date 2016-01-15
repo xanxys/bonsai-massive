@@ -186,11 +186,9 @@ $(document).ready(function() {
 
     Vue.component('bs-time', {
         template: '#time-template',
-        props: ['biosphereName', 'loading'],
+        props: ['state'],
         data: () => {
             return {
-                is_stopped: false,
-                is_running: false,
                 is_playing: false,  // only applicable when is_running.
                 current_timestamp: null,
                 years: [],
@@ -207,28 +205,20 @@ $(document).ready(function() {
             },
             processing: function() {
                 return !this.is_stopped && !this.is_running;
+            },
+            is_running: function() {
+                return this.state === 1;
+            },
+            is_stopped: function() {
+                return this.state === 2;
             }
         },
         methods: {
             start: function() {
-                var _this = this;
-                this.is_stopped = false;
-                call_fe('change_exec', {
-                    biosphere_id: document.biosphere_id,
-                    target_state: 1, // RUNNING
-                }, true).done((data) => {
-                    _this.$parent.update();
-                });
+                this.$parent.start_server();
             },
             stop: function() {
-                var _this = this;
-                this.is_running = false;
-                call_fe('change_exec', {
-                    biosphere_id: document.biosphere_id,
-                    target_state: 0, // STOPPED
-                }).done((data) => {
-                    _this.$parent.update();
-                });
+                this.$parent.stop_server();
             },
             play: function() {
                 this.is_playing = true;
@@ -246,8 +236,29 @@ $(document).ready(function() {
         data: {
             loading: true,
             biosphere_name: "",
+            state: 0, // UNKNOWN
         },
         methods: {
+            start_server: function() {
+                var _this = this;
+                this.state = 3; // T_RUN
+                call_fe('change_exec', {
+                    biosphere_id: document.biosphere_id,
+                    target_state: 1, // RUNNING
+                }, true).done((data) => {
+                    _this.update();
+                });
+            },
+            stop_server: function() {
+                var _this = this;
+                this.state = 4; // T_STOP
+                call_fe('change_exec', {
+                    biosphere_id: document.biosphere_id,
+                    target_state: 0, // STOPPED
+                }).done((data) => {
+                    _this.update();
+                });
+            },
             // For some reason, () => doesn't work.
             update: function() {
                 var _this = this;
@@ -259,26 +270,14 @@ $(document).ready(function() {
                         return document.biosphere_id.eq(biosphere.biosphere_id);
                     });
                     console.log('This biosphere:', bs);
-                    if (bs.state === 1) {
-                        bs_time.is_running = true;
-                        bs_time.is_stopped = false;
-                    } else if (bs.state === 2) {
-                        bs_time.is_running = false;
-                        bs_time.is_stopped = true;
-                    } else if (bs.state === 3) {
-                        bs_time.is_running = false;
-                        bs_time.is_stopped = false;
-                        setTimeout(() => {
-                            _this.poll_until_stable();
-                        }, 5000);
-                    } else if (bs.state === 4) {
-                        bs_time.is_running = false;
-                        bs_time.is_stopped = false;
+                    _this.state = bs.state;
+                    _this.biosphere_name = bs.name;
+                    if (bs.state === 3 || bs.state === 4) {
+                        // Continue to reload when it's transitioning.
                         setTimeout(() => {
                             _this.poll_until_stable();
                         }, 5000);
                     }
-                    _this.biosphere_name = bs.name;
                 });
             },
         }
