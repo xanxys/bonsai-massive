@@ -14,8 +14,8 @@ class Client {
 
         let _this = this;
         $(window).resize(() => {
-            _this.renderer.setSize($('#main').width(), $('#main').height());
-            _this.camera.aspect = $('#main').width() / $('#main').height();
+            _this.renderer.setSize($('#viewport').width(), $('#viewport').height());
+            _this.camera.aspect = $('#viewport').width() / $('#viewport').height();
             _this.camera.updateProjectionMatrix();
         });
     }
@@ -152,9 +152,9 @@ class Client {
     		antialias: true
     	});
 
-    	this.renderer.setSize($('#main').width(), 600);
+    	this.renderer.setSize($('#viewport').width(), 600);
     	this.renderer.setClearColor('#eee');
-    	$('#main').append(this.renderer.domElement);
+    	$('#viewport').append(this.renderer.domElement);
 
     	// add mouse control (do this after canvas insertion)
     	this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
