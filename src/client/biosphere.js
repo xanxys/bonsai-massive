@@ -2,10 +2,6 @@
 
 var Long = dcodeIO.Long;
 
-// Separate into
-// 1. master class (holds chunk worker)
-// 1': 3D GUI class
-// 2. Panel GUI class
 class Client {
     constructor(bs_time) {
         this.debug = (location.hash === '#debug');
@@ -184,47 +180,21 @@ $(document).ready(function() {
     document.biosphere_id = Long.fromString(
         document.location.pathname.split('/')[2], true);
 
-    var bs_main = new Vue({
-        el: '#header',
-        data: {
-            loading: true,
-            biosphere_name: "",
-        },
-        methods: {
-            // For some reason, () => doesn't work.
-            update: function() {
-                var biospheres = this.biospheres;
-                this.loading = true;
-                call_fe('biospheres', {}).done(data => {
-                    this.loading = false;
-                    var bs = _.find(data.biospheres, (biosphere) => {
-                        return document.biosphere_id.eq(biosphere.biosphere_id);
-                    });
-                    console.log('This biosphere:', bs);
-                    if (bs.state === 1) {
-                        bs_time.is_running = true;
-                        bs_time.is_stopped = false;
-                    } else if (bs.state === 2) {
-                        bs_time.is_running = false;
-                        bs_time.is_stopped = true;
-                    }
-                    bs_main.$set('biosphere_name', bs.name);
-                });
-            },
-            enter: function(biosphere) {
-                console.log('entering', biosphere.biosphere_id);
-                window.location.href = '/biosphere/' + biosphere.biosphere_id;
-            }
-        }
+    Vue.component('bs-header', {
+        props: ['biosphereName', 'loading'],
     });
-    var bs_time = new Vue({
-        el: '#time',
-        data: {
-            is_stopped: false,
-            is_running: false,
-            is_playing: false,  // only applicable when is_running.
-            current_timestamp: null,
-            years: [],
+
+    Vue.component('bs-time', {
+        template: '#time-template',
+        props: ['biosphereName', 'loading'],
+        data: () => {
+            return {
+                is_stopped: false,
+                is_running: false,
+                is_playing: false,  // only applicable when is_running.
+                current_timestamp: null,
+                years: [],
+            };
         },
         computed: {
             // For some reason, when I write ""() => ..." here, vue.js
@@ -247,7 +217,7 @@ $(document).ready(function() {
                     biosphere_id: document.biosphere_id,
                     target_state: 1, // RUNNING
                 }, true).done((data) => {
-                    _this.poll_until_stable();
+                    _this.$parent.update();
                 });
             },
             stop: function() {
@@ -257,7 +227,7 @@ $(document).ready(function() {
                     biosphere_id: document.biosphere_id,
                     target_state: 0, // STOPPED
                 }).done((data) => {
-                    _this.poll_until_stable();
+                    _this.$parent.update();
                 });
             },
             play: function() {
@@ -268,12 +238,27 @@ $(document).ready(function() {
                 this.is_playing = false;
                 client.paused = true;
             },
-            poll_until_stable: function() {
+        },
+    });
+
+    var bs_main = new Vue({
+        el: 'body',
+        data: {
+            loading: true,
+            biosphere_name: "",
+        },
+        methods: {
+            // For some reason, () => doesn't work.
+            update: function() {
                 var _this = this;
+                var biospheres = this.biospheres;
+                this.loading = true;
                 call_fe('biospheres', {}).done(data => {
+                    _this.loading = false;
                     var bs = _.find(data.biospheres, (biosphere) => {
                         return document.biosphere_id.eq(biosphere.biosphere_id);
                     });
+                    console.log('This biosphere:', bs);
                     if (bs.state === 1) {
                         bs_time.is_running = true;
                         bs_time.is_stopped = false;
@@ -293,12 +278,15 @@ $(document).ready(function() {
                             _this.poll_until_stable();
                         }, 5000);
                     }
+                    _this.biosphere_name = bs.name;
                 });
             },
-        },
+        }
     });
     bs_main.update();
 
+    // TODO: Deprecate this access pattern
+    var bs_time = bs_main.$children[1];
     var client = new Client(bs_time);
     client.animate();
 });

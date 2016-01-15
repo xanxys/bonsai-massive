@@ -34,51 +34,57 @@
 </head>
 
 <body>
-	<div class="mdl-layout mdl-js-layout">
-		<header id="header" class="mdl-layout__header">
-			<div class="mdl-layout__header-row">
-				<span class="mdl-layout-title">
-					{{biosphere_name}}
-				</span>
+	<template id="time-template">
+		<div>
+			<h5>Time Control</h5>
+			<div v-style="vertical-align: middle" class="mdl-spinner mdl-js-spinner" v-class="is-active: processing"></div>
+			<button v-on="click: start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
+			<button v-on="click: stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
 
-				<div class="mdl-layout-spacer"></div>
+			<button v-on="click: pause" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_pause" v-if="pause_visible">
+				<i class="material-icons">pause</i>
+			</button>
+			<button v-on="click: play" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_play" v-if="play_visible">
+				<i class="material-icons">play_arrow</i>
+			</button>
 
-				<a class="mdl-button mdl-js-button mdl-button--icon" href="/" id="view_list_button"><i class="material-icons">view_list</i></a>
-				<div class="mdl-tooltip  mdl-tooltip--large" for="view_list_button">See other biospheres</div>
-				<div class="g-signin2" data-onsuccess="onSignIn"></div>
+			<ul>
+				<li>Current: {{current_timestamp}}</li>
+				<li>Biosphere Age: {{head_timestamp}</li>
+			</ul>
+
+			<div v-repeat="year in years">
+				<h6>Year {{year.index}}</h6>
+				<div v-repeat="sol in year.sols" class="day" v-class="active: sol.active">
+					<span>{{sol.index_in_year}}</span>
+				</div>
 			</div>
+		</div>
+	</template>
 
-			<div style="width:100%; bottom: 0px" v-show="loading" id="p2" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
-		</header>
+	<div class="mdl-layout mdl-js-layout">
+		<bs-header biosphere-name="{{biosphere_name}}" loading="{{loading}}" inline-template>
+			<header id="header" class="mdl-layout__header">
+				<div class="mdl-layout__header-row">
+					<span class="mdl-layout-title">
+						{{biosphereName}}
+					</span>
+
+					<div class="mdl-layout-spacer"></div>
+
+					<a class="mdl-button mdl-js-button mdl-button--icon" href="/" id="view_list_button"><i class="material-icons">view_list</i></a>
+					<div class="mdl-tooltip  mdl-tooltip--large" for="view_list_button">See other biospheres</div>
+					<div class="g-signin2" data-onsuccess="onSignIn"></div>
+				</div>
+
+				<div style="width:100%; bottom: 0px" v-show="loading" id="p2" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
+			</header>
+		</bs-header>
 
 		<main class="mdl-layout__content">
 			<div class="mdl-grid">
 				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
-					<div>
-						<h5>Time Control</h5>
-						<div v-style="vertical-align: middle" class="mdl-spinner mdl-js-spinner" v-class="is-active: processing"></div>
-						<button v-on="click: start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
-						<button v-on="click: stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
-
-						<button v-on="click: pause" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_pause" v-if="pause_visible">
-							<i class="material-icons">pause</i>
-						</button>
-						<button v-on="click: play" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" id="button_play" v-if="play_visible">
-							<i class="material-icons">play_arrow</i>
-						</button>
-
-						<ul>
-							<li>Current: {{current_timestamp}}</li>
-							<li>Biosphere Age: {{head_timestamp}</li>
-						</ul>
-
-						<div v-repeat="year in years">
-							<h6>Year {{year.index}}</h6>
-							<div v-repeat="sol in year.sols" class="day" v-class="active: sol.active">
-								<span>{{sol.index_in_year}}</span>
-							</div>
-						</div>
-					</div>
+					<bs-time></bs-time>
 				</div>
 				<div class="mdl-cell mdl-cell--9-col">
 					<div id="main"></div>
