@@ -263,7 +263,7 @@ $(document).ready(function() {
             update: function() {
                 var _this = this;
                 var biospheres = this.biospheres;
-                this.loading = true;
+                this.loading = (this.biosphere_name === ""); // only show UI when loading name.
                 call_fe('biospheres', {}).done(data => {
                     _this.loading = false;
                     var bs = _.find(data.biospheres, (biosphere) => {
