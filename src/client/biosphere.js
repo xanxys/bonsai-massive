@@ -42,27 +42,29 @@ class Client {
                 half_angle: this.get_cone_half_angle(),
             },
         }).done(function(data) {
-            var current_day = Math.floor(data.content_timestamp/5000);
-            var years = _.map(_.range(Math.ceil(data.content_timestamp/(5000 * 10))), (year_index) => {
-                var sol_begin = 10 * year_index;
-                var sol_end = Math.min(10 * (year_index + 1), Math.ceil(data.content_timestamp/5000));
+            if (!_this.paused) {
+                var current_day = Math.floor(data.content_timestamp/5000);
+                var years = _.map(_.range(Math.ceil(data.content_timestamp/(5000 * 10))), (year_index) => {
+                    var sol_begin = 10 * year_index;
+                    var sol_end = Math.min(10 * (year_index + 1), Math.ceil(data.content_timestamp/5000));
 
-                var sols = _.map(_.range(sol_begin, sol_end), (sol_index) => {
+                    var sols = _.map(_.range(sol_begin, sol_end), (sol_index) => {
+                        return {
+                            "index": sol_index,
+                            "index_in_year": sol_index % 10,
+                            "active": sol_index === current_day
+                        };
+                    });
                     return {
-                        "index": sol_index,
-                        "index_in_year": sol_index % 10,
-                        "active": sol_index === current_day
+                        "index": year_index,
+                        "sols": sols,
                     };
                 });
-                return {
-                    "index": year_index,
-                    "sols": sols,
-                };
-            });
 
-            _this.bs_time.$set('current_timestamp', data.content_timestamp);
-            _this.bs_time.$set('years', years);
-            _this.on_frame_received(data);
+                _this.bs_time.$set('current_timestamp', data.content_timestamp);
+                _this.bs_time.$set('years', years);
+                _this.on_frame_received(data);
+            }
             _this.refresh_data();
         });
     }
