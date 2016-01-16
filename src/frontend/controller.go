@@ -31,24 +31,27 @@ func (fe *FeServiceImpl) StatefulLoop() {
 	log.Println("Starting stateful loop")
 	var targetState *ControllerCommand
 	latestState := make(map[uint64]api.BiosphereState)
+	infTicks := time.Tick(10 * time.Second)
 	for {
 		select {
 		case cmd := <-fe.cmdQueue:
-			log.Printf("Received controller command: %v", cmd)
 			if cmd == nil {
+				log.Printf("Received nil command")
 				targetState = nil
 				latestState = make(map[uint64]api.BiosphereState)
 			} else if cmd.getBiosphereStates != nil {
+				log.Printf("Received getBiosphereStates")
 				frozenState := make(map[uint64]api.BiosphereState)
 				for k, v := range latestState {
 					frozenState[k] = v
 				}
 				cmd.getBiosphereStates <- frozenState
 			} else {
+				log.Printf("Received controller command: %v", cmd)
 				targetState = cmd
 				latestState[cmd.bsId] = api.BiosphereState_T_RUN
 			}
-		case <-time.After(10 * time.Second):
+		case <-infTicks:
 			ctx := context.Background()
 			fe.applyDelta(ctx, latestState, targetState)
 		}
