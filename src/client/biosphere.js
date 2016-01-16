@@ -275,7 +275,7 @@ $(document).ready(function() {
                     if (bs.state === 3 || bs.state === 4) {
                         // Continue to reload when it's transitioning.
                         setTimeout(() => {
-                            _this.poll_until_stable();
+                            _this.update();
                         }, 5000);
                     }
                 });
