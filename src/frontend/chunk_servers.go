@@ -20,6 +20,9 @@ func (fe *FeServiceImpl) GetChunkServerInstances(ctx context.Context) ([]*comput
 
 	var chunkServers []*compute.Instance
 	for _, instance := range list.Items {
+		if instance.Status == "TERMINATED" {
+			continue
+		}
 		metadata := make(map[string]string)
 		for _, item := range instance.Metadata.Items {
 			metadata[item.Key] = *item.Value
