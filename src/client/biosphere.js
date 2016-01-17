@@ -138,16 +138,7 @@ class Client {
     		}));
     	this.scene.add(bg);
 
-        let box = new THREE.Mesh(
-    		new THREE.CubeGeometry(1, 1, 2),
-    		new THREE.MeshBasicMaterial({
-    			wireframe: true,
-    			color: '#fcc'
-    		}));
-        box.position.x = 0.5;
-        box.position.y = 0.5;
-        box.position.z = 1;
-    	this.scene.add(box);
+        this.construct_frames(3, 2);
 
     	// start canvas
     	this.renderer = new THREE.WebGLRenderer({
@@ -164,6 +155,62 @@ class Client {
 		this.controls.noPan = false;
         let _this = this;
     	this.controls.maxDistance = 15;
+    }
+
+    construct_frames(nx, ny) {
+        _.each(_.range(nx), (ix) => {
+            _.each(_.range(ny), (iy) => {
+                let box = new THREE.Mesh(
+                    new THREE.CubeGeometry(1, 1, 2),
+                    new THREE.MeshBasicMaterial({
+                        wireframe: true,
+                        color: '#fcc'
+                    }));
+                    box.position.x = 0.5 + ix;
+                    box.position.y = 0.5 + iy;
+                    box.position.z = 1;
+                    this.scene.add(box);
+            });
+        });
+
+        _.each(_.range(nx), (ix) => {
+            _.each(_.range(ny), (iy) => {
+                let box = new THREE.Mesh(
+                    new THREE.CubeGeometry(0.92, 0.92, 0.02),
+                    new THREE.MeshBasicMaterial({
+                        color: '#ccc',
+                        transparent: true,
+                        opacity: 0.5,
+                    }));
+                    box.position.x = 0.5 + ix;
+                    box.position.y = 0.5 + iy;
+                    box.position.z = -0.02;
+                    this.scene.add(box);
+            });
+        });
+
+        _.each(_.range(nx + 1), (ix) => {
+            let box = new THREE.Mesh(
+                new THREE.CubeGeometry(0.03, ny, 0.03),
+                new THREE.MeshBasicMaterial({
+                    color: '#888'
+                }));
+                box.position.x = ix;
+                box.position.y = ny / 2;
+                box.position.z = -0.02;
+                this.scene.add(box);
+        });
+        _.each(_.range(ny + 1), (iy) => {
+            let box = new THREE.Mesh(
+                new THREE.CubeGeometry(nx, 0.03, 0.03),
+                new THREE.MeshBasicMaterial({
+                    color: '#888'
+                }));
+                box.position.x = nx / 2;
+                box.position.y = iy;
+                box.position.z = -0.02;
+                this.scene.add(box);
+        });
     }
 
     /* UI Utils */
