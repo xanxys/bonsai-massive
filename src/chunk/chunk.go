@@ -39,6 +39,9 @@ type Grain struct {
 	// A unique id (for entire life of a biosphere) to track identity of grain.
 	Id uint64
 
+	// Cell-specific internals.
+	CellProp *api.CellProp
+
 	// Temporary buffer to store intermediate position during Step().
 	positionNew Vec3f
 }
@@ -362,11 +365,34 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *ChunkWall) []*Grain {
 	accel := Vec3f{0, 0, -1}
 
-	// Emit new particles.
+	// Emit new particles & accept incoming grains.
 	for _, source := range world.Sources {
 		world.Grains = append(world.Grains, source.MaybeEmit(world.Timestamp)...)
 	}
 	world.Grains = append(world.Grains, inGrains...)
+
+	// Biological / chemical process.
+	for _, grain := range world.Grains {
+		if grain.Kind != api.Grain_CELL {
+			continue
+		}
+		for _, gene := range grain.CellProp.Genome {
+			actProb := float32(1.0)
+			for _, act := range gene.Activator {
+				actProb *= 1 - powInt(0.5, uint(grain.CellProp.Quals[act]))
+			}
+			gene.ActivationCount += uint32(actProb * 1000)
+			if gene.ActivationCount >= 1000 {
+				gene.ActivationCount = 0
+				for _, prod := range gene.Products {
+					grain.CellProp.Quals[prod] = 1 + grain.CellProp.Quals[prod]
+				}
+			}
+		}
+	}
+
+	// We won't add new grains in this step, so we can safely append env grains
+	// which will be removed later in Step.
 	world.Grains = append(world.Grains, envGrains...)
 
 	// Apply gravity & velocity.
