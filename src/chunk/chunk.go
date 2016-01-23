@@ -49,12 +49,18 @@ type Grain struct {
 func NewGrain(kind api.Grain_Kind, initialPos Vec3f) *Grain {
 	// It's no longer safe to issue ids randomly when we issue more than a few
 	// million ids. But for now, it's ok.
-	return &Grain{
+	grain := &Grain{
 		Kind:     kind,
 		Position: initialPos,
 		Velocity: NewVec3f0(),
 		Id:       uint64(rand.Uint32())<<32 | uint64(rand.Uint32()),
 	}
+	if kind == api.Grain_CELL {
+		grain.CellProp = &api.CellProp{
+			Quals: make(map[string]int32),
+		}
+	}
+	return grain
 }
 
 // Return b^exp. Takes O(log(exp)) time.

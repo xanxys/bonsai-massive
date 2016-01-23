@@ -139,7 +139,7 @@ message Grain {
     Kind kind = 2;
 
     // Available iff kind == CELL.
-    CellProp cell = 5;
+    CellProp cell_prop = 5;
 }
 
 // Self-replicating blackbox. Cell has fuzzy sphere-like shape and emits/absorbs

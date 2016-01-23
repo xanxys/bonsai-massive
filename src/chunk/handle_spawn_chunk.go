@@ -138,6 +138,7 @@ func deser(grain *api.Grain) *Grain {
 		Position: Vec3f{p.X, p.Y, p.Z},
 		Velocity: Vec3f{v.X, v.Y, v.Z},
 		Kind:     grain.Kind,
+		CellProp: grain.CellProp,
 	}
 }
 
@@ -145,10 +146,11 @@ func ser(grain *Grain) *api.Grain {
 	p := grain.Position
 	v := grain.Velocity
 	return &api.Grain{
-		Id:   grain.Id,
-		Pos:  &api.CkPosition{p.X, p.Y, p.Z},
-		Vel:  &api.CkVelocity{v.X, v.Y, v.Z},
-		Kind: grain.Kind,
+		Id:       grain.Id,
+		Pos:      &api.CkPosition{p.X, p.Y, p.Z},
+		Vel:      &api.CkVelocity{v.X, v.Y, v.Z},
+		Kind:     grain.Kind,
+		CellProp: grain.CellProp,
 	}
 }
 
