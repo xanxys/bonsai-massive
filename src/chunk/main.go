@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"syscall"
 )
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 		}
 		defer f.Close()
 		log.SetOutput(f)
+		syscall.Dup2(int(f.Fd()), 2) // stderr
 		log.Printf("Writing to $LOG_PATH=%s\n", logPath)
 	}
 
