@@ -58,6 +58,9 @@ func NewGrain(kind api.Grain_Kind, initialPos Vec3f) *Grain {
 	if kind == api.Grain_CELL {
 		grain.CellProp = &api.CellProp{
 			Quals: make(map[string]int32),
+			Cycle: &api.CellProp_Cycle{
+				IsDividing: false,
+			},
 		}
 	}
 	return grain
@@ -395,6 +398,19 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 				}
 			}
 		}
+		if grain.CellProp.Cycle.IsDividing {
+			grain.CellProp.Cycle.DivisionCount++
+			if grain.CellProp.Cycle.DivisionCount > 1000 {
+				log.Printf("Cell %d divided", grain.Id)
+				grain.CellProp.Cycle.IsDividing = false
+			}
+		} else {
+			if grain.CellProp.Quals["zd"] > 0 {
+				grain.CellProp.Cycle.IsDividing = true
+				grain.CellProp.Cycle.DivisionCount = 0
+			}
+		}
+
 	}
 
 	// We won't add new grains in this step, so we can safely append env grains
