@@ -26,20 +26,15 @@ func (fe *FeServiceImpl) Debug(ctx context.Context, q *api.DebugQ) (*api.DebugS,
 			IpAddress: ip,
 			Health:    api.DebugS_ALLOCATED,
 		}
-		conn, ok := fe.chunkServices[instance.Name]
-		if !ok {
-			connStart := time.Now()
-			conn, err = grpc.Dial(fmt.Sprintf("%s:9000", ip),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(500*time.Millisecond))
-			if err != nil {
-				serverState.State = fmt.Sprintf("%v", err)
-			} else {
-				defer conn.Close()
-				log.Printf("grpc dial took: %f second", float32(time.Since(connStart))*1e-9)
-
-				log.Printf("Connection to %s (%s) established, caching it.", instance.Name, ip)
-				fe.chunkServices[instance.Name] = conn
-			}
+		connStart := time.Now()
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(500*time.Millisecond))
+		if err != nil {
+			serverState.State = fmt.Sprintf("%v", err)
+		} else {
+			defer conn.Close()
+			log.Printf("grpc dial took: %f second", float32(time.Since(connStart))*1e-9)
+			log.Printf("Connection to %s (%s) established.", instance.Name, ip)
 		}
 
 		if conn != nil {
