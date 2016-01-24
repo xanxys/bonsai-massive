@@ -66,6 +66,25 @@ func NewGrain(kind api.Grain_Kind, initialPos Vec3f) *Grain {
 	return grain
 }
 
+// Create an imperfect clone of given cell.
+func (parent *Grain) CloneCell() *Grain {
+	if parent.Kind != api.Grain_CELL {
+		log.Panicf("Expecting cell grain, got %#v", parent)
+	}
+	return &Grain{
+		Kind:     api.Grain_CELL,
+		Position: parent.Position,
+		Velocity: parent.Velocity.MultS(0.5),
+		Id:       uint64(rand.Uint32())<<32 | uint64(rand.Uint32()),
+		CellProp: &api.CellProp{
+			Quals: make(map[string]int32),
+			Cycle: &api.CellProp_Cycle{
+				IsDividing: false,
+			},
+		},
+	}
+}
+
 // Return b^exp. Takes O(log(exp)) time.
 func powInt(b float32, exp uint) float32 {
 	power := b
@@ -380,7 +399,8 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	}
 	world.Grains = append(world.Grains, inGrains...)
 
-	// Biological / chemical process.
+	// Biological / chemical process (might emit new grain when dividing).
+	var cloned []*Grain
 	for _, grain := range world.Grains {
 		if grain.Kind != api.Grain_CELL {
 			continue
@@ -403,6 +423,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 			if grain.CellProp.Cycle.DivisionCount > 1000 {
 				log.Printf("Cell %d divided", grain.Id)
 				grain.CellProp.Cycle.IsDividing = false
+				cloned = append(cloned, grain.CloneCell())
 			}
 		} else {
 			if grain.CellProp.Quals["zd"] > 0 {
@@ -410,10 +431,10 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 				grain.CellProp.Cycle.DivisionCount = 0
 			}
 		}
-
 	}
+	world.Grains = append(world.Grains, cloned...)
 
-	// We won't add new grains in this step, so we can safely append env grains
+	// We won't add / remove grains in this Step anymore, so we can safely append env grains
 	// which will be removed later in Step.
 	world.Grains = append(world.Grains, envGrains...)
 
