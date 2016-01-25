@@ -1,6 +1,7 @@
 syntax="proto3";
+// Proto that can be only used in frontend and client.
 package api;
-
+import "proto/common.proto";
 
 // Client-Frontend worst connection assumption
 // * bandwidth: 1 MB/s
@@ -127,20 +128,38 @@ message BiosphereFramesQ {
     // but things within cone will be rendered mostly same.
     // Everything outside might or might not be dropped.
     //
-    // Render everything uniform if not set.
+    // Render everything uniformly if not set.
     OrientedCone visible_region = 5;
 
     bytes cont_token = 1;
     reserved 3;
 }
 
-// TODO: Level of details sharding
+// Next ID: 6
 message BiosphereFramesS {
-    PolySoup content = 1;
     uint64 content_timestamp = 3;
+
+    PolySoup content = 1;
+    BiosphereStat stat = 4;
+    repeated CellStat cells = 5;
+
     bytes cont_token = 2;
 }
 
+// Spatial dimensions must be completely squashed.
+message BiosphereStat {
+    int32 num_water = 1;
+    int32 num_soil = 2;
+    int32 num_cell = 3;
+}
+
+// Human-friendly cell internal representation.
+message CellStat {
+    CellProp prop = 1;
+    float px = 2;
+    float py = 3;
+    float pz = 4;
+}
 
 message BiospheresQ {
     UserAuth auth = 1;

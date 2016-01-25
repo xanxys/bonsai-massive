@@ -4,9 +4,10 @@ genrule(
     name = "proto_go_src",
     srcs = [
         "chunk.proto",
+        "common.proto",
         "frontend.proto",
     ],
-    outs = ["chunk.pb.go", "frontend.pb.go"],
+    outs = ["chunk.pb.go", "common.pb.go", "frontend.pb.go"],
     local=1,
     cmd = "protoc --go_out=plugins=grpc:$$(dirname $(@D)) $(SRCS)",
 )

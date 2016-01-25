@@ -62,6 +62,7 @@ func NewGrain(kind api.Grain_Kind, initialPos Vec3f) *Grain {
 				IsDividing: false,
 			},
 		}
+		grain.CellProp.Quals["zd"] = 1
 	}
 	return grain
 }

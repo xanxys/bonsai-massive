@@ -1,0 +1,57 @@
+syntax="proto3";
+package api;
+
+// Self-replicating blackbox. Cell has fuzzy sphere-like shape and emits/absorbs
+// other grains. Cell doesn't have rotation or angular velocity.
+//
+// Mass is 1 (base) +
+// Next ID: 7
+message CellProp {
+    // A qual is modeled after proteins.
+    // Quals can only exist in Cells, and type of a qual is completely
+    // determined by a string of non-empty lowercase alphabet. (e.g. "a", "zsx")
+    //
+    // Certain quals has effect on cell division and interaction with environment.
+    // (TBD)
+    //
+    // quals stores counts of each qual in this cell. 0 quals must not be serialized.
+    // Total count must be <= 32.
+    //
+    // Mass of quals is 0.
+    //
+    // Optical property is determined by hash of quals.
+    //
+    // Intrinsic quals:
+    // * zq: Light -> energy converter (chloroplast)
+    // * zw: Increase affinity with WATER
+    // * zs: Increase affinity with SOIL
+    // * zc: Increase affinity with CELL
+    map<string, int32> quals = 4;
+
+    // Mass of genome is 0.
+    message Gene {
+        // activation_count += int(Product(1-0.5^#matches_i)_i * 1000.0)
+        repeated string activator = 1;
+        // Non-empty quals.
+        repeated string products = 2;
+
+        // When this become >= 1000, produces are produced and count is
+        // reset to 0.
+        uint32 activation_count = 3;
+    }
+    repeated Gene genome = 5;
+
+    // Division cycle.
+    // N: neutral
+    // D: dividing
+    // N -> D is triggered by presence of: "zd"
+    // D -> N: happens automatically as division_count increases.
+    message Cycle {
+        bool is_dividing = 1;
+        // Only present when is_dividing.
+        int32 division_count = 2;
+    }
+    Cycle cycle = 3;
+
+    reserved 1, 2;
+}
