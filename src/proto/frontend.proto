@@ -7,27 +7,25 @@ import "proto/common.proto";
 // * bandwidth: 1 MB/s
 // * latency: 100ms RTT
 // * failure rate: once in hour
+//
+// Endpoint name must be "/api/" + snake_case version of rpc name.
+// e.g. "AddBiosphere" -> "/api/add_biosphere"
 service FrontendService {
     // Debugging info for entire stack (can break abstraction).
-    // Endpoint: /api/debug
     rpc Debug(DebugQ) returns (DebugS);
 
     // Administrative, read-only.
-    // Endpoint: /api/biospheres
     rpc Biospheres(BiospheresQ) returns (BiospheresS);
 
     // Administrative, write.
-    // Endpoint: /api/add_biosphere
     rpc AddBiosphere(AddBiosphereQ) returns (AddBiosphereS);
 
     // Change execution state of a biosphere.
     // Intentionally kept simple for "emergency shutdown" to reliably work,
     // regardless of other RPCs.
-    // Endpoint: /api/change_exec
     rpc ChangeExec(ChangeExecQ) returns (ChangeExecS);
 
     // Biosphere streaming.
-    // Endpoint: /api/biosphere_frames
     rpc BiosphereFrames(BiosphereFramesQ) returns (BiosphereFramesS);
 }
 
