@@ -154,9 +154,8 @@ message BiosphereStat {
 // Human-friendly cell internal representation.
 message CellStat {
     CellProp prop = 1;
-    float px = 2;
-    float py = 3;
-    float pz = 4;
+    Vec3f pos = 5;
+    reserved 2, 3, 4;
 }
 
 message BiospheresQ {

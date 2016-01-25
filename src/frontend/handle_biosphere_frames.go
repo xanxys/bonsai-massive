@@ -59,8 +59,10 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		maybeCone = NewCone(q.VisibleRegion)
 	}
 	return &api.BiosphereFramesS{
-		Content:          snapshotToMesh(maybeCone, bsTopo, resp.Snapshot).Serialize(),
 		ContentTimestamp: resp.Timestamp,
+		Content:          snapshotToMesh(maybeCone, bsTopo, resp.Snapshot).Serialize(),
+		Stat:             snapshotToStat(resp.Snapshot),
+		Cells:            snapshotToCellStats(bsTopo, resp.Snapshot),
 	}, nil
 }
 
@@ -93,6 +95,42 @@ func snapshotToMesh(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot 
 	}
 	log.Printf("Mesh serializer: %d grains dropped (%f %%)", countDropped, float32(countDropped)/float32(countTotal)*100)
 	return mesh
+}
+
+func snapshotToStat(snapshot map[string]*api.ChunkSnapshot) *api.BiosphereStat {
+	stat := &api.BiosphereStat{}
+	for _, chunkSnapshot := range snapshot {
+		for _, grain := range chunkSnapshot.Grains {
+			switch grain.Kind {
+			case api.Grain_WATER:
+				stat.NumWater++
+			case api.Grain_SOIL:
+				stat.NumSoil++
+			case api.Grain_CELL:
+				stat.NumCell++
+			}
+		}
+	}
+	return stat
+}
+
+func snapshotToCellStats(bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) []*api.CellStat {
+	offsets := bsTopo.GetGlobalOffsets()
+	var cells []*api.CellStat
+	for chunkId, chunkSnapshot := range snapshot {
+		offset := offsets[chunkId]
+		for _, grain := range chunkSnapshot.Grains {
+			if grain.Kind != api.Grain_CELL {
+				continue
+			}
+			p := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}.Add(offset)
+			cells = append(cells, &api.CellStat{
+				Prop: grain.CellProp,
+				Pos:  &api.Vec3F{p.X, p.Y, p.Z},
+			})
+		}
+	}
+	return cells
 }
 
 // Wrapper of api.OrientedCone.

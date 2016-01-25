@@ -55,3 +55,11 @@ message CellProp {
 
     reserved 1, 2;
 }
+
+// Generic 3D vector in R^3.
+// Element must not be NaN or inf, but otherwise, there's not restriction.
+message Vec3f {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
