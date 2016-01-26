@@ -3,9 +3,10 @@
 var Long = dcodeIO.Long;
 
 class Client {
-    constructor(bs_time) {
+    constructor(bs_main, bs_time) {
         this.debug = (location.hash === '#debug');
         this.timestamp = 0;
+        this.bs_main = bs_main;
         this.bs_time = bs_time;
     	this.init();
 
@@ -63,6 +64,16 @@ class Client {
 
                 _this.bs_time.$set('current_timestamp', data.content_timestamp);
                 _this.bs_time.$set('years', years);
+                _this.bs_main.stats = JSON.stringify({
+                    "stat": data.stat,
+                    "cells": _.map(data.cells, (cell) => {
+                        return {
+                            cycle: cell.prop.cycle,
+                            genome: cell.prop.genome,
+                            quals: cell.prop.quals.map,
+                        };
+                    }),
+                }, null, '  ');
                 _this.on_frame_received(data);
             }
             _this.refresh_data();
@@ -233,6 +244,10 @@ $(document).ready(function() {
         props: ['biosphereName', 'loading'],
     });
 
+    Vue.component('bs-inspector', {
+        props: ['stats'],
+    });
+
     Vue.component('bs-time', {
         template: '#time-template',
         props: ['state'],
@@ -286,6 +301,7 @@ $(document).ready(function() {
             loading: true,
             biosphere_name: "",
             state: 0, // UNKNOWN
+            stats: "",
         },
         methods: {
             start_server: function() {
@@ -335,6 +351,6 @@ $(document).ready(function() {
 
     // TODO: Deprecate this access pattern
     var bs_time = bs_main.$children[1];
-    var client = new Client(bs_time);
+    var client = new Client(bs_main, bs_time);
     client.animate();
 });
