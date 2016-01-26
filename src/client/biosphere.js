@@ -64,16 +64,15 @@ class Client {
 
                 _this.bs_time.$set('current_timestamp', data.content_timestamp);
                 _this.bs_time.$set('years', years);
-                _this.bs_main.stats = JSON.stringify({
-                    "stat": data.stat,
-                    "cells": _.map(data.cells, (cell) => {
+                _this.bs_main.update_composition(data.stat);
+                _this.bs_main.stats = JSON.stringify(
+                    _.map(data.cells, (cell) => {
                         return {
                             cycle: cell.prop.cycle,
                             genome: cell.prop.genome,
                             quals: cell.prop.quals.map,
                         };
-                    }),
-                }, null, '  ');
+                    }), null, '  ');
                 _this.on_frame_received(data);
             }
             _this.refresh_data();
@@ -240,6 +239,8 @@ $(document).ready(function() {
     document.biosphere_id = Long.fromString(
         document.location.pathname.split('/')[2], true);
 
+    google.charts.load("current", {packages:["corechart"]});
+
     Vue.component('bs-header', {
         props: ['biosphereName', 'loading'],
     });
@@ -344,6 +345,19 @@ $(document).ready(function() {
                         }, 5000);
                     }
                 });
+            },
+            update_composition: function(stat) {
+                var arr = [['Kind', '#grains']];
+                arr = arr.concat(_.map(stat, (num, kind) => {return [kind, num];}));
+                var data = google.visualization.arrayToDataTable(arr);
+
+                var options = {
+                    title: 'Composition',
+                    pieHole: 0.4,
+                };
+
+                var chart = new google.visualization.PieChart($('#grain_composition')[0]);
+                chart.draw(data, options);
             },
         }
     });
