@@ -87,8 +87,14 @@
 				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
 					<bs-time state={{state}}></bs-time>
 				</div>
-				<div class="mdl-cell mdl-cell--9-col">
+				<div class="viewport-container mdl-cell mdl-cell--9-col mdl-card mdl-shadow--2dp">
 					<div id="viewport"></div>
+					<button v-show="!inspecting" v-on="click: enter_inspect" class="viewport-overlay mdl-button mdl-js-button mdl-js-ripple-effect">
+						<i class="material-icons">search</i>INSPECT
+					</button>
+					<button v-show="inspecting" v-on="click: exit_inspect" class="viewport-overlay mdl-button mdl-js-button mdl-js-ripple-effect" style="color: white">
+						<i class="material-icons">close</i>
+					</button>
 				</div>
 			</div>
 			<div class="mdl-grid">

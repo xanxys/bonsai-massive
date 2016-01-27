@@ -79,6 +79,14 @@ class Client {
         });
     }
 
+    set_inspeting(inspecting) {
+        if (inspecting) {
+            this.renderer.setClearColor('#888');
+        } else {
+            this.renderer.setClearColor('#eee');
+        }
+    }
+
     // Get half angle of cone that contains camera. The angle is same as
     // diagonal fov / 2, in radians.
     get_cone_half_angle() {
@@ -307,6 +315,7 @@ $(document).ready(function() {
             biosphere_name: "",
             state: 0, // UNKNOWN
             stats: "",
+            inspecting: false,
         },
         methods: {
             start_server: function() {
@@ -360,6 +369,14 @@ $(document).ready(function() {
                 };
                 var chart = new google.visualization.PieChart($('#grain_composition')[0]);
                 chart.draw(data, options);
+            },
+            enter_inspect: function() {
+                this.inspecting = true;
+                client.set_inspeting(this.inspecting);
+            },
+            exit_inspect: function() {
+                this.inspecting = false;
+                client.set_inspeting(this.inspecting);
             },
         }
     });

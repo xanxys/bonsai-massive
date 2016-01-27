@@ -3,6 +3,7 @@ body {
 }
 
 /* Avoid size change between loading -> load finished. */
+
 #time > div {
     padding: 8px;
 }
@@ -22,4 +23,12 @@ body {
 .day.active {
     background-color: #E91E63;
     color: white;
+}
+.viewport-container {
+    position: relative;
+}
+.viewport-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
 }
