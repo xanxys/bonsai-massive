@@ -245,6 +245,10 @@ $(document).ready(function() {
         props: ['biosphereName', 'loading'],
     });
 
+    Vue.component('bs-composition', {
+        props: ['stats'],
+    });
+
     Vue.component('bs-inspector', {
         props: ['stats'],
     });
@@ -350,12 +354,10 @@ $(document).ready(function() {
                 var arr = [['Kind', '#grains']];
                 arr = arr.concat(_.map(stat, (num, kind) => {return [kind, num];}));
                 var data = google.visualization.arrayToDataTable(arr);
-
                 var options = {
                     title: 'Composition',
                     pieHole: 0.4,
                 };
-
                 var chart = new google.visualization.PieChart($('#grain_composition')[0]);
                 chart.draw(data, options);
             },
