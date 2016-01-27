@@ -13,6 +13,15 @@ class Client {
         this.paused = true;
         this.refresh_data();
 
+        this.cells_proxy_data = null;
+        this.cells_proxy_object = null;
+        let geometry = new THREE.CylinderGeometry(0.01, 0.01, 0.5);
+        let material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+        this.cursor = new THREE.Mesh(geometry, material);
+        this.cursor.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+        this.cursor.visible = false;
+        this.scene.add(this.cursor);
+
         let _this = this;
         $(window).resize(() => {
             _this.renderer.setSize($('#viewport').width(), $('#viewport').height());
@@ -65,14 +74,7 @@ class Client {
                 _this.bs_time.$set('current_timestamp', data.content_timestamp);
                 _this.bs_time.$set('years', years);
                 _this.bs_main.update_composition(data.stat);
-                _this.bs_main.stats = JSON.stringify(
-                    _.map(data.cells, (cell) => {
-                        return {
-                            cycle: cell.prop.cycle,
-                            genome: cell.prop.genome,
-                            quals: cell.prop.quals.map,
-                        };
-                    }), null, '  ');
+                _this.cells_proxy_data = data.cells;
                 _this.on_frame_received(data);
             }
             _this.refresh_data();
@@ -80,11 +82,56 @@ class Client {
     }
 
     set_inspeting(inspecting) {
+        let _this = this;
         if (inspecting) {
             this.renderer.setClearColor('#888');
+            if (this.cells_proxy_data === null) {
+                return;
+            }
+            this.cells_proxy_object = new THREE.Object3D();
+            _.each(this.cells_proxy_data, (cell_data, cell_ix) => {
+                let geom = new THREE.SphereGeometry(0.05, 3, 2);
+                let mat = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+                let sphere = new THREE.Mesh( geom, mat );
+                sphere.cell_ix = cell_ix;
+                sphere.position.set(cell_data.pos.x, cell_data.pos.y, cell_data.pos.z);
+                this.cells_proxy_object.add(sphere);
+            }, this);
+            this.scene.add(this.cells_proxy_object);
+
+            $('#viewport').on('mousemove', (ev) => {
+                let raycaster = new THREE.Raycaster();
+                let mouse = new THREE.Vector2();
+                mouse.x = ( event.offsetX / ev.toElement.width ) * 2 - 1;
+                mouse.y = - ( event.offsetY / ev.toElement.height ) * 2 + 1;
+                raycaster.setFromCamera(mouse, _this.camera);
+                let isects = raycaster.intersectObject(_this.cells_proxy_object, true);
+                if (isects.length > 0) {
+                    let cell_data = _this.cells_proxy_data[isects[0].object.cell_ix];
+                    _this.notify_cell_selection(cell_data);
+
+                    _this.cursor.visible = true;
+                    _this.cursor.position.set(cell_data.pos.x, cell_data.pos.y, cell_data.pos.z + 0.25);
+                }
+            });
         } else {
             this.renderer.setClearColor('#eee');
+            $('#viewport').off('mousemove');
+            if (this.cells_proxy_object !== null) {
+                this.scene.remove(this.cells_proxy_object);
+                this.cells_proxy_object = null;
+            }
+            _this.cursor.visible = false;
         }
+    }
+
+    notify_cell_selection(cell_data) {
+        this.bs_main.stats =
+            JSON.stringify({
+                cycle: cell_data.prop.cycle,
+                genome: cell_data.prop.genome,
+                quals: cell_data.prop.quals.map,
+            }, null, '  ');
     }
 
     // Get half angle of cone that contains camera. The angle is same as
