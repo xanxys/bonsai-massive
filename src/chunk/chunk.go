@@ -2,6 +2,7 @@ package main
 
 import (
 	"./api"
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
@@ -74,7 +75,7 @@ func (parent *Grain) CloneCell() *Grain {
 	}
 	return &Grain{
 		Kind:     api.Grain_CELL,
-		Position: parent.Position,
+		Position: parent.Position.Sub(parent.Velocity.Normalized().MultS(0.01)),
 		Velocity: parent.Velocity.MultS(0.5),
 		Id:       uint64(rand.Uint32())<<32 | uint64(rand.Uint32()),
 		CellProp: &api.CellProp{
@@ -175,6 +176,8 @@ type GrainChunk struct {
 	Grains    []*Grain
 	Sources   []*ParticleSource
 	Timestamp uint64
+	// Enable error checking. This will cause a few times slowdown.
+	checkErrors bool
 }
 
 // True: wall exists
@@ -185,7 +188,8 @@ type ChunkWall struct {
 
 func NewGrainChunk() *GrainChunk {
 	return &GrainChunk{
-		Timestamp: 0,
+		Timestamp:   0,
+		checkErrors: true,
 	}
 }
 
@@ -421,7 +425,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 		}
 		if grain.CellProp.Cycle.IsDividing {
 			grain.CellProp.Cycle.DivisionCount++
-			if grain.CellProp.Cycle.DivisionCount > 1000 {
+			if grain.CellProp.Cycle.DivisionCount > 1000 && grain.Velocity.LengthSq() > 0 {
 				log.Printf("Cell %d divided", grain.Id)
 				grain.CellProp.Cycle.IsDividing = false
 				cloned = append(cloned, grain.CloneCell())
@@ -446,6 +450,9 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	// Index spatially.
 	neighbors := world.IndexNeighbors(h)
 
+	if world.checkErrors {
+		world.verifyFinite("before iteration")
+	}
 	// Iteratively resolve collisions & constraints.
 	for iter := 0; iter < num_iter; iter++ {
 		for ix, _ := range world.Grains {
@@ -503,6 +510,9 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 				}
 			}
 		}
+		if world.checkErrors {
+			world.verifyFinite(fmt.Sprintf("after iteration %d", iter))
+		}
 	}
 	// Force no-escape-through-wall.
 	for _, grain := range world.Grains {
@@ -525,6 +535,9 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 			}
 		}
 	}
+	if world.checkErrors {
+		world.verifyFinite("after wall enforcement")
+	}
 
 	// We don't need envGrains any more. Throw them away.
 	world.Grains = world.Grains[0 : len(world.Grains)-len(envGrains)]
@@ -534,6 +547,9 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	for _, grain := range world.Grains {
 		grain.Velocity = grain.positionNew.Sub(grain.Position).MultS(1.0 / dt)
 		grain.Position = grain.positionNew
+	}
+	if world.checkErrors {
+		world.verifyFinite("after v/p update")
 	}
 
 	internalGrains := make([]*Grain, 0)
@@ -549,4 +565,17 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	world.Grains = internalGrains
 	world.Timestamp++
 	return externalGrains
+}
+
+func (world *GrainChunk) verifyFinite(context string) {
+	for _, grain := range world.Grains {
+		if !isFiniteVec(grain.Velocity) || !isFiniteVec(grain.Position) || !isFiniteVec(grain.positionNew) {
+			log.Panicf("NaN observed in %#v at %d, %s", grain, world.Timestamp, context)
+		}
+	}
+}
+
+func isFiniteVec(v Vec3f) bool {
+	return !(math.IsNaN(float64(v.X)) || math.IsNaN(float64(v.Y)) || math.IsNaN(float64(v.Z)) ||
+		math.IsInf(float64(v.X), 0) || math.IsInf(float64(v.Y), 0) || math.IsInf(float64(v.Z), 0))
 }
