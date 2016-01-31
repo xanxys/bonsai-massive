@@ -38,9 +38,9 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
 		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, int(q.NumSoil), Vec3f{0.5, 0.5, 2.0}))
 	}
 	if q.NumWater > 0 {
-		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_WATER, int(q.NumWater), Vec3f{0.5, 0.5, 2.0}))
+		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_WATER, int(q.NumWater), Vec3f{0.5, 0.55, 2.1}))
 	}
-	chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_CELL, int(10), Vec3f{0.5, 0.5, 2.0}))
+	chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_CELL, int(10), Vec3f{0.55, 0.5, 2.2}))
 
 	if !router.RegisterNewChunk(topo) {
 		log.Printf("RunChunk(%s) exiting because it's already running", topo.ChunkId)

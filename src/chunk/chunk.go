@@ -466,8 +466,15 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 
 				for _, grad := range constraint.Grads {
 					world.Grains[grad.grainIndex].positionNew = world.Grains[grad.grainIndex].positionNew.Add(grad.grad.MultS(scale))
+					if world.checkErrors && !isFiniteVec(world.Grains[grad.grainIndex].positionNew) {
+						log.Panicf("positionNew is NaN iter=%d grainIx=%d grain=%#v constraints=%#v, neighbors[grainIx]=%#v",
+							iter, ix, world.Grains[grad.grainIndex], constraints, neighbors[ix])
+					}
 				}
 			}
+		}
+		if world.checkErrors {
+			world.verifyFinite(fmt.Sprintf("after constraint solving in iteration %d", iter))
 		}
 
 		// Box collision & floor friction.
@@ -511,7 +518,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 			}
 		}
 		if world.checkErrors {
-			world.verifyFinite(fmt.Sprintf("after iteration %d", iter))
+			world.verifyFinite(fmt.Sprintf("after collision/friction in iteration %d", iter))
 		}
 	}
 	// Force no-escape-through-wall.
