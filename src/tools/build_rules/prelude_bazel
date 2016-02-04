@@ -1,2 +1,0 @@
-load("/tools/build_rules/go", "go_binary")
-load("/tools/build_rules/typescript", "ts_binary", "ts_library")
