@@ -203,8 +203,6 @@ class Client {
     		}));
     	this.scene.add(bg);
 
-        this.construct_frames(3, 2);
-
     	// start canvas
     	this.renderer = new THREE.WebGLRenderer({
     		antialias: true
@@ -363,6 +361,8 @@ $(document).ready(function() {
             state: 0, // UNKNOWN
             stats: "",
             inspecting: false,
+            nx: 0,
+            ny: 0,
         },
         methods: {
             start_server: function() {
@@ -398,6 +398,9 @@ $(document).ready(function() {
                     console.log('This biosphere:', bs);
                     _this.state = bs.state;
                     _this.biosphere_name = bs.name;
+                    _this.nx = bs.nx;
+                    _this.ny = bs.ny;
+                    client.construct_frames(bs.nx, bs.ny);
                     if (bs.state === 3 || bs.state === 4) {
                         // Continue to reload when it's transitioning.
                         setTimeout(() => {

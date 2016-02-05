@@ -258,6 +258,10 @@ message BiosphereDesc {
     uint64 num_ticks = 4;
 
     BiosphereState state = 5;
+
+    // World size (in number of chunks).
+    int32 nx = 6;
+    int32 ny = 7;
 }
 
 message PolySoup {
