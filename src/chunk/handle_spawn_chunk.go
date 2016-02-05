@@ -33,7 +33,7 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
 		Yp: !canPassYp,
 	}
 
-	chunk := NewGrainChunk()
+	chunk := NewGrainChunk(false)
 	if q.NumSoil > 0 {
 		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, int(q.NumSoil), Vec3f{0.5, 0.5, 2.0}))
 	}

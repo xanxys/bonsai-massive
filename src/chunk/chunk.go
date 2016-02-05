@@ -3,6 +3,7 @@ package main
 import (
 	"./api"
 	"fmt"
+	"github.com/kr/pretty"
 	"log"
 	"math"
 	"math/rand"
@@ -186,10 +187,10 @@ type ChunkWall struct {
 	Xm, Xp, Ym, Yp bool
 }
 
-func NewGrainChunk() *GrainChunk {
+func NewGrainChunk(checkErrors bool) *GrainChunk {
 	return &GrainChunk{
 		Timestamp:   0,
-		checkErrors: true,
+		checkErrors: checkErrors,
 	}
 }
 
@@ -363,12 +364,14 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				// Tangential friction constraint.
 				dv := world.Grains[ixTarget].positionNew.Sub(world.Grains[ixTarget].Position).Sub(
 					world.Grains[ixOther].positionNew.Sub(world.Grains[ixOther].Position))
-				dir_tangent := dv.ProjectOnPlane(dp).Normalized()
+				dirTangent := dv.ProjectOnPlane(dp)
+				dirTangentLen := dirTangent.Length()
 
 				// Both max static friction & dynamic friction are proportional to
 				// force along normal (collision).
 				dvLen := dv.Length()
-				if dvLen > 0 {
+				if dirTangentLen > 1e-6 && dvLen > 1e-6 {
+					dirTangent := dirTangent.MultS(1 / dirTangentLen)
 					f_tangent := dvLen // Static friction by default.
 					if f_tangent >= f_normal*friction_static {
 						// Switch to dynamic friction if force is too large.
@@ -378,8 +381,8 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 						}
 					}
 					grads_t := []CGrad{
-						CGrad{grainIndex: ixOther, grad: dir_tangent.MultS(-f_tangent)},
-						CGrad{grainIndex: ixTarget, grad: dir_tangent.MultS(-f_tangent)},
+						CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-f_tangent)},
+						CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(-f_tangent)},
 					}
 					cs = append(cs, Constraint{
 						Value: f_tangent,
@@ -457,18 +460,26 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	for iter := 0; iter < num_iter; iter++ {
 		for ix, _ := range world.Grains {
 			constraints := world.ConstraintsFor(neighbors, ix)
-			for _, constraint := range constraints {
+			for ixConst, constraint := range constraints {
 				var gradLengthSq float32
 				for _, grad := range constraint.Grads {
 					gradLengthSq += grad.grad.LengthSq()
 				}
 				scale := -constraint.Value / (gradLengthSq + cfm_epsilon)
 
-				for _, grad := range constraint.Grads {
+				for ixGrad, grad := range constraint.Grads {
 					world.Grains[grad.grainIndex].positionNew = world.Grains[grad.grainIndex].positionNew.Add(grad.grad.MultS(scale))
 					if world.checkErrors && !isFiniteVec(world.Grains[grad.grainIndex].positionNew) {
-						log.Panicf("positionNew is NaN iter=%d grainIx=%d grain=%#v constraints=%#v, neighbors[grainIx]=%#v",
-							iter, ix, world.Grains[grad.grainIndex], constraints, neighbors[ix])
+						neighborDump := ""
+						for _, neighborIx := range neighbors[ix] {
+							if neighborIx == ix {
+								continue
+							}
+							neighborDump += fmt.Sprintf("neighbor:grain[%d]=%# v\n", neighborIx, pretty.Formatter(world.Grains[neighborIx]))
+						}
+						log.Panicf("positionNew is NaN timestamp:iter:ixConst:ixGrad=%d:%d:%d:%d grainIx=%d\ngrain=%# v\nconstraints=%# v\nneighbors[grainIx]=%#v\n%s==================",
+							world.Timestamp, iter, ixConst, ixGrad,
+							ix, pretty.Formatter(world.Grains[grad.grainIndex]), pretty.Formatter(constraints), neighbors[ix], neighborDump)
 					}
 				}
 			}
@@ -555,9 +566,8 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 		grain.Velocity = grain.positionNew.Sub(grain.Position).MultS(1.0 / dt)
 		grain.Position = grain.positionNew
 	}
-	if world.checkErrors {
-		world.verifyFinite("after v/p update")
-	}
+	// This check is super important, so check regardless of flag.
+	world.verifyFinite("after v/p update")
 
 	internalGrains := make([]*Grain, 0)
 	externalGrains := make([]*Grain, 0)
@@ -577,7 +587,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 func (world *GrainChunk) verifyFinite(context string) {
 	for _, grain := range world.Grains {
 		if !isFiniteVec(grain.Velocity) || !isFiniteVec(grain.Position) || !isFiniteVec(grain.positionNew) {
-			log.Panicf("NaN observed in %#v at %d, %s", grain, world.Timestamp, context)
+			log.Panicf("NaN observed in %# v at %d, %s", pretty.Formatter(grain), world.Timestamp, context)
 		}
 	}
 }
