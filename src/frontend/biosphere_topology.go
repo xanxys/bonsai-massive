@@ -37,10 +37,7 @@ func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
 					if dx == 0 && dy == 0 {
 						continue
 					}
-					neighborIx := (ix + dx) % cylinder.Nx
-					if neighborIx < 0 {
-						neighborIx += cylinder.Nx
-					}
+					neighborIx := mod(ix+dx, cylinder.Nx)
 					neighborIy := iy + dy
 					if neighborIy < 0 || neighborIy >= cylinder.Ny {
 						continue
@@ -57,6 +54,15 @@ func (cylinder *CylinderTopology) GetChunkTopos() []*api.ChunkTopology {
 		}
 	}
 	return result
+}
+
+func mod(x, y int) int {
+	r := x % y
+	if r >= 0 {
+		return r
+	} else {
+		return r + y
+	}
 }
 
 func (cylinder *CylinderTopology) GetGlobalOffsets() map[string]Vec3f {
