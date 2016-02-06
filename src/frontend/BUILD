@@ -4,7 +4,7 @@ genrule(
     srcs=[
         "//common:lib",
         "//proto:proto_go_src",
-    ] + glob(["*.go"]),
+    ] + glob(["*.go"], exclude=["*_test.go"]),
     outs=[
         "server.bin",
     ],
