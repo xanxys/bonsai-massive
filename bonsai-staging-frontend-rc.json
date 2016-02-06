@@ -15,17 +15,14 @@
         },
         "template": {
             "spec": {
-                "containers": [
-                    {
-                        "name": "bonsai-staging-frontend",
-                        "image": "gcr.io/bonsai-genesis/bonsai_frontend",
-                        "ports": [
-                            {
-                                "containerPort": 8000
-                            }
-                        ]
-                    }
-                ]
+                "containers": [{
+                    "name": "bonsai-frontend-frontend",
+                    "image": "gcr.io/bonsai-genesis/bonsai_container",
+                    "ports": [{
+                        "containerPort": 8000
+                    }],
+                    "command": ["/root/bonsai/frontend-server.bin"]
+                }]
             },
             "metadata": {
                 "labels": {

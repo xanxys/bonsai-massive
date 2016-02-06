@@ -1,0 +1,8 @@
+FROM busybox
+
+COPY ca-bundle.crt /etc/ssl/certs/ca-certificates.crt
+COPY static /root/bonsai/static
+COPY key.json frontend-server.bin chunk-server.bin config.chunk-container /root/bonsai/
+RUN ["chmod", "a+x", "/root/bonsai/frontend-server.bin", "/root/bonsai/chunk-server.bin"]
+
+EXPOSE 8000 9000

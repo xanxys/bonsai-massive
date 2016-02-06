@@ -65,7 +65,7 @@ class ContainerFactory:
         return "gcr.io/%s/%s:%s" % (PROJECT_NAME, container_name, self.tag)
 
     def _setup_shared_context(self):
-        chunk_container_name = self.get_container_path('bonsai_chunk')
+        chunk_container_name = self.get_container_path('bonsai_container')
         shutil.copyfile(self.path_key, "docker/key.json")
         shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
         open('docker/config.chunk-container', 'w').write(chunk_container_name)
@@ -77,46 +77,37 @@ class ContainerFactory:
             raise RuntimeError("Container build failed")
         return container_path
 
-    def create_fe_container(self):
+    def create_container(self):
         """
         Create a docker container using docker/frontend Dockerfile.
         """
         def internal():
             if subprocess.call(["bazel", "build", "frontend:server"], cwd="./src") != 0:
                 raise RuntimeError("Frontend build failed")
+            if subprocess.call(["bazel", "build", "chunk:server"], cwd="./src") != 0:
+                raise RuntimeError("Chunk build failed")
             if subprocess.call(["bazel", "build", "client:static"], cwd="./src") != 0:
                 raise RuntimeError("Client build failed")
             shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
+            shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
             shutil.rmtree("docker/static", ignore_errors=True)
             os.mkdir("docker/static")
             subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
 
         return self._create_container(
-            'docker/frontend', self.get_container_path('bonsai_frontend'), internal)
+            'docker/container', self.get_container_path('bonsai_container'), internal)
 
-    def create_chunk_container(self):
-        """
-        Create a docker container of the given name with docker/chunk file.
-        """
-        def internal():
-            if subprocess.call(["bazel", "build", "chunk:server"], cwd="./src") != 0:
-                raise RuntimeError("Chunk build failed")
-            shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
 
-        return self._create_container(
-            'docker/chunk', self.get_container_path('bonsai_chunk'), internal)
-
-def deploy_containers_gke(container_name, rollout=True):
+def deploy_containers_gke(container_name):
     assert(args.env != 'prod')
     print("Pushing containers to google container repository")
     subprocess.call(['gcloud', 'docker', 'push', container_name])
 
-    if rollout:
-        print("Rolling out new image %s" % container_name)
-        subprocess.call(['kubectl', 'rolling-update',
-            'bonsai-%s-frontend-rc' % args.env,
-            '--update-period=10s',
-            '--image=%s' % container_name])
+    print("Rolling out new image %s" % container_name)
+    subprocess.call(['kubectl', 'rolling-update',
+        'bonsai-%s-frontend-rc' % args.env,
+        '--update-period=10s',
+        '--image=%s' % container_name])
 
 def show_prod_deployment():
     pod_result = json.loads(subprocess.check_output(['kubectl', 'get', '-o', 'json', 'pod']).decode('utf-8'))
@@ -314,10 +305,8 @@ if __name__ == '__main__':
     if args.remote:
         if args.env != 'prod':
             factory = ContainerFactory(args.key)
-            fe_container_name = factory.create_fe_container()
-            chunk_container_name = factory.create_chunk_container()
-            deploy_containers_gke(chunk_container_name, rollout=False)
-            deploy_containers_gke(fe_container_name)
+            container_name = factory.create_container()
+            deploy_containers_gke(container_name)
         else:
             print("Direct deployment to prod is not supported, because it's dangerous.")
             print("Instead, here is the command to copy staging configuration to prod.")

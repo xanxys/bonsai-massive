@@ -17,53 +17,7 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	// Run `gcloud compute images list --project google-containers`
 	// to see list of container names.
 	imageURL := "https://www.googleapis.com/compute/v1/projects/google-containers/global/images/container-vm-v20151215"
-
-	containerManifest := fmt.Sprintf(`
-		{
-			"apiVersion": "v1",
-			"kind": "Pod",
-			"metadata": {
-				"name": "bonsai-chunk"
-			},
-			"spec": {
-				"volumes": [{
-					"name": "log-storage",
-					"emptyDir": {
-						"medium": "Memory"
-					}
-				}],
-				"containers": [
-					{
-						"name": "bonsai-chunk-server",
-						"image": "%s",
-						"imagePullPolicy": "Always",
-						"ports": [{"containerPort": 9000, "hostPort": 9000}],
-						"env": [{
-							"name": "LOG_PATH",
-							"value": "/mnt/log/CHUNK_LOG"
-						}],
-						"volumeMounts": [{
-							"name": "log-storage",
-							"mountPath": "/mnt/log"
-						}]
-					},
-					{
-						"name": "bonsai-chunk-log-collector",
-						"image": "gcr.io/google_containers/fluentd-sidecar-gcp:1.1",
-						"env": [{
-							"name": "FILES_TO_COLLECT",
-							"value": "/mnt/log/CHUNK_LOG"
-						}],
-						"volumeMounts": [{
-							"name": "log-storage",
-							"readOnly": true,
-							"mountPath": "/mnt/log"
-						}]
-					}
-				]
-			}
-		}`, fe.chunkContainerName)
-
+	containerManifest := getChunkServerManifest(fe.chunkContainerName)
 	bonsaiType := "chunk-" + fe.envType
 
 	instance := &compute.Instance{
@@ -127,6 +81,55 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 			log.Printf("Error while booting: %#v", op.Error)
 		}
 	}
+}
+
+func getChunkServerManifest(containerName string) string {
+	return fmt.Sprintf(`
+		{
+			"apiVersion": "v1",
+			"kind": "Pod",
+			"metadata": {
+				"name": "bonsai-chunk"
+			},
+			"spec": {
+				"volumes": [{
+					"name": "log-storage",
+					"emptyDir": {
+						"medium": "Memory"
+					}
+				}],
+				"containers": [
+					{
+						"name": "bonsai-chunk-server",
+						"image": "%s",
+						"imagePullPolicy": "Always",
+						"ports": [{"containerPort": 9000, "hostPort": 9000}],
+						"command": ["/root/bonsai/chunk-server.bin"],
+						"env": [{
+							"name": "LOG_PATH",
+							"value": "/mnt/log/CHUNK_LOG"
+						}],
+						"volumeMounts": [{
+							"name": "log-storage",
+							"mountPath": "/mnt/log"
+						}]
+					},
+					{
+						"name": "bonsai-chunk-log-collector",
+						"image": "gcr.io/google_containers/fluentd-sidecar-gcp:1.1",
+						"env": [{
+							"name": "FILES_TO_COLLECT",
+							"value": "/mnt/log/CHUNK_LOG"
+						}],
+						"volumeMounts": [{
+							"name": "log-storage",
+							"readOnly": true,
+							"mountPath": "/mnt/log"
+						}]
+					}
+				]
+			}
+		}`, containerName)
 }
 
 func (fe *FeServiceImpl) deleteInstances(service *compute.Service, names []string) {

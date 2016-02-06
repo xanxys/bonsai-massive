@@ -1,8 +1,0 @@
-FROM busybox
-
-COPY ca-bundle.crt /etc/ssl/certs/ca-certificates.crt
-COPY key.json chunk-server.bin /root/bonsai/
-RUN ["chmod", "a+x", "/root/bonsai/chunk-server.bin"]
-
-EXPOSE 9000
-ENTRYPOINT ["/root/bonsai/chunk-server.bin"]
