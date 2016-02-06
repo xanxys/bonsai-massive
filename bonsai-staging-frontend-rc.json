@@ -16,7 +16,7 @@
         "template": {
             "spec": {
                 "containers": [{
-                    "name": "bonsai-frontend-frontend",
+                    "name": "bonsai-staging-frontend",
                     "image": "gcr.io/bonsai-genesis/bonsai_container",
                     "ports": [{
                         "containerPort": 8000
