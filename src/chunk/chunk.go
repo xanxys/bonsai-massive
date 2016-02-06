@@ -13,24 +13,24 @@ import (
 const dt = 1 / 30.00
 
 // Global simulation config.
-const floor_static = 0.7
-const floor_dynamic = 0.5
-const cfm_epsilon = 1e-3
-const sand_water_equiv = 0.3
-const cell_water_equiv = 0.5
+const floorStatic = 0.7
+const floorDynamic = 0.5
+const cfmEpsilon = 1e-3
+const sandWaterEquiv = 0.3
+const cellWaterEquiv = 0.5
 
 // Global water config.
-const reflection_coeff = 0.3 // Must be in (0, 1)
-const density_base = 1000.0  // kg/m^3
+const reflectionCoeff = 0.3 // Must be in (0, 1)
+const densityBase = 1000.0  // kg/m^3
 const h = 0.1
-const mass_grain = 0.1 * 113.0 / 20.0 // V_sphere(h) * density_base
-const num_iter = 3
+const massGrain = 0.1 * 113.0 / 20.0 // V_sphere(h) * densityBase
+const numIter = 3
 
 // Sand config.
-const sand_radius = 0.04
-const sand_stiffness = 2e-2
-const friction_static = 0.5  // must be in [0, 1)
-const friction_dynamic = 0.3 // must be in [0, friction_static)
+const sandRadius = 0.04
+const sandStiffness = 2e-2
+const frictionStatic = 0.5  // must be in [0, 1)
+const frictionDynamic = 0.3 // must be in [0, frictionStatic)
 
 type Grain struct {
 	Kind api.Grain_Kind
@@ -268,17 +268,17 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		for _, ixOther := range neighbors[ixTarget] {
 			equiv := float32(1.0)
 			if world.Grains[ixOther].Kind == api.Grain_SOIL {
-				equiv = sand_water_equiv
+				equiv = sandWaterEquiv
 			} else if world.Grains[ixOther].Kind == api.Grain_CELL {
-				equiv = cell_water_equiv
+				equiv = cellWaterEquiv
 			}
 			weight := SphKernel(world.Grains[ixTarget].positionNew.Sub(world.Grains[ixOther].positionNew), h)
-			acc += weight * mass_grain * equiv
+			acc += weight * massGrain * equiv
 		}
 		return acc
 	}
 
-	density_constraint_deriv := func() []CGrad {
+	densityConstraintDeriv := func() []CGrad {
 		if world.Grains[ixTarget].Kind != api.Grain_WATER {
 			log.Fatal("gradient of density is only defined for water")
 		}
@@ -286,9 +286,9 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 		for _, ixDeriv := range neighbors[ixTarget] {
 			equiv := float32(1.0)
 			if world.Grains[ixDeriv].Kind == api.Grain_SOIL {
-				equiv = sand_water_equiv
+				equiv = sandWaterEquiv
 			} else if world.Grains[ixDeriv].Kind == api.Grain_CELL {
-				equiv = cell_water_equiv
+				equiv = cellWaterEquiv
 			}
 
 			gradAccum := NewVec3f0()
@@ -298,7 +298,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				}
 				other_equiv := float32(1.0)
 				if world.Grains[ixOther].Kind == api.Grain_SOIL {
-					other_equiv = sand_water_equiv
+					other_equiv = sandWaterEquiv
 				}
 
 				if ixDeriv == ixOther {
@@ -315,7 +315,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			}
 			grads = append(grads, CGrad{
 				grainIndex: ixDeriv,
-				grad:       gradAccum.MultS(-equiv / density_base),
+				grad:       gradAccum.MultS(-equiv / densityBase),
 			})
 		}
 		return grads
@@ -324,8 +324,8 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 	if world.Grains[ixTarget].Kind == api.Grain_WATER {
 		return []Constraint{
 			Constraint{
-				Value: density()/density_base - 1,
-				Grads: density_constraint_deriv(),
+				Value: density()/densityBase - 1,
+				Grads: densityConstraintDeriv(),
 			},
 		}
 	} else {
@@ -342,21 +342,21 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				continue // No sand-other interaction for now.
 			}
 			dp := world.Grains[ixTarget].positionNew.Sub(world.Grains[ixOther].positionNew)
-			penetration := sand_radius*2 - dp.Length()
+			penetration := sandRadius*2 - dp.Length()
 			if penetration > 0 {
 				// Collision (no penetration) constraint.
-				f_normal := penetration * sand_stiffness
+				fNormal := penetration * sandStiffness
 				dp = dp.Normalized()
 				cs = append(cs, Constraint{
-					Value: f_normal,
+					Value: fNormal,
 					Grads: []CGrad{
 						CGrad{
 							grainIndex: ixOther,
-							grad:       dp.MultS(sand_stiffness),
+							grad:       dp.MultS(sandStiffness),
 						},
 						CGrad{
 							grainIndex: ixTarget,
-							grad:       dp.MultS(-sand_stiffness),
+							grad:       dp.MultS(-sandStiffness),
 						},
 					},
 				})
@@ -372,21 +372,21 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 				dvLen := dv.Length()
 				if dirTangentLen > 1e-6 && dvLen > 1e-6 {
 					dirTangent := dirTangent.MultS(1 / dirTangentLen)
-					f_tangent := dvLen // Static friction by default.
-					if f_tangent >= f_normal*friction_static {
+					fTangent := dvLen // Static friction by default.
+					if fTangent >= fNormal*frictionStatic {
 						// Switch to dynamic friction if force is too large.
-						f_tangent = f_normal * friction_dynamic
-						if f_tangent >= dvLen {
+						fTangent = fNormal * frictionDynamic
+						if fTangent >= dvLen {
 							log.Panicln("Dynamic friction condition breached")
 						}
 					}
-					grads_t := []CGrad{
-						CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-f_tangent)},
-						CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(-f_tangent)},
+					gradsT := []CGrad{
+						CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-fTangent)},
+						CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(-fTangent)},
 					}
 					cs = append(cs, Constraint{
-						Value: f_tangent,
-						Grads: grads_t,
+						Value: fTangent,
+						Grads: gradsT,
 					})
 				}
 			}
@@ -457,7 +457,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 		world.verifyFinite("before iteration")
 	}
 	// Iteratively resolve collisions & constraints.
-	for iter := 0; iter < num_iter; iter++ {
+	for iter := 0; iter < numIter; iter++ {
 		for ix, _ := range world.Grains {
 			constraints := world.ConstraintsFor(neighbors, ix)
 			for ixConst, constraint := range constraints {
@@ -465,7 +465,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 				for _, grad := range constraint.Grads {
 					gradLengthSq += grad.grad.LengthSq()
 				}
-				scale := -constraint.Value / (gradLengthSq + cfm_epsilon)
+				scale := -constraint.Value / (gradLengthSq + cfmEpsilon)
 
 				for ixGrad, grad := range constraint.Grads {
 					world.Grains[grad.grainIndex].positionNew = world.Grains[grad.grainIndex].positionNew.Add(grad.grad.MultS(scale))
@@ -492,39 +492,39 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 		for _, grain := range world.Grains {
 			if grain.positionNew.X < 0 {
 				if wall.Xm {
-					grain.positionNew.X *= -reflection_coeff
+					grain.positionNew.X *= -reflectionCoeff
 				}
 			} else if grain.positionNew.X > 1 {
 				if wall.Xp {
-					grain.positionNew.X = 1 - (grain.positionNew.X-1)*reflection_coeff
+					grain.positionNew.X = 1 - (grain.positionNew.X-1)*reflectionCoeff
 				}
 			}
 			if grain.positionNew.Y < 0 {
 				if wall.Ym {
-					grain.positionNew.Y *= -reflection_coeff
+					grain.positionNew.Y *= -reflectionCoeff
 				}
 			} else if grain.positionNew.Y > 1 {
 				if wall.Yp {
-					grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflection_coeff
+					grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflectionCoeff
 				}
 			}
 			if grain.positionNew.Z < 0 {
-				dz := -grain.positionNew.Z * (1 + reflection_coeff)
+				dz := -grain.positionNew.Z * (1 + reflectionCoeff)
 				grain.positionNew.Z += dz
 
 				dxy := grain.positionNew.Sub(grain.Position).ProjectOnPlane(Vec3f{0, 0, 1})
 				dxyLen := dxy.Length()
-				if dxyLen < dz*floor_static {
+				if dxyLen < dz*floorStatic {
 					// Static friction.
 					grain.positionNew.X = grain.Position.X
 					grain.positionNew.Y = grain.Position.Y
 				} else {
 					// Dynamic friction.
-					dxy_capped := dxyLen
-					if dxy_capped > dz*floor_dynamic {
-						dxy_capped = dz * floor_dynamic
+					dxyCapped := dxyLen
+					if dxyCapped > dz*floorDynamic {
+						dxyCapped = dz * floorDynamic
 					}
-					grain.positionNew = grain.positionNew.Sub(dxy.Normalized().MultS(dxy_capped))
+					grain.positionNew = grain.positionNew.Sub(dxy.Normalized().MultS(dxyCapped))
 				}
 			}
 		}
@@ -536,20 +536,20 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 	for _, grain := range world.Grains {
 		if grain.positionNew.X < 0 {
 			if wall.Xm {
-				grain.positionNew.X *= -reflection_coeff
+				grain.positionNew.X *= -reflectionCoeff
 			}
 		} else if grain.positionNew.X > 1 {
 			if wall.Xp {
-				grain.positionNew.X = 1 - (grain.positionNew.X-1)*reflection_coeff
+				grain.positionNew.X = 1 - (grain.positionNew.X-1)*reflectionCoeff
 			}
 		}
 		if grain.positionNew.Y < 0 {
 			if wall.Ym {
-				grain.positionNew.Y *= -reflection_coeff
+				grain.positionNew.Y *= -reflectionCoeff
 			}
 		} else if grain.positionNew.Y > 1 {
 			if wall.Yp {
-				grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflection_coeff
+				grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflectionCoeff
 			}
 		}
 	}
