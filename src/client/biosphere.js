@@ -22,6 +22,8 @@ class Client {
         this.cursor.visible = false;
         this.scene.add(this.cursor);
 
+        this.frame_constructed = false;
+
         let _this = this;
         $(window).resize(() => {
             _this.renderer.setSize($('#viewport').width(), $('#viewport').height());
@@ -221,6 +223,9 @@ class Client {
     }
 
     construct_frames(nx, ny) {
+        if (this.frame_constructed) {
+            return;
+        }
         _.each(_.range(nx), (ix) => {
             _.each(_.range(ny), (iy) => {
                 let box = new THREE.Mesh(
@@ -274,6 +279,7 @@ class Client {
                 box.position.z = -0.02;
                 this.scene.add(box);
         });
+        this.frame_constructed = true;
     }
 
     /* UI Utils */
