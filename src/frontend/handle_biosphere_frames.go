@@ -70,13 +70,19 @@ func snapshotToMesh(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot 
 	offsets := bsTopo.GetGlobalOffsets()
 	mesh := NewMesh()
 	countTotal := 0
-	countDropped := 0
+	countAdded := 0
 	for chunkId, chunkSnapshot := range snapshot {
 		offset := offsets[chunkId]
 		for _, grain := range chunkSnapshot.Grains {
 			pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}.Add(offset)
 			if maybeCone != nil && !maybeCone.Contains(pos) {
-				countDropped++
+				continue
+			}
+			interleave := int(math.Ceil(float64(pos.Sub(maybeCone.Pos).Length())))
+			if interleave <= 0 {
+				interleave = 1
+			}
+			if grain.Id%uint64(interleave) != 0 {
 				continue
 			}
 			grainMesh := Icosahedron(pos, 0.06)
@@ -89,10 +95,12 @@ func snapshotToMesh(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot 
 				baseColor = Vec3f{0.8, 0.8, 0.8}
 			}
 			grainMesh.SetColor(baseColor.Add(Vec3f{float32(random1(grain.Id, 1416028811)), float32(random1(grain.Id, 456307397)), float32(random1(grain.Id, 386052383))}.MultS(0.2)))
+			countAdded++
 			mesh.Merge(grainMesh)
 		}
 		countTotal += len(chunkSnapshot.Grains)
 	}
+	countDropped := countTotal - countAdded
 	log.Printf("Mesh serializer: %d grains dropped (%f %%)", countDropped, float32(countDropped)/float32(countTotal)*100)
 	return mesh
 }
