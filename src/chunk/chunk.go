@@ -504,7 +504,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 					grain.positionNew.Y *= -reflection_coeff
 				}
 			} else if grain.positionNew.Y > 1 {
-				if wall.Ym {
+				if wall.Yp {
 					grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflection_coeff
 				}
 			}
@@ -548,7 +548,7 @@ func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *Chunk
 				grain.positionNew.Y *= -reflection_coeff
 			}
 		} else if grain.positionNew.Y > 1 {
-			if wall.Ym {
+			if wall.Yp {
 				grain.positionNew.Y = 1 - (grain.positionNew.Y-1)*reflection_coeff
 			}
 		}
