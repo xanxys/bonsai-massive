@@ -76,7 +76,9 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
 		}
 
 		// Actual simulation step.
-		escapedGrains := chunk.Step(incomingGrains, envGrains, wall)
+		chunk.IncorporateAddition(incomingGrains)
+		// TODO: snapshot here.
+		escapedGrains := chunk.Step(envGrains, wall)
 
 		// Pack exported things.
 		grains := make([]*api.Grain, len(chunk.Grains))

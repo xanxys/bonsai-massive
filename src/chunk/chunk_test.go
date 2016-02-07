@@ -11,7 +11,8 @@ func TestChunkSanityForCell(t *testing.T) {
 	chunk := NewGrainChunk(true)
 	chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_CELL, int(10), Vec3f{0, 0, 1.0}))
 	for i := 0; i < 100; i++ {
-		chunk.Step(nil, nil, wall)
+		chunk.IncorporateAddition(nil)
+		chunk.Step(nil, wall)
 		assertParticlesAreInBound(chunk, t)
 	}
 }
@@ -25,7 +26,8 @@ func TestChunkSanityEnclosed(t *testing.T) {
 		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, rand.Intn(50), Vec3f{rand.Float32() * 0.1, rand.Float32() * 0.1, 1.0}))
 		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, rand.Intn(50), Vec3f{rand.Float32() * 0.1, rand.Float32() * 0.1, 1.0}))
 		for i := 0; i < 100; i++ {
-			chunk.Step(nil, nil, wall)
+			chunk.IncorporateAddition(nil)
+			chunk.Step(nil, wall)
 			assertParticlesAreInBound(chunk, t)
 		}
 	}

@@ -174,7 +174,8 @@ func (ps *ParticleSource) MaybeEmit(timestamp uint64) []*Grain {
 // 1': 3D GUI class
 // 2. Panel GUI class
 type GrainChunk struct {
-	Grains    []*Grain
+	Grains []*Grain
+	// This should be moved to frontend.
 	Sources   []*ParticleSource
 	Timestamp uint64
 	// Enable error checking. This will cause a few times slowdown.
@@ -395,17 +396,20 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 	}
 }
 
-// Take immigrating grains (position must be inside chunk), environmental grains (outside chunk)
-// and wall configuration and calculate single step using very stable position-based dynamics.
-// Returns grains that escaped this chunk. (they'll be removed from world)
-func (world *GrainChunk) Step(inGrains []*Grain, envGrains []*Grain, wall *ChunkWall) []*Grain {
-	accel := Vec3f{0, 0, -1}
-
+// Call this before every Step().
+func (world *GrainChunk) IncorporateAddition(inGrains []*Grain) {
 	// Emit new particles & accept incoming grains.
 	for _, source := range world.Sources {
 		world.Grains = append(world.Grains, source.MaybeEmit(world.Timestamp)...)
 	}
 	world.Grains = append(world.Grains, inGrains...)
+}
+
+// Take environmental grains (outside chunk) and wall configuration and
+// calculate single step using very stable position-based dynamics. Returns
+// grains that escaped this chunk. (they'll be removed from world)
+func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
+	accel := Vec3f{0, 0, -1}
 
 	// Biological / chemical process (might emit new grain when dividing).
 	var cloned []*Grain

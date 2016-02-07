@@ -46,6 +46,10 @@ message SpawnChunkQ {
     int32 num_soil = 3;
     int32 num_water = 4;
 
+    // Store snapshot when timestamp % snapshot_modulo == 0.
+    // Does nothing when snapshot_modulo <= 0.
+    int32 snapshot_modulo = 5;
+
     reserved 1;
 }
 
