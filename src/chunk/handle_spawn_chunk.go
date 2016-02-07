@@ -59,7 +59,7 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
 	for {
 		nImport := <-router.RequestNeighbor(chunk.Timestamp, topo)
 
-		// Unpack imported things.
+		// Unpack imported things and import.
 		incomingGrains := make([]*Grain, len(nImport.IncomingGrains))
 		for ix, grainProto := range nImport.IncomingGrains {
 			incomingGrains[ix] = deser(grainProto)
@@ -74,10 +74,14 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
 				envGrains = append(envGrains)
 			}
 		}
-
-		// Actual simulation step.
 		chunk.IncorporateAddition(incomingGrains)
-		// TODO: snapshot here.
+
+		// Persist when requested.
+		if q.SnapshotModulo > 0 && chunk.Timestamp%uint64(q.SnapshotModulo) == 0 {
+			log.Printf("Snapshotting at t=%d", chunk.Timestamp)
+		}
+
+		// Actual simulation.
 		escapedGrains := chunk.Step(envGrains, wall)
 
 		// Pack exported things.

@@ -20,7 +20,7 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 		return nil, errors.New("UI must disallow unauthorized actions")
 	}
 
-	client, err := fe.authDatastore(ctx)
+	client, err := fe.AuthDatastore(ctx)
 	if err != nil {
 		return nil, err
 	}

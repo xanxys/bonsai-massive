@@ -8,7 +8,7 @@ import (
 // GetChunkServerInstances returns GCE instance tagged as chunk servers.
 // It does not guarantee avaiability of them.
 func (fe *FeServiceImpl) GetChunkServerInstances(ctx context.Context) ([]*compute.Instance, error) {
-	service, err := fe.authCompute(ctx)
+	service, err := fe.AuthCompute(ctx)
 	if err != nil {
 		return nil, err
 	}

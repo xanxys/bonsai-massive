@@ -73,7 +73,7 @@ func (fe *FeServiceImpl) applyDelta(ctx context.Context, latestState map[uint64]
 	if targetState != nil && len(chunkInstances) == 0 {
 		log.Printf("Allocating 1 node")
 		latestState[targetState.bsId] = api.BiosphereState_T_RUN
-		clientCompute, err := fe.authCompute(ctx)
+		clientCompute, err := fe.AuthCompute(ctx)
 		if err != nil {
 			log.Printf("Error in allocation: %v", err)
 			return
@@ -99,7 +99,7 @@ func (fe *FeServiceImpl) applyDelta(ctx context.Context, latestState map[uint64]
 		}
 	} else if targetState == nil && len(chunkInstances) > 0 {
 		log.Printf("Deallocating %d nodes", len(chunkInstances))
-		clientCompute, err := fe.authCompute(ctx)
+		clientCompute, err := fe.AuthCompute(ctx)
 		if err != nil {
 			log.Printf("Error in compute auth: %v", err)
 			return

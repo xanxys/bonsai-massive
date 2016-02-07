@@ -13,7 +13,7 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 	stateReceiver := make(chan map[uint64]api.BiosphereState, 1)
 	fe.cmdQueue <- &ControllerCommand{getBiosphereStates: stateReceiver}
 
-	client, err := fe.authDatastore(ctx)
+	client, err := fe.AuthDatastore(ctx)
 	if err != nil {
 		return nil, err
 	}

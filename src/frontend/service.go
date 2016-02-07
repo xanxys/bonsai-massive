@@ -4,50 +4,27 @@ import (
 	"./api"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/compute/v1"
-	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
 	"io/ioutil"
 	"log"
 )
 
-const (
-	ProjectId = "bonsai-genesis"
-	zone      = "us-central1-b"
-)
-
 type FeServiceImpl struct {
 	envType string
 
-	cred               *jwt.Config
+	*ServerCred
 	chunkContainerName string
 	cmdQueue           chan *ControllerCommand
 }
 
 func NewFeService(envType string) *FeServiceImpl {
-	jsonKey, err := ioutil.ReadFile("/root/bonsai/key.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	conf, err := google.JWTConfigFromJSON(
-		jsonKey,
-		datastore.ScopeDatastore,
-		datastore.ScopeUserEmail,
-		"https://www.googleapis.com/auth/cloud-platform",
-		"https://www.googleapis.com/auth/compute")
-	if err != nil {
-		log.Fatal(err)
-	}
 	cont, err := ioutil.ReadFile("/root/bonsai/config.chunk-container")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fe := &FeServiceImpl{
 		envType:            envType,
-		cred:               conf,
+		ServerCred:         NewServerCred(),
 		chunkContainerName: string(cont),
 	}
 	// TODO: Ensure one loop is always running.
@@ -56,23 +33,8 @@ func NewFeService(envType string) *FeServiceImpl {
 	return fe
 }
 
-func (fe *FeServiceImpl) authDatastore(ctx context.Context) (*datastore.Client, error) {
-	client, err := datastore.NewClient(
-		ctx, ProjectId, cloud.WithTokenSource(fe.cred.TokenSource(ctx)))
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
-func (fe *FeServiceImpl) authCompute(ctx context.Context) (*compute.Service, error) {
-	client := fe.cred.Client(oauth2.NoContext)
-	service, err := compute.New(client)
-	return service, err
-}
-
 func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint64) (BiosphereTopology, *api.BiosphereEnvConfig, error) {
-	client, err := fe.authDatastore(ctx)
+	client, err := fe.AuthDatastore(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
