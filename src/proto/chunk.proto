@@ -132,6 +132,14 @@ message ChunkSnapshot {
     reserved 2, 3;
 }
 
+// Chunk snapshot in datastore.
+// Grains are that of AFTTER accepting incoming / emitted grains.
+message DsChunkSnapshot {
+    uint64 timestamp = 1;
+    string chunk_id = 2;
+    ChunkSnapshot snapshot = 3;
+}
+
 // Next Id: 6
 message Grain {
     uint64 id = 3;

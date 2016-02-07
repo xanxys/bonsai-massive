@@ -3,6 +3,7 @@ package main
 import (
 	"./api"
 	"fmt"
+	"github.com/kr/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
@@ -124,8 +125,9 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 	if len(summary.Chunks) != len(targetState.bsTopo.GetChunkTopos()) {
 		if len(summary.Chunks) == 0 {
 			chunkGens := GenerateEnv(targetState.bsTopo, targetState.env)
-			log.Printf("Spawning %d new chunks: %#v", len(chunkGens), chunkGens)
+			log.Printf("Spawning %d new chunks: %# v", len(chunkGens), pretty.Formatter(chunkGens))
 			for _, chunkGen := range chunkGens {
+				chunkGen.SnapshotModulo = 500
 				chunkService.SpawnChunk(ctx, chunkGen)
 			}
 			return

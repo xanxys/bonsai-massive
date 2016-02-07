@@ -3,15 +3,17 @@ package main
 import (
 	"./api"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/datastore"
 	"log"
 )
 
 func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*api.SpawnChunkS, error) {
-	go RunChunk(ck.ChunkRouter, q)
+	go RunChunk(ck.ChunkRouter, q, ck.ServerCred)
 	return &api.SpawnChunkS{}, nil
 }
 
-func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
+func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
+	ctx := context.Background()
 	topo := q.Topology
 
 	// Decode topo once.
@@ -79,6 +81,28 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ) {
 		// Persist when requested.
 		if q.SnapshotModulo > 0 && chunk.Timestamp%uint64(q.SnapshotModulo) == 0 {
 			log.Printf("Snapshotting at t=%d", chunk.Timestamp)
+			client, err := cred.AuthDatastore(ctx)
+			if err != nil {
+				log.Printf("Error: Failed to take snapshot with %#v", err)
+			} else {
+				grains := make([]*api.Grain, len(chunk.Grains))
+				for ix, grain := range chunk.Grains {
+					grains[ix] = ser(grain)
+				}
+
+				key := datastore.NewIncompleteKey(ctx, "ChunkSnapshot", nil)
+				snapshot := &api.DsChunkSnapshot{
+					ChunkId:   q.Topology.ChunkId,
+					Timestamp: chunk.Timestamp,
+					Snapshot: &api.ChunkSnapshot{
+						Grains: grains,
+					},
+				}
+				key, err = client.Put(ctx, key, snapshot)
+				if err != nil {
+					log.Printf("Error: Failed to write snapshot with %#v", err)
+				}
+			}
 		}
 
 		// Actual simulation.
