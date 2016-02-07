@@ -2,6 +2,7 @@ package main
 
 import (
 	"./api"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"log"
@@ -80,29 +81,11 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 
 		// Persist when requested.
 		if q.SnapshotModulo > 0 && chunk.Timestamp%uint64(q.SnapshotModulo) == 0 {
-			log.Printf("Snapshotting at t=%d", chunk.Timestamp)
-			client, err := cred.AuthDatastore(ctx)
+			key, err := takeSnapshot(ctx, q.Topology.ChunkId, cred, chunk)
 			if err != nil {
 				log.Printf("Error: Failed to take snapshot with %#v", err)
-			} else {
-				grains := make([]*api.Grain, len(chunk.Grains))
-				for ix, grain := range chunk.Grains {
-					grains[ix] = ser(grain)
-				}
-
-				key := datastore.NewIncompleteKey(ctx, "ChunkSnapshot", nil)
-				snapshot := &api.DsChunkSnapshot{
-					ChunkId:   q.Topology.ChunkId,
-					Timestamp: chunk.Timestamp,
-					Snapshot: &api.ChunkSnapshot{
-						Grains: grains,
-					},
-				}
-				key, err = client.Put(ctx, key, snapshot)
-				if err != nil {
-					log.Printf("Error: Failed to write snapshot with %#v", err)
-				}
 			}
+			log.Printf("Snapshot key=%v", key)
 		}
 
 		// Actual simulation.
@@ -131,6 +114,42 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 		}
 		router.NotifyResult(chunk.Timestamp, topo, nExport)
 	}
+}
+
+func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *GrainChunk) (*datastore.Key, error) {
+	client, err := cred.AuthDatastore(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	grains := make([]*api.Grain, len(chunk.Grains))
+	for ix, grain := range chunk.Grains {
+		grains[ix] = ser(grain)
+	}
+	ssBlob, err := proto.Marshal(&api.ChunkSnapshot{
+		Grains: grains,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Snapshotting at t=%d size=%d", chunk.Timestamp, len(ssBlob))
+	key := datastore.NewIncompleteKey(ctx, "PersistentChunkSnapshot", nil)
+	key, err = client.Put(ctx, key, &PersistentChunkSnapshot{
+		ChunkId:   chunkId,
+		Timestamp: int64(chunk.Timestamp),
+		Snapshot:  ssBlob,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+type PersistentChunkSnapshot struct {
+	ChunkId   string
+	Timestamp int64
+	Snapshot  []byte `datastore:",noindex"`
 }
 
 type ChunkRel struct {
