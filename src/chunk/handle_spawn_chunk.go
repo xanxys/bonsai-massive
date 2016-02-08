@@ -146,12 +146,6 @@ func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *
 	return key, nil
 }
 
-type PersistentChunkSnapshot struct {
-	ChunkId   string
-	Timestamp int64
-	Snapshot  []byte `datastore:",noindex"`
-}
-
 type ChunkRel struct {
 	Dx, Dy int
 }

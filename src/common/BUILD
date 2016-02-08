@@ -5,6 +5,7 @@ filegroup(
     name = "lib",
     srcs = [
         "auth.go",
+        "ds_schema.go",
         "vector.go",
     ],
 )

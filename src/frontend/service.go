@@ -52,11 +52,3 @@ func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint6
 	}
 	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), &envConfig, nil
 }
-
-type BiosphereMeta struct {
-	Name string
-	Nx   int32
-	Ny   int32
-	// Serialized api.BiosphereEnvConfig.
-	Env []byte
-}

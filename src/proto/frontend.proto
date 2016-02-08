@@ -265,7 +265,7 @@ message BiosphereDesc {
     int32 nx = 6;
     int32 ny = 7;
 
-    // Persisted years (0-origin) in descending order.
+    // Persisted years (0-origin) in ascending order.
     repeated int32 persisted_years = 8;
 }
 
