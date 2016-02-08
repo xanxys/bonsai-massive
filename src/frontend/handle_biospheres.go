@@ -33,7 +33,7 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		}
 		topo := NewCylinderTopology(uint64(keys[ix].ID()), int(meta.Nx), int(meta.Ny))
 		chunkId := topo.GetChunkTopos()[0].ChunkId
-		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId", "="+chunkId).Project("Timestamp").Distinct().Order("Timestamp")
+		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("=ChunkId", chunkId).Project("Timestamp").Distinct().Order("Timestamp")
 		var ss []*PersistentChunkSnapshot
 		_, err := client.GetAll(ctx, query, &ss)
 		if err != nil {
