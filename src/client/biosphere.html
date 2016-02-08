@@ -50,13 +50,12 @@
 			</button>
 
 			<ul>
-				<li>Current: {{current_timestamp}}</li>
-				<li>Biosphere Age: {{head_timestamp}</li>
+				<li>T= {{current_timestamp}}</li>
 			</ul>
 
 			<div v-repeat="year in years">
 				<h6>Year {{year.index}}</h6>
-				<div v-repeat="sol in year.sols" class="day" v-class="active: sol.active">
+				<div v-repeat="sol in year.sols" class="day" v-class="avail: sol.avail, active: sol.active">
 					<span>{{sol.index_in_year}}</span>
 				</div>
 			</div>
@@ -85,7 +84,7 @@
 		<main class="mdl-layout__content">
 			<div class="mdl-grid">
 				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
-					<bs-time state={{state}}></bs-time>
+					<bs-time state={{state}} head-timestamp={{head_timestamp}} persisted-years={{persisted_years}}></bs-time>
 				</div>
 				<div class="viewport-container mdl-cell mdl-cell--9-col mdl-card mdl-shadow--2dp">
 					<div id="viewport"></div>

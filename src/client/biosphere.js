@@ -55,26 +55,7 @@ class Client {
             },
         }).done(function(data) {
             if (!_this.paused) {
-                var current_day = Math.floor(data.content_timestamp/5000);
-                var years = _.map(_.range(Math.ceil(data.content_timestamp/(5000 * 10))), (year_index) => {
-                    var sol_begin = 10 * year_index;
-                    var sol_end = Math.min(10 * (year_index + 1), Math.ceil(data.content_timestamp/5000));
-
-                    var sols = _.map(_.range(sol_begin, sol_end), (sol_index) => {
-                        return {
-                            "index": sol_index,
-                            "index_in_year": sol_index % 10,
-                            "active": sol_index === current_day
-                        };
-                    });
-                    return {
-                        "index": year_index,
-                        "sols": sols,
-                    };
-                });
-
-                _this.bs_time.$set('current_timestamp', data.content_timestamp);
-                _this.bs_time.$set('years', years);
+                _this.bs_time.$set('exec_timestamp', data.content_timestamp);
                 _this.bs_main.update_composition(data.stat);
                 _this.cells_proxy_data = data.cells;
                 _this.on_frame_received(data);
@@ -314,12 +295,12 @@ $(document).ready(function() {
 
     Vue.component('bs-time', {
         template: '#time-template',
-        props: ['state'],
+        props: ['state', 'headTimestamp', 'persistedYears'],
         data: () => {
             return {
                 is_playing: false,  // only applicable when is_running.
-                current_timestamp: null,
-                years: [],
+                exec_timestamp: 0, // reported by BiosphereFrames
+                persisted_years: [],
             };
         },
         computed: {
@@ -339,7 +320,34 @@ $(document).ready(function() {
             },
             is_stopped: function() {
                 return this.state === 2;
-            }
+            },
+            current_timestamp: function() {
+                return Math.max(this.exec_timestamp, this.headTimestamp);
+            },
+            years: function() {
+                const ticks_per_day = 5000;
+                const ticks_per_year = 50000;
+                let _this = this;
+                let current_day = Math.floor(_this.current_timestamp/ticks_per_day);
+                let years = _.map(_.range(Math.ceil(_this.current_timestamp/ticks_per_year)), (year_index) => {
+                    var sol_begin = 10 * year_index;
+                    var sol_end = Math.min(10 * (year_index + 1), Math.ceil(_this.current_timestamp/ticks_per_day));
+
+                    var sols = _.map(_.range(sol_begin, sol_end), (sol_index) => {
+                        return {
+                            "index": sol_index,
+                            "index_in_year": sol_index % 10,
+                            "active": sol_index === current_day,
+                            "avail": _.contains(_this.persistedYears, year_index),
+                        };
+                    });
+                    return {
+                        "index": year_index,
+                        "sols": sols,
+                    };
+                });
+                return years;
+            },
         },
         methods: {
             start: function() {
@@ -369,6 +377,8 @@ $(document).ready(function() {
             inspecting: false,
             nx: 0,
             ny: 0,
+            head_timestamp: 0,
+            persisted_years: [],
         },
         methods: {
             start_server: function() {
@@ -406,6 +416,8 @@ $(document).ready(function() {
                     _this.biosphere_name = bs.name;
                     _this.nx = bs.nx;
                     _this.ny = bs.ny;
+                    _this.head_timestamp = bs.num_ticks;
+                    _this.persisted_years = bs.persisted_years;
                     client.construct_frames(bs.nx, bs.ny);
                     if (bs.state === 3 || bs.state === 4) {
                         // Continue to reload when it's transitioning.

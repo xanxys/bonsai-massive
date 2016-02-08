@@ -20,6 +20,10 @@ body {
     position: relative;
     top: 0.1em;
 }
+.day.avail {
+    background-color: #00897B;
+    color: white;
+}
 .day.active {
     background-color: #E91E63;
     color: white;
