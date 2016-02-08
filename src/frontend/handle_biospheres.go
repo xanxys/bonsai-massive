@@ -4,6 +4,9 @@ import (
 	"./api"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
+	"log"
+	"sort"
+	"time"
 )
 
 const tickPerYear = 5000
@@ -33,19 +36,32 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		}
 		topo := NewCylinderTopology(uint64(keys[ix].ID()), int(meta.Nx), int(meta.Ny))
 		chunkId := topo.GetChunkTopos()[0].ChunkId
-		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("=ChunkId", chunkId).Project("Timestamp").Distinct().Order("Timestamp")
+
+		t0 := time.Now()
+		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId)
 		var ss []*PersistentChunkSnapshot
 		_, err := client.GetAll(ctx, query, &ss)
 		if err != nil {
 			return nil, err
 		}
-		maxTimestamp := uint64(ss[len(ss)-1].Timestamp)
-		var persistedYears []int32
+		log.Printf("Naive query took %s for %s", time.Since(t0), chunkId)
+
+		maxTimestamp := uint64(0)
+		if len(ss) > 0 {
+			maxTimestamp = uint64(ss[len(ss)-1].Timestamp)
+		}
+		persistedYearsMap := make(map[int32]bool)
 		for _, snapshot := range ss {
 			if snapshot.Timestamp%tickPerYear == 0 {
-				persistedYears = append(persistedYears, int32(snapshot.Timestamp/tickPerYear))
+				persistedYearsMap[int32(snapshot.Timestamp/tickPerYear)] = true
 			}
 		}
+		var persistedYears []int32
+		for year := range persistedYearsMap {
+			persistedYears = append(persistedYears, year)
+		}
+		sort.Sort(I32Slice(persistedYears))
+
 		bios = append(bios, &api.BiosphereDesc{
 			BiosphereId:    uint64(keys[ix].ID()),
 			Name:           meta.Name,
@@ -60,4 +76,20 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 	return &api.BiospheresS{
 		Biospheres: bios,
 	}, nil
+}
+
+type I32Slice []int32
+
+func (slice I32Slice) Len() int {
+	return len(slice)
+}
+
+func (slice I32Slice) Less(i, j int) bool {
+	return slice[i] < slice[j]
+}
+
+func (slice I32Slice) Swap(i, j int) {
+	t := slice[i]
+	slice[i] = slice[j]
+	slice[j] = t
 }
