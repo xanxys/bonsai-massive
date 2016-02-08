@@ -243,18 +243,20 @@ message BiosphereEnvConfig {
     int32 seed = 1;
 }
 
-
+// Next ID: 9
 message BiosphereDesc {
     uint64 biosphere_id = 1;
 
-    // In UI, it is expected name is single-line, possible descriptive string.
+    // In UI, it is expected name is single-line, possibly descriptive string.
     // e.g. "Biosphere:1/NoBC", "HelloBonsai22 - Guests should use this!"
     string name = 2;
 
     // How many cores this world is currently configured to use.
     uint32 num_cores = 3;
 
-    // Current timestamp of the world.
+    // Current head timestamp of the world.
+    // Guarantee: ∀ t ∈ persisted snapshot, t <= num_ticks
+    // (this is done by erasing future persistence when restarting from the past)
     uint64 num_ticks = 4;
 
     BiosphereState state = 5;
@@ -262,6 +264,9 @@ message BiosphereDesc {
     // World size (in number of chunks).
     int32 nx = 6;
     int32 ny = 7;
+
+    // Persisted years (0-origin) in descending order.
+    repeated int32 persisted_years = 8;
 }
 
 message PolySoup {
