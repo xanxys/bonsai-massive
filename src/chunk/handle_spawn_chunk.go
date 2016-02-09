@@ -2,6 +2,8 @@ package main
 
 import (
 	"./api"
+	"errors"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
@@ -16,34 +18,19 @@ func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*a
 func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 	ctx := context.Background()
 	topo := q.Topology
+	relToId, idToRel, wall := decodeTopo(topo)
 
-	// Decode topo once.
-	relToId := make(map[ChunkRel]string)
-	idToRel := make(map[string]ChunkRel)
-	for _, neighbor := range topo.Neighbors {
-		rel := ChunkRel{int(neighbor.Dx), int(neighbor.Dy)}
-		relToId[rel] = neighbor.ChunkId
-		idToRel[neighbor.ChunkId] = rel
+	var chunk *GrainChunk
+	if q.StartTimestamp > 0 {
+		loadedChunk, err := resumeFromSnapshot(ctx, topo.ChunkId, q.StartTimestamp, cred)
+		if err != nil {
+			log.Printf("Resuming failed with %#v, not starting %s", err, topo.ChunkId)
+			return
+		}
+		chunk = loadedChunk
+	} else {
+		chunk = initializeWithSources(q)
 	}
-	_, canPassXm := relToId[ChunkRel{-1, 0}]
-	_, canPassXp := relToId[ChunkRel{1, 0}]
-	_, canPassYm := relToId[ChunkRel{0, -1}]
-	_, canPassYp := relToId[ChunkRel{0, 1}]
-	wall := &ChunkWall{
-		Xm: !canPassXm,
-		Xp: !canPassXp,
-		Ym: !canPassYm,
-		Yp: !canPassYp,
-	}
-
-	chunk := NewGrainChunk(false)
-	if q.NumSoil > 0 {
-		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, int(q.NumSoil), Vec3f{0.5, 0.5, 2.0}))
-	}
-	if q.NumWater > 0 {
-		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_WATER, int(q.NumWater), Vec3f{0.5, 0.55, 2.1}))
-	}
-	chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_CELL, int(10), Vec3f{0.55, 0.5, 2.2}))
 
 	if !router.RegisterNewChunk(topo) {
 		log.Printf("RunChunk(%s) exiting because it's already running", topo.ChunkId)
@@ -114,6 +101,87 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 		}
 		router.NotifyResult(chunk.Timestamp, topo, nExport)
 	}
+}
+
+func resumeFromSnapshot(ctx context.Context, chunkId string, startTimestamp uint64, cred *ServerCred) (*GrainChunk, error) {
+	client, err := cred.AuthDatastore(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find resuming point and delete snapshots after it.
+	// This is super inefficient.
+	qSnapshots := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId)
+	var ss []*PersistentChunkSnapshot
+	keys, err := client.GetAll(ctx, qSnapshots, &ss)
+	if err != nil {
+		return nil, err
+	}
+	var keysToDelete []*datastore.Key
+	var resumePoint *PersistentChunkSnapshot
+	for ix, snapshot := range ss {
+		if uint64(snapshot.Timestamp) == startTimestamp {
+			resumePoint = snapshot
+		} else if uint64(snapshot.Timestamp) > startTimestamp {
+			keysToDelete = append(keysToDelete, keys[ix])
+		}
+	}
+	if resumePoint == nil {
+		return nil, errors.New(fmt.Sprintf("PersistentChunkSnapshot(id=%s, t=%d) not found", chunkId, startTimestamp))
+	}
+
+	// Initialize chunk from snapshot.
+	snapshotProto := &api.ChunkSnapshot{}
+	err = proto.Unmarshal(resumePoint.Snapshot, snapshotProto)
+	if err != nil {
+		return nil, err
+	}
+	chunk := NewGrainChunk(false)
+	chunk.Timestamp = startTimestamp
+	chunk.Grains = make([]*Grain, len(snapshotProto.Grains))
+	for ix, grainProto := range snapshotProto.Grains {
+		chunk.Grains[ix] = deser(grainProto)
+	}
+
+	// Only after confirming successful chunk resuming, delete snapshots after resume point.
+	err = client.DeleteMulti(ctx, keysToDelete)
+	if err != nil {
+		log.Printf("Error: Failed to delete %d snapshots when resuming from t=%d: %#v", len(keysToDelete), startTimestamp, keysToDelete)
+	}
+	return chunk, nil
+}
+
+func initializeWithSources(q *api.SpawnChunkQ) *GrainChunk {
+	chunk := NewGrainChunk(false)
+	if q.NumSoil > 0 {
+		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, int(q.NumSoil), Vec3f{0.5, 0.5, 2.0}))
+	}
+	if q.NumWater > 0 {
+		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_WATER, int(q.NumWater), Vec3f{0.5, 0.55, 2.1}))
+	}
+	chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_CELL, int(10), Vec3f{0.55, 0.5, 2.2}))
+	return chunk
+}
+
+func decodeTopo(topo *api.ChunkTopology) (map[ChunkRel]string, map[string]ChunkRel, *ChunkWall) {
+	relToId := make(map[ChunkRel]string)
+	idToRel := make(map[string]ChunkRel)
+	for _, neighbor := range topo.Neighbors {
+		rel := ChunkRel{int(neighbor.Dx), int(neighbor.Dy)}
+		relToId[rel] = neighbor.ChunkId
+		idToRel[neighbor.ChunkId] = rel
+	}
+	_, canPassXm := relToId[ChunkRel{-1, 0}]
+	_, canPassXp := relToId[ChunkRel{1, 0}]
+	_, canPassYm := relToId[ChunkRel{0, -1}]
+	_, canPassYp := relToId[ChunkRel{0, 1}]
+	wall := &ChunkWall{
+		Xm: !canPassXm,
+		Xp: !canPassXp,
+		Ym: !canPassYm,
+		Yp: !canPassYp,
+	}
+	return relToId, idToRel, wall
 }
 
 func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *GrainChunk) (*datastore.Key, error) {

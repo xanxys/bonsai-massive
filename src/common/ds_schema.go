@@ -3,7 +3,8 @@ package main
 type PersistentChunkSnapshot struct {
 	ChunkId   string
 	Timestamp int64
-	Snapshot  []byte `datastore:",noindex"`
+	// Serialized api.ChunkSnapshot
+	Snapshot []byte `datastore:",noindex"`
 }
 
 type BiosphereMeta struct {
