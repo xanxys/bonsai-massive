@@ -21,6 +21,9 @@ This is super important property since evolving things tend to *cheat* by exploi
 World is divided to re-sizable chunks and they're simulated in parallel on google cloud platform.
 Simulation is bit-wise reproducible when run in any chunk size and/or in presence of server failures.
 
+![Deployment](https://docs.google.com/drawings/d/1cgvuM5Y_7A9-c1va3ftDwIgyta5Pe9MayIU3aiRTt9E/pub?w=851&amp;h=492)
+![Data flow](https://docs.google.com/drawings/d/1sQcEftxncmAuRojqud-RQ05DrXb53Im6t8XrnxmwQD4/pub?w=851&amp;h=492)
+
 ## About Performance
 At 6d177626e0dddd23fbd9039e7945aa899e51eea1
 (300 water particles & 300 soil particles, https://gyazo.com/9e414fc8ba2fecb76a08528d013c24c5),
