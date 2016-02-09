@@ -38,6 +38,7 @@ service ChunkService {
 
 // Spawn a chunk in this chunk server. This request itself is very lightweight.
 // (although server might slowdown afterwards).
+// Next ID: 7
 message SpawnChunkQ {
     ChunkTopology topology = 2;
 
@@ -49,6 +50,13 @@ message SpawnChunkQ {
     // Store snapshot when timestamp % snapshot_modulo == 0.
     // Does nothing when snapshot_modulo <= 0.
     int32 snapshot_modulo = 5;
+
+    // When 0, create an empty chunk.
+    // When >0, read from PersistentChunkSnapshot in datastore.
+    // In both case, the chunk server will delete snaphots that have
+    // (> start_timestamp && same chunk id).
+    // If chunk server cannot find specified snapshot, SpawnChunk will silently fail.
+    uint64 start_timestamp = 6;
 
     reserved 1;
 }
