@@ -99,6 +99,7 @@ message DebugS {
 }
 
 
+// NextId: 5
 message ChangeExecQ {
     UserAuth auth = 3;
 
@@ -110,9 +111,15 @@ message ChangeExecQ {
         RUNNING = 1;
     }
     State target_state = 2;
+
+    // Used only when target_state == RUNNING.
+    uint64 start_timestamp = 4;
 }
 
 message ChangeExecS {
+    // Returns true when specified timestamp is found (and chunk will almost
+    // certainly start eventually).
+    bool timesamp_found = 1;
 }
 
 
