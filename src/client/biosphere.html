@@ -37,7 +37,6 @@
 <body>
 	<template id="time-template">
 		<div>
-			<h5>Time Control</h5>
 			<div v-style="vertical-align: middle" class="mdl-spinner mdl-js-spinner" v-class="is-active: processing"></div>
 			<button v-on="click: start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
 			<button v-on="click: stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
@@ -49,16 +48,16 @@
 				<i class="material-icons">play_arrow</i>
 			</button>
 
-			<ul>
-				<li>T= {{current_timestamp}}</li>
-			</ul>
-
 			<div v-repeat="year in years">
 				<h6>Year {{year.index}}</h6>
-				<div v-repeat="sol in year.sols" class="day" v-class="avail: sol.avail, active: sol.active">
+				<div v-repeat="sol in year.sols" class="day" v-class="avail: sol.avail, active: sol.active" v-on="click: set_day(sol.index)">
 					<span>{{sol.index_in_year}}</span>
 				</div>
 			</div>
+
+			<ul>
+				<li>T= {{current_timestamp}}</li>
+			</ul>
 		</div>
 	</template>
 
@@ -84,7 +83,7 @@
 		<main class="mdl-layout__content">
 			<div class="mdl-grid">
 				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
-					<bs-time state={{state}} head-timestamp={{head_timestamp}} persisted-years={{persisted_years}}></bs-time>
+					<bs-time state={{state}} head-timestamp={{head_timestamp}} persisted-years={{persisted_years}} curr-timestamp={{curr_timestamp}}></bs-time>
 				</div>
 				<div class="viewport-container mdl-cell mdl-cell--9-col mdl-card mdl-shadow--2dp">
 					<div id="viewport"></div>

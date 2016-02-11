@@ -2,6 +2,9 @@
 
 var Long = dcodeIO.Long;
 
+const ticks_per_day = 5000;
+const ticks_per_year = 50000;
+
 class Client {
     constructor(bs_main, bs_time) {
         this.debug = (location.hash === '#debug');
@@ -10,7 +13,8 @@ class Client {
         this.bs_time = bs_time;
     	this.init();
 
-        this.paused = true;
+        this.auto_update = false;
+        this.update_once = false;
         this.refresh_data();
 
         this.cells_proxy_data = null;
@@ -34,15 +38,15 @@ class Client {
 
     refresh_data() {
         var _this = this;
-        if (this.paused) {
+        if (!this.auto_update && !this.update_once) {
             setTimeout(()=> {
                 _this.refresh_data();
             }, 1000);
             return;
         }
 
-        var c_dir = this.camera.getWorldDirection();
-        call_fe('biosphere_frames', {
+        let c_dir = this.camera.getWorldDirection();
+        let request = {
             biosphere_id: document.biosphere_id,
             visible_region: {
                 px: this.camera.position.x,
@@ -52,14 +56,18 @@ class Client {
                 dy: c_dir.y,
                 dz: c_dir.z,
                 half_angle: this.get_cone_half_angle(),
-            },
-        }).done(function(data) {
-            if (!_this.paused) {
-                _this.bs_time.$set('exec_timestamp', data.content_timestamp);
-                _this.bs_main.update_composition(data.stat);
-                _this.cells_proxy_data = data.cells;
-                _this.on_frame_received(data);
             }
+        };
+        if (!_this.bs_time.is_playing) {
+            request.fetch_snapshot = true;
+            request.snapshot_timestamp = _this.bs_time.currTimestamp;
+        }
+        call_fe('biosphere_frames', request).done(function(data) {
+            _this.update_once = false;
+            _this.bs_time.$set('exec_timestamp', data.content_timestamp);
+            _this.bs_main.update_composition(data.stat);
+            _this.cells_proxy_data = data.cells;
+            _this.on_frame_received(data);
             _this.refresh_data();
         });
     }
@@ -295,7 +303,7 @@ $(document).ready(function() {
 
     Vue.component('bs-time', {
         template: '#time-template',
-        props: ['state', 'headTimestamp', 'persistedYears'],
+        props: ['state', 'headTimestamp', 'currTimestamp', 'persistedYears'],
         data: () => {
             return {
                 is_playing: false,  // only applicable when is_running.
@@ -321,17 +329,15 @@ $(document).ready(function() {
             is_stopped: function() {
                 return this.state === 2;
             },
-            current_timestamp: function() {
+            max_timestamp: function() {
                 return Math.max(this.exec_timestamp, this.headTimestamp);
             },
             years: function() {
-                const ticks_per_day = 5000;
-                const ticks_per_year = 50000;
                 let _this = this;
-                let current_day = Math.floor(_this.current_timestamp/ticks_per_day);
-                let years = _.map(_.range(Math.ceil(_this.current_timestamp/ticks_per_year)), (year_index) => {
+                let current_day = this.currTimestamp / ticks_per_day;
+                let years = _.map(_.range(Math.ceil(_this.max_timestamp/ticks_per_year)), (year_index) => {
                     var sol_begin = 10 * year_index;
-                    var sol_end = Math.min(10 * (year_index + 1), Math.ceil(_this.current_timestamp/ticks_per_day));
+                    var sol_end = Math.min(10 * (year_index + 1), Math.ceil(_this.max_timestamp/ticks_per_day));
 
                     var sols = _.map(_.range(sol_begin, sol_end), (sol_index) => {
                         return {
@@ -358,11 +364,17 @@ $(document).ready(function() {
             },
             play: function() {
                 this.is_playing = true;
-                client.paused = false;
+                client.auto_update = true;
             },
             pause: function() {
                 this.is_playing = false;
-                client.paused = true;
+                client.auto_update = false;
+            },
+            set_day: function(day_index) {
+                this.currTimestamp = day_index * ticks_per_day;
+                this.is_playing = false;
+                client.auto_update = false;
+                client.update_once = true;
             },
         },
     });
@@ -378,6 +390,7 @@ $(document).ready(function() {
             nx: 0,
             ny: 0,
             head_timestamp: 0,
+            curr_timestamp: 0,
             persisted_years: [],
         },
         methods: {
