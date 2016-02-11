@@ -215,18 +215,27 @@ class Client {
         if (this.frame_constructed) {
             return;
         }
-        _.each(_.range(nx), (ix) => {
-            _.each(_.range(ny), (iy) => {
-                let box = new THREE.Mesh(
-                    new THREE.CubeGeometry(1, 1, 2),
-                    new THREE.MeshBasicMaterial({
-                        wireframe: true,
-                        color: '#fcc'
-                    }));
-                    box.position.x = 0.5 + ix;
-                    box.position.y = 0.5 + iy;
-                    box.position.z = 1;
-                    this.scene.add(box);
+
+        let height_vertical = 2;
+        let segments_vertical = 5;
+        _.each(_.range(nx + 1), (ix) => {
+            _.each(_.range(ny + 1), (iy) => {
+                _.each(_.range(segments_vertical), (iz) => {
+                    var geometry = new THREE.Geometry();
+                    geometry.vertices.push(
+                        new THREE.Vector3(ix, iy, iz / segments_vertical * height_vertical),
+                        new THREE.Vector3(ix, iy, (iz + 1) / segments_vertical * height_vertical)
+                    );
+                    var line = new THREE.Line(
+                        geometry,
+                        new THREE.LineBasicMaterial({
+                            color: 0x888888,
+                            opacity: 1 - iz / segments_vertical,
+                            transparent: true
+                        })
+                    );
+                    this.scene.add(line);
+                });
             });
         });
 
@@ -268,7 +277,42 @@ class Client {
                 box.position.z = -0.02;
                 this.scene.add(box);
         });
+
+        // Add wall.
+        this.walls_y = [];
+        _.each([0, ny], (y) => {
+            var wall = new THREE.Object3D();
+            _.each(_.range(10), (iz) => {
+                var z = iz * 0.25;
+                var height_cutoff = 2;
+                var geometry = new THREE.Geometry();
+                geometry.vertices.push(
+                    new THREE.Vector3(0, y, z),
+                    new THREE.Vector3(nx, y, z)
+                );
+                var line = new THREE.Line(
+                    geometry,
+                    new THREE.LineBasicMaterial({
+                        color: 0xcccccc,
+                        opacity: Math.max((height_cutoff - z) / height_cutoff, 0),
+                        transparent: true
+                    })
+                );
+                wall.add(line);
+            });
+            this.walls_y.push(wall);
+            this.scene.add(wall);
+        });
+
         this.frame_constructed = true;
+    }
+
+    tune_wall_visibility() {
+        if (this.walls_y !== undefined) {
+            let c_dir = this.camera.getWorldDirection();
+            this.walls_y[0].visible = c_dir.y < 0.2; // TODO: calculate as FOV/2
+            this.walls_y[1].visible = c_dir.y > -0.2;
+        }
     }
 
     /* UI Utils */
@@ -277,7 +321,7 @@ class Client {
     	let _this = this;
     	requestAnimationFrame(function(){_this.animate();});
         this.controls.update();
-
+        this.tune_wall_visibility();
     	this.renderer.render(this.scene, this.camera);
     }
 }
