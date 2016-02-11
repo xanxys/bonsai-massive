@@ -4,7 +4,9 @@ import (
 	"./api"
 	"errors"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
 	"log"
 	"math"
@@ -23,46 +25,77 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		return nil, err
 	}
 
-	if len(chunks) == 0 {
-		log.Print("Active chunk server not found, returning dummy frame.")
-		return &api.BiosphereFramesS{
-			Content: fallbackContent(),
-		}, nil
+	snapshots := make(map[string]*api.ChunkSnapshot)
+	var timestamp uint64
+	if q.FetchSnapshot {
+		client, err := fe.AuthDatastore(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, chunkTopo := range bsTopo.GetChunkTopos() {
+			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkTopo.ChunkId).Filter("Timestamp=", q.SnapshotTimestamp).Limit(1)
+			var ss []*PersistentChunkSnapshot
+			_, err := client.GetAll(ctx, query, &ss)
+			if err != nil {
+				return nil, err
+			}
+			if len(ss) < 1 {
+				return nil, errors.New("Snapshot not found")
+			}
+			snapshotProto := &api.ChunkSnapshot{}
+			err = proto.Unmarshal(ss[0].Snapshot, snapshotProto)
+			if err != nil {
+				return nil, err
+			}
+			snapshots[chunkTopo.ChunkId] = snapshotProto
+		}
+		timestamp = q.SnapshotTimestamp
+	} else {
+		if len(chunks) == 0 {
+			log.Print("Active chunk server not found, returning dummy frame.")
+			return &api.BiosphereFramesS{
+				Content: fallbackContent(),
+			}, nil
+		}
+
+		chunkInstance := chunks[0]
+		ip := chunkInstance.NetworkInterfaces[0].NetworkIP
+
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+		chunkService := api.NewChunkServiceClient(conn)
+		chunkIds := make([]string, len(bsTopo.GetChunkTopos()))
+		for ix, chunkTopo := range bsTopo.GetChunkTopos() {
+			chunkIds[ix] = chunkTopo.ChunkId
+		}
+		resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
+			ChunkId: chunkIds,
+		})
+		if err != nil {
+			log.Printf("ChunkService.Snapshot failed %v", err)
+			return nil, err
+		}
+		if resp.Snapshot == nil {
+			return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
+		}
+		snapshots = resp.Snapshot
+		timestamp = resp.Timestamp
 	}
 
-	chunkInstance := chunks[0]
-	ip := chunkInstance.NetworkInterfaces[0].NetworkIP
-
-	conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	chunkService := api.NewChunkServiceClient(conn)
-	chunkIds := make([]string, len(bsTopo.GetChunkTopos()))
-	for ix, chunkTopo := range bsTopo.GetChunkTopos() {
-		chunkIds[ix] = chunkTopo.ChunkId
-	}
-	resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
-		ChunkId: chunkIds,
-	})
-	if err != nil {
-		log.Printf("ChunkService.Snapshot failed %v", err)
-		return nil, err
-	}
-	if resp.Snapshot == nil {
-		return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
-	}
 	var maybeCone *OrientedCone
 	if q.VisibleRegion != nil {
 		maybeCone = NewCone(q.VisibleRegion)
 	}
 	return &api.BiosphereFramesS{
-		ContentTimestamp: resp.Timestamp,
-		Content:          snapshotToMesh(maybeCone, bsTopo, resp.Snapshot).Serialize(),
-		Stat:             snapshotToStat(resp.Snapshot),
-		Cells:            snapshotToCellStats(bsTopo, resp.Snapshot),
+		ContentTimestamp: timestamp,
+		Content:          snapshotToMesh(maybeCone, bsTopo, snapshots).Serialize(),
+		Stat:             snapshotToStat(snapshots),
+		Cells:            snapshotToCellStats(bsTopo, snapshots),
 	}, nil
 }
 

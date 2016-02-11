@@ -123,7 +123,7 @@ message ChangeExecS {
 }
 
 
-// Next ID: 6
+// Next ID: 8
 message BiosphereFramesQ {
     UserAuth auth = 4;
 
@@ -137,6 +137,13 @@ message BiosphereFramesQ {
     OrientedCone visible_region = 5;
 
     bytes cont_token = 1;
+
+    // Fetch snapshot at target_snapshot instead of HEAD.
+    // When fetching head, the request will fail when the chunk is not running.
+    bool fetch_snapshot = 6;
+
+    uint64 snapshot_timestamp = 7;
+
     reserved 3;
 }
 
