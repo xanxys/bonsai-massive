@@ -37,6 +37,7 @@
 <body>
 	<template id="time-template">
 		<div>
+			<div>T= {{currTimestamp}}</div>
 			<div v-style="vertical-align: middle" class="mdl-spinner mdl-js-spinner" v-class="is-active: processing"></div>
 			<button v-on="click: start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
 			<button v-on="click: stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
@@ -54,10 +55,6 @@
 					<span>{{sol.index_in_year}}</span>
 				</div>
 			</div>
-
-			<ul>
-				<li>T= {{current_timestamp}}</li>
-			</ul>
 		</div>
 	</template>
 

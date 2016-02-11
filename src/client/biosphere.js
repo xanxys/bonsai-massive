@@ -444,6 +444,7 @@ $(document).ready(function() {
                 call_fe('change_exec', {
                     biosphere_id: document.biosphere_id,
                     target_state: 1, // RUNNING
+                    start_timestamp: this.head_timestamp,
                 }, true).done((data) => {
                     _this.update();
                 });
