@@ -13,9 +13,10 @@ import (
 // Issue-and-forget type of commands.
 type ControllerCommand struct {
 	// Start new biosphere.
-	bsId   uint64
-	bsTopo BiosphereTopology
-	env    *api.BiosphereEnvConfig
+	bsId           uint64
+	bsTopo         BiosphereTopology
+	env            *api.BiosphereEnvConfig
+	startTimestamp uint64
 
 	// Query managed biospheres and their states.
 	// This is a few seconds old. (depending on polling interval)
@@ -127,7 +128,8 @@ func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, 
 			chunkGens := GenerateEnv(targetState.bsTopo, targetState.env)
 			log.Printf("Spawning %d new chunks: %# v", len(chunkGens), pretty.Formatter(chunkGens))
 			for _, chunkGen := range chunkGens {
-				chunkGen.SnapshotModulo = 500
+				chunkGen.SnapshotModulo = 5000
+				chunkGen.StartTimestamp = targetState.startTimestamp
 				chunkService.SpawnChunk(ctx, chunkGen)
 			}
 			return

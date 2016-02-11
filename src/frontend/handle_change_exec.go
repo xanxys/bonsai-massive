@@ -21,7 +21,13 @@ func (fe *FeServiceImpl) ChangeExec(ctx context.Context, q *api.ChangeExecQ) (*a
 		if err != nil {
 			return nil, err
 		}
-		fe.cmdQueue <- &ControllerCommand{q.BiosphereId, bsTopo, envConfig, nil}
+		fe.cmdQueue <- &ControllerCommand{
+			bsId:               q.BiosphereId,
+			bsTopo:             bsTopo,
+			env:                envConfig,
+			startTimestamp:     q.StartTimestamp,
+			getBiosphereStates: nil,
+		}
 	}
 	return &api.ChangeExecS{}, nil
 }
