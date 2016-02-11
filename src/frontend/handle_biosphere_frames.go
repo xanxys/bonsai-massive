@@ -34,7 +34,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		}
 
 		for _, chunkTopo := range bsTopo.GetChunkTopos() {
-			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkTopo.ChunkId).Filter("Timestamp=", q.SnapshotTimestamp).Limit(1)
+			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkTopo.ChunkId).Filter("Timestamp=", int64(q.SnapshotTimestamp)).Limit(1)
 			var ss []*PersistentChunkSnapshot
 			_, err := client.GetAll(ctx, query, &ss)
 			if err != nil {
