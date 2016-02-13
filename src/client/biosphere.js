@@ -58,13 +58,13 @@ class Client {
                 half_angle: this.get_cone_half_angle(),
             }
         };
-        if (!_this.bs_time.is_playing) {
+        if (!_this.bs_time.tracking_head) {
             request.fetch_snapshot = true;
             request.snapshot_timestamp = _this.bs_time.currTimestamp;
         }
         call_fe('biosphere_frames', request).done(function(data) {
             _this.update_once = false;
-            _this.bs_time.$set('exec_timestamp', data.content_timestamp);
+            _this.bs_time.$set('currTimestamp', data.content_timestamp);
             _this.bs_main.update_composition(data.stat);
             _this.cells_proxy_data = data.cells;
             _this.on_frame_received(data);
@@ -350,20 +350,13 @@ $(document).ready(function() {
         props: ['state', 'headTimestamp', 'currTimestamp', 'persistedYears'],
         data: () => {
             return {
-                is_playing: false,  // only applicable when is_running.
-                exec_timestamp: 0, // reported by BiosphereFrames
+                tracking_head: false, // only applicable when is_running.
                 persisted_years: [],
             };
         },
         computed: {
             // For some reason, when I write ""() => ..." here, vue.js
             // fails to detect dependency and do not auto-update.
-            play_visible: function() {
-                return this.is_running && !this.is_playing;
-            },
-            pause_visible: function() {
-                return  this.is_running && this.is_playing;
-            },
             processing: function() {
                 return !this.is_stopped && !this.is_running;
             },
@@ -373,8 +366,11 @@ $(document).ready(function() {
             is_stopped: function() {
                 return this.state === 2;
             },
+            is_tracking_head: function() {
+                return this.tracking_head;
+            },
             max_timestamp: function() {
-                return Math.max(this.exec_timestamp, this.headTimestamp);
+                return Math.max(this.currTimestamp, this.headTimestamp);
             },
             years: function() {
                 let _this = this;
@@ -387,7 +383,7 @@ $(document).ready(function() {
                         return {
                             "index": sol_index,
                             "index_in_year": sol_index % 10,
-                            "active": sol_index === current_day,
+                            "active": !_this.tracking_head && sol_index === current_day,
                             "avail": _.contains(_this.persistedYears, year_index),
                         };
                     });
@@ -406,18 +402,15 @@ $(document).ready(function() {
             stop: function() {
                 this.$parent.stop_server();
             },
-            play: function() {
-                this.is_playing = true;
+            track_head: function() {
+                this.tracking_head = true;
                 client.auto_update = true;
             },
-            pause: function() {
-                this.is_playing = false;
-                client.auto_update = false;
-            },
             set_day: function(day_index) {
-                this.currTimestamp = day_index * ticks_per_day;
-                this.is_playing = false;
+                this.tracking_head = false;
                 client.auto_update = false;
+
+                this.currTimestamp = day_index * ticks_per_day;
                 client.update_once = true;
             },
         },
@@ -474,15 +467,15 @@ $(document).ready(function() {
                     _this.biosphere_name = bs.name;
                     _this.nx = bs.nx;
                     _this.ny = bs.ny;
+                    console.log(bs.num_ticks);
                     _this.head_timestamp = bs.num_ticks;
                     _this.persisted_years = bs.persisted_years;
                     client.construct_frames(bs.nx, bs.ny);
-                    if (bs.state === 3 || bs.state === 4) {
-                        // Continue to reload when it's transitioning.
-                        setTimeout(() => {
-                            _this.update();
-                        }, 5000);
-                    }
+                    // Reload often when transitioning.
+                    let reload_time_ms = (bs.state === 3 || bs.state === 4) ? 5000 : 15000;
+                    setTimeout(() => {
+                        _this.update();
+                    }, reload_time_ms);
                 });
             },
             update_composition: function(stat) {
