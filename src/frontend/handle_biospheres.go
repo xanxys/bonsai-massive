@@ -47,13 +47,13 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		log.Printf("Naive query took %s for %s", time.Since(t0), chunkId)
 
 		maxTimestamp := uint64(0)
-		if len(ss) > 0 {
-			maxTimestamp = uint64(ss[len(ss)-1].Timestamp)
-		}
 		persistedYearsMap := make(map[int32]bool)
 		for _, snapshot := range ss {
 			if snapshot.Timestamp%tickPerYear == 0 {
 				persistedYearsMap[int32(snapshot.Timestamp/tickPerYear)] = true
+			}
+			if uint64(snapshot.Timestamp) > maxTimestamp {
+				maxTimestamp = uint64(snapshot.Timestamp)
 			}
 		}
 		var persistedYears []int32
