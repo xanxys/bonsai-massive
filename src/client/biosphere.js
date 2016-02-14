@@ -135,38 +135,69 @@ class Client {
     }
 
     on_frame_received(data) {
-        let geom = new THREE.BufferGeometry();
-        let vertices = new Float32Array(data.content.vertices.length * 3);
-        let vertices_color = new Float32Array(data.content.vertices.length * 3);
-        let indices = new Uint32Array(data.content.indices.length);
-        _.each(data.content.vertices, (vertex, ix) => {
-            vertices[ix * 3 + 0] = vertex.px;
-            vertices[ix * 3 + 1] = vertex.py;
-            vertices[ix * 3 + 2] = vertex.pz;
-            vertices_color[ix * 3 + 0] = vertex.r;
-            vertices_color[ix * 3 + 1] = vertex.g;
-            vertices_color[ix * 3 + 2] = vertex.b;
-        });
-        _.each(data.content.indices, (v_index, ix) => {
-            indices[ix] = v_index;
-        });
-        geom.setIndex(new THREE.BufferAttribute(indices, 1));
-        geom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
-        geom.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
+        // Decode polygon soup.
+        if (data.content !== null) {
+            let geom = new THREE.BufferGeometry();
+            let vertices = new Float32Array(data.content.vertices.length * 3);
+            let vertices_color = new Float32Array(data.content.vertices.length * 3);
+            let indices = new Uint32Array(data.content.indices.length);
+            _.each(data.content.vertices, (vertex, ix) => {
+                vertices[ix * 3 + 0] = vertex.px;
+                vertices[ix * 3 + 1] = vertex.py;
+                vertices[ix * 3 + 2] = vertex.pz;
+                vertices_color[ix * 3 + 0] = vertex.r;
+                vertices_color[ix * 3 + 1] = vertex.g;
+                vertices_color[ix * 3 + 2] = vertex.b;
+            });
+            _.each(data.content.indices, (v_index, ix) => {
+                indices[ix] = v_index;
+            });
+            geom.setIndex(new THREE.BufferAttribute(indices, 1));
+            geom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geom.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
 
-        let material = new THREE.MeshBasicMaterial({
-            vertexColors: THREE.VertexColors,
-            side: THREE.DoubleSide,
-        });
-        let mesh = new THREE.Mesh(geom, material);
+            let material = new THREE.MeshBasicMaterial({
+                vertexColors: THREE.VertexColors,
+                side: THREE.DoubleSide,
+            });
+            let mesh = new THREE.Mesh(geom, material);
 
-        if (this.received_mesh !== undefined) {
-            this.scene.remove(this.received_mesh);
-            this.received_mesh.geometry.dispose();
-            this.received_mesh.material.dispose();
+            if (this.received_mesh !== undefined) {
+                this.scene.remove(this.received_mesh);
+                this.received_mesh.geometry.dispose();
+                this.received_mesh.material.dispose();
+            }
+            this.received_mesh = mesh;
+            this.scene.add(mesh);
         }
-        this.received_mesh = mesh;
-        this.scene.add(mesh);
+
+        // Decode point cloud.
+        if (data.points !== null) {
+            let geom_points = new THREE.BufferGeometry();
+            let vertices = new Float32Array(data.points.points.length * 3);
+            let vertices_color = new Float32Array(data.points.points.length * 3);
+            _.each(data.points.points, (point, ix) => {
+                vertices[ix * 3 + 0] = point.px;
+                vertices[ix * 3 + 1] = point.py;
+                vertices[ix * 3 + 2] = point.pz;
+                vertices_color[ix * 3 + 0] = point.r;
+                vertices_color[ix * 3 + 1] = point.g;
+                vertices_color[ix * 3 + 2] = point.b;
+            });
+            geom_points.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geom_points.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
+            let mesh_points = new THREE.Points(
+                geom_points,
+                new THREE.PointsMaterial({
+                    vertexColors: THREE.VertexColors,
+                    size: 0.05,
+                }));
+                if (this.received_mesh_points !== undefined) {
+                    this.scene.remove(this.received_mesh_points);
+                }
+                this.received_mesh_points = mesh_points;
+                this.scene.add(mesh_points);
+        }
     }
 
     // return :: ()

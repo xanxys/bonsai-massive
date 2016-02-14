@@ -93,10 +93,50 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	}
 	return &api.BiosphereFramesS{
 		ContentTimestamp: timestamp,
-		Content:          snapshotToMesh(maybeCone, bsTopo, snapshots).Serialize(),
+		Points:           snapshotToPointCloud(maybeCone, bsTopo, snapshots),
 		Stat:             snapshotToStat(snapshots),
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
 	}, nil
+}
+
+func snapshotToPointCloud(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *api.PointCloud {
+	var points []*api.PointCloud_Point
+	offsets := bsTopo.GetGlobalOffsets()
+	countTotal := 0
+	countAdded := 0
+	for chunkId, chunkSnapshot := range snapshot {
+		offset := offsets[chunkId]
+		for _, grain := range chunkSnapshot.Grains {
+			pos := Vec3f{grain.Pos.X, grain.Pos.Y, grain.Pos.Z}.Add(offset)
+			if maybeCone != nil && !maybeCone.Contains(pos) {
+				continue
+			}
+			baseColor := Vec3f{0, 0, 0}
+			if grain.Kind == api.Grain_WATER {
+				baseColor = Vec3f{0.4, 0.4, 1}
+			} else if grain.Kind == api.Grain_SOIL {
+				baseColor = Vec3f{0.8, 0.4, 0.3}
+			} else if grain.Kind == api.Grain_CELL {
+				baseColor = Vec3f{0.8, 0.8, 0.8}
+			}
+			color := baseColor.Add(Vec3f{float32(random1(grain.Id, 1416028811)), float32(random1(grain.Id, 456307397)), float32(random1(grain.Id, 386052383))}.MultS(0.2))
+			points = append(points, &api.PointCloud_Point{
+				Px: pos.X,
+				Py: pos.Y,
+				Pz: pos.Z,
+				R:  color.X,
+				G:  color.Y,
+				B:  color.Z,
+			})
+			countAdded++
+		}
+		countTotal += len(chunkSnapshot.Grains)
+	}
+	countDropped := countTotal - countAdded
+	log.Printf("Mesh serializer: %d grains dropped (%f %%)", countDropped, float32(countDropped)/float32(countTotal)*100)
+	return &api.PointCloud{
+		Points: points,
+	}
 }
 
 func snapshotToMesh(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *Mesh {

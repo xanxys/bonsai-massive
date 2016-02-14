@@ -147,11 +147,12 @@ message BiosphereFramesQ {
     reserved 3;
 }
 
-// Next ID: 6
+// Next ID: 7
 message BiosphereFramesS {
     uint64 content_timestamp = 3;
 
     PolySoup content = 1;
+    PointCloud points = 6;
     BiosphereStat stat = 4;
     repeated CellStat cells = 5;
 
@@ -305,6 +306,21 @@ message PolySoup {
     // Indices of vertices of triangles.
     // Length must be multiple of 3.
     repeated uint32 indices = 2 [packed=true];
+}
+
+message PointCloud {
+    message Point {
+        float px = 1;
+        float py = 2;
+        float pz = 3;
+
+        // LDR color in [0, 1].
+        float r = 4;
+        float g = 5;
+        float b = 6;
+    }
+
+    repeated Point points = 1;
 }
 
 // This structure is permanent.
