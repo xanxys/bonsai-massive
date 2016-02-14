@@ -16,7 +16,7 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + ProjectId
 	// Run `gcloud compute images list --project google-containers`
 	// to see list of container names.
-	imageURL := "https://www.googleapis.com/compute/v1/projects/google-containers/global/images/container-vm-v20151215"
+	imageURL := "https://www.googleapis.com/compute/v1/projects/google-containers/global/images/container-vm-v20160127"
 	containerManifest := getChunkServerManifest(fe.chunkContainerName)
 	bonsaiType := "chunk-" + fe.envType
 
