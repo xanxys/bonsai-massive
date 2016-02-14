@@ -54,6 +54,16 @@ func round3(x float32) float32 {
 	return float32(math.Floor(float64(x)*1e3+0.5) * 1e-3)
 }
 
+// Quantize by 1/256.
+func round256(x float32) float32 {
+	return float32(math.Floor(float64(x)*256+0.5) * 0.00390625)
+}
+
+// Quantize by 1/1024.
+func round1024(x float32) float32 {
+	return float32(math.Floor(float64(x)*1024+0.5) * 0.0009765625)
+}
+
 // Vertex is a wrapper for PolySoup_Vertex using Vector.
 type Vertex struct {
 	Pos Vec3f

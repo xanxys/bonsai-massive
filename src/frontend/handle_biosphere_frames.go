@@ -121,12 +121,12 @@ func snapshotToPointCloud(maybeCone *OrientedCone, bsTopo BiosphereTopology, sna
 			}
 			color := baseColor.Add(Vec3f{float32(random1(grain.Id, 1416028811)), float32(random1(grain.Id, 456307397)), float32(random1(grain.Id, 386052383))}.MultS(0.2))
 			points = append(points, &api.PointCloud_Point{
-				Px: pos.X,
-				Py: pos.Y,
-				Pz: pos.Z,
-				R:  color.X,
-				G:  color.Y,
-				B:  color.Z,
+				Px: round1024(pos.X),
+				Py: round1024(pos.Y),
+				Pz: round1024(pos.Z),
+				R:  round256(color.X),
+				G:  round256(color.Y),
+				B:  round256(color.Z),
 			})
 			countAdded++
 		}
