@@ -4,8 +4,8 @@ import (
 	"./api"
 	"errors"
 	"fmt"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"github.com/kr/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
@@ -110,7 +110,11 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
 	}
 	trace.End = time.Now().UnixNano()
-	log.Printf("Timing: %# v", pretty.Formatter(trace))
+	marshaler := &jsonpb.Marshaler{
+		OrigName: true,
+	}
+	traceJson, _ := marshaler.MarshalToString(trace)
+	log.Printf("Timing: %s", traceJson)
 	return s, nil
 }
 
