@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/kr/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
@@ -15,6 +16,11 @@ import (
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
+	trace := &api.TimingTrace{
+		Name:  "BiosphereFrames",
+		Start: time.Now().UnixNano(),
+	}
+
 	chunks, err := fe.GetChunkServerInstances(ctx)
 	if err != nil {
 		return nil, err
@@ -27,6 +33,10 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 
 	snapshots := make(map[string]*api.ChunkSnapshot)
 	var timestamp uint64
+	fetchTrace := &api.TimingTrace{
+		Name:  "FetchSnapshot",
+		Start: time.Now().UnixNano(),
+	}
 	if q.FetchSnapshot {
 		client, err := fe.AuthDatastore(ctx)
 		if err != nil {
@@ -86,17 +96,22 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		snapshots = resp.Snapshot
 		timestamp = resp.Timestamp
 	}
+	fetchTrace.End = time.Now().UnixNano()
+	trace.Children = append(trace.Children, fetchTrace)
 
 	var maybeCone *OrientedCone
 	if q.VisibleRegion != nil {
 		maybeCone = NewCone(q.VisibleRegion)
 	}
-	return &api.BiosphereFramesS{
+	s := &api.BiosphereFramesS{
 		ContentTimestamp: timestamp,
 		Points:           snapshotToPointCloud(maybeCone, bsTopo, snapshots),
 		Stat:             snapshotToStat(snapshots),
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
-	}, nil
+	}
+	trace.End = time.Now().UnixNano()
+	log.Printf("Timing: %# v", pretty.Formatter(trace))
+	return s, nil
 }
 
 func snapshotToPointCloud(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *api.PointCloud {

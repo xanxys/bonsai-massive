@@ -57,9 +57,26 @@ message CellProp {
 }
 
 // Generic 3D vector in R^3.
-// Element must not be NaN or inf, but otherwise, there's not restriction.
+// Element must not be NaN or inf, but otherwise, there's no restriction.
 message Vec3f {
     float x = 1;
     float y = 2;
     float z = 3;
+}
+
+// Timing metrics of a finite-time process.
+// Process is typically an RPC, but can be anything.
+message TimingTrace {
+    // Human-readable description of the process.
+    // e.g. "frontend-BiosphereFrames-HTTP"
+    string name = 1;
+
+    // Duration of the process, in nanoseconds since epoch.
+    int64 start = 2;
+    int64 end = 3;
+
+    // Sub-processes that the process depends on.
+    // They are typically within (process_start, process_end) but not validated.
+    // Childrens can be overlapping, especially for parallel process.
+    repeated TimingTrace children = 4;
 }
