@@ -15,28 +15,40 @@ import (
 	"time"
 )
 
-func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
-	trace := &api.TimingTrace{
-		Name:  "BiosphereFrames",
+func InitTrace(name string) *api.TimingTrace {
+	return &api.TimingTrace{
+		Name:  name,
 		Start: time.Now().UnixNano(),
 	}
+}
 
+func FinishTrace(child, parent *api.TimingTrace) {
+	child.End = time.Now().UnixNano()
+	if parent != nil {
+		parent.Children = append(parent.Children, child)
+	}
+}
+
+func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
+	trace := InitTrace("BiosphereFrames")
+
+	enumTrace := InitTrace("GetChunkServerInstances")
 	chunks, err := fe.GetChunkServerInstances(ctx)
 	if err != nil {
 		return nil, err
 	}
+	FinishTrace(enumTrace, trace)
 
+	topoTrace := InitTrace("getBiosphereTopo")
 	bsTopo, _, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
 	if err != nil {
 		return nil, err
 	}
+	FinishTrace(topoTrace, trace)
 
 	snapshots := make(map[string]*api.ChunkSnapshot)
 	var timestamp uint64
-	fetchTrace := &api.TimingTrace{
-		Name:  "FetchSnapshot",
-		Start: time.Now().UnixNano(),
-	}
+	fetchTrace := InitTrace("FetchSnapshot")
 	if q.FetchSnapshot {
 		client, err := fe.AuthDatastore(ctx)
 		if err != nil {
@@ -96,8 +108,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		snapshots = resp.Snapshot
 		timestamp = resp.Timestamp
 	}
-	fetchTrace.End = time.Now().UnixNano()
-	trace.Children = append(trace.Children, fetchTrace)
+	FinishTrace(fetchTrace, trace)
 
 	var maybeCone *OrientedCone
 	if q.VisibleRegion != nil {
@@ -109,7 +120,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		Stat:             snapshotToStat(snapshots),
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
 	}
-	trace.End = time.Now().UnixNano()
+	FinishTrace(trace, nil)
 	marshaler := &jsonpb.Marshaler{
 		OrigName: true,
 	}
