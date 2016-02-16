@@ -15,32 +15,10 @@ import (
 	"time"
 )
 
-func InitTrace(name string) *api.TimingTrace {
-	return &api.TimingTrace{
-		Name:  name,
-		Start: time.Now().UnixNano(),
-	}
-}
-
-func FinishTrace(child, parent *api.TimingTrace) {
-	child.End = time.Now().UnixNano()
-	if parent != nil {
-		parent.Children = append(parent.Children, child)
-	}
-}
-
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
 	trace := InitTrace("BiosphereFrames")
 
-	enumTrace := InitTrace("GetChunkServerInstances")
-	chunks, err := fe.GetChunkServerInstances(ctx)
-	if err != nil {
-		return nil, err
-	}
-	FinishTrace(enumTrace, trace)
-
-	topoTrace := InitTrace("getBiosphereTopo")
-	bsTopo, _, err := fe.getBiosphereTopo(ctx, q.BiosphereId)
+	bsTopo, _, err, topoTrace := fe.getBiosphereTopo(ctx, q.BiosphereId)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +52,13 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		}
 		timestamp = q.SnapshotTimestamp
 	} else {
+		enumTrace := InitTrace("GetChunkServerInstances")
+		chunks, err := fe.GetChunkServerInstances(ctx)
+		if err != nil {
+			return nil, err
+		}
+		FinishTrace(enumTrace, trace)
+
 		if len(chunks) == 0 {
 			log.Print("Active chunk server not found, returning dummy frame.")
 			return &api.BiosphereFramesS{

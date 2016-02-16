@@ -33,22 +33,27 @@ func NewFeService(envType string) *FeServiceImpl {
 	return fe
 }
 
-func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint64) (BiosphereTopology, *api.BiosphereEnvConfig, error) {
+func (fe *FeServiceImpl) getBiosphereTopo(ctx context.Context, biosphereId uint64) (BiosphereTopology, *api.BiosphereEnvConfig, error, *api.TimingTrace) {
+	trace := InitTrace("getBiosphereTopo")
+
+	authTrace := InitTrace("AuthDatastore")
 	client, err := fe.AuthDatastore(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, trace
 	}
+	FinishTrace(authTrace, trace)
+
 	key := datastore.NewKey(ctx, "BiosphereMeta", "", int64(biosphereId), nil)
 	var meta BiosphereMeta
 	err = client.Get(ctx, key, &meta)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, trace
 	}
 	log.Printf("Found config of %d: %d x %d", key.ID(), meta.Nx, meta.Ny)
 	envConfig := api.BiosphereEnvConfig{}
 	err = proto.Unmarshal(meta.Env, &envConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, trace
 	}
-	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), &envConfig, nil
+	return NewCylinderTopology(biosphereId, int(meta.Nx), int(meta.Ny)), &envConfig, nil, trace
 }
