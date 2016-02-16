@@ -18,6 +18,12 @@ import (
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
 	trace := InitTrace("BiosphereFrames")
 
+	type snapshotFetchResult struct {
+		ChunkId  string
+		Snapshot *api.ChunkSnapshot
+		Trace    *api.TimingTrace
+	}
+
 	bsTopo, _, err, topoTrace := fe.getBiosphereTopo(ctx, q.BiosphereId)
 	if err != nil {
 		return nil, err
@@ -33,22 +39,44 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 			return nil, err
 		}
 
+		snapshotCh := make(chan *snapshotFetchResult, 5)
 		for _, chunkTopo := range bsTopo.GetChunkTopos() {
-			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkTopo.ChunkId).Filter("Timestamp=", int64(q.SnapshotTimestamp)).Limit(1)
-			var ss []*PersistentChunkSnapshot
-			_, err := client.GetAll(ctx, query, &ss)
-			if err != nil {
-				return nil, err
+			go func(chunkId string) {
+				fetchChunkTrace := InitTrace("FetchChunkSnapshot")
+				query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId).Filter("Timestamp=", int64(q.SnapshotTimestamp)).Limit(1)
+				var ss []*PersistentChunkSnapshot
+				_, err := client.GetAll(ctx, query, &ss)
+				if err != nil {
+					log.Printf("ERROR: %#v", err)
+					snapshotCh <- nil
+					return
+				}
+				if len(ss) < 1 {
+					log.Printf("ERROR: snapshot %s not found", chunkId)
+					snapshotCh <- nil
+					return
+				}
+				snapshotProto := &api.ChunkSnapshot{}
+				err = proto.Unmarshal(ss[0].Snapshot, snapshotProto)
+				if err != nil {
+					log.Printf("ERROR: parse failed %#v", err)
+					snapshotCh <- nil
+					return
+				}
+				FinishTrace(fetchChunkTrace, nil)
+				snapshotCh <- &snapshotFetchResult{chunkId, snapshotProto, fetchChunkTrace}
+			}(chunkTopo.ChunkId)
+		}
+		// Wait for completion or failure.
+		for range bsTopo.GetChunkTopos() {
+			select {
+			case s := <-snapshotCh:
+				if s == nil {
+					return nil, errors.New("Some of snapshot fethches failed")
+				}
+				snapshots[s.ChunkId] = s.Snapshot
+				FinishTrace(s.Trace, fetchTrace)
 			}
-			if len(ss) < 1 {
-				return nil, errors.New("Snapshot not found")
-			}
-			snapshotProto := &api.ChunkSnapshot{}
-			err = proto.Unmarshal(ss[0].Snapshot, snapshotProto)
-			if err != nil {
-				return nil, err
-			}
-			snapshots[chunkTopo.ChunkId] = snapshotProto
 		}
 		timestamp = q.SnapshotTimestamp
 	} else {
