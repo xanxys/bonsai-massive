@@ -135,6 +135,7 @@ class Client {
     }
 
     on_frame_received(data) {
+        let _this = this;
         // Decode polygon soup.
         if (data.content !== null) {
             let geom = new THREE.BufferGeometry();
@@ -186,17 +187,22 @@ class Client {
             });
             geom_points.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
             geom_points.addAttribute('color', new THREE.BufferAttribute(vertices_color, 3));
-            let mesh_points = new THREE.Points(
-                geom_points,
-                new THREE.PointsMaterial({
-                    vertexColors: THREE.VertexColors,
-                    size: 0.05,
-                }));
-                if (this.received_mesh_points !== undefined) {
-                    this.scene.remove(this.received_mesh_points);
+            new THREE.TextureLoader().load('/static/grain_texture.png', (tex) => {
+                let mesh_points = new THREE.Points(
+                    geom_points,
+                    new THREE.PointsMaterial({
+                        vertexColors: THREE.VertexColors,
+                        map: tex,
+                        transparent: true,
+                        alphaTest: 0.5,
+                        size: 0.05,
+                    }));
+                if (_this.received_mesh_points !== undefined) {
+                    _this.scene.remove(this.received_mesh_points);
                 }
-                this.received_mesh_points = mesh_points;
-                this.scene.add(mesh_points);
+                _this.received_mesh_points = mesh_points;
+                _this.scene.add(mesh_points);
+            });
         }
     }
 
