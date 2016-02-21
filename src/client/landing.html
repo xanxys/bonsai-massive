@@ -63,10 +63,13 @@
 							</div>
 						</div>
 						<div class="content2">
-							<ul>
-								<li>{{biosphere.num_cores}} cores</li>
-								<li>12.3 GiB</li>
-							</ul>
+							<div>
+								<div>{{biosphere.num_cores}} cores</div>
+								<div>12.3 GiB</div>
+							</div>
+							<button class="mdl-button mdl-js-button" v-on:click.stop="delete(biosphere)">
+								Delete
+							</button>
 						</div>
 					</div>
 					<div class="card_dummy_center">

@@ -21,7 +21,15 @@ $(document).ready(() => {
             enter: function(biosphere) {
                 console.log('entering', biosphere.biosphere_id);
                 window.location.href = '/biosphere/' + biosphere.biosphere_id;
-            }
+            },
+            delete: function(biosphere) {
+                console.log('deleting', biosphere.biosphere_id);
+                call_fe('delete_biosphere', {
+                    biosphere_id: biosphere.biosphere_id,
+                }, true).done(data => {
+                    this.update();
+                });
+            },
         }
     });
     bs.update();
