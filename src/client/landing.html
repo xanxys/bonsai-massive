@@ -50,7 +50,7 @@
 			<div class="page-content">
 				<div id="biospheres">
 					<h1>Biospheres</h1>
-					<div v-repeat="biosphere in biospheres" class="card_main" v-on="click: enter(biosphere)">
+					<div v-for="biosphere in biospheres" class="card_main" v-on:click="enter(biosphere)">
 						<div class="bg">
 						</div>
 						<div class="content">
@@ -70,7 +70,7 @@
 						</div>
 					</div>
 					<div class="card_dummy_center">
-						<div class="mdl-spinner mdl-js-spinner is-active" v-class="is-active: loading"></div>
+						<div class="mdl-spinner mdl-js-spinner is-active" v-bind:class="{'is-active': loading}"></div>
 					</div>
 				</div>
 			</div>
@@ -116,8 +116,8 @@
 		</div>
 
 		<div style="float: right">
-			<button v-on="click: cancel" class="mdl-button mdl-js-button">No</button>
-			<button v-on="click: create" v-attr="disabled:!create_ready" class="mdl-button mdl-js-button mdl-button--primary">
+			<button v-on:click="cancel" class="mdl-button mdl-js-button">No</button>
+			<button v-on:click="create" v-bind:disabled="!create_ready" class="mdl-button mdl-js-button mdl-button--primary">
 				Create
 			</button>
 		</div>

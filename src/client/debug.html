@@ -61,7 +61,7 @@
 						<div class="mdl-card__title">
 							<h5>TimingTrace Visualizer</h5>
 						</div>
-						<textarea id="trace_json" v-on="keyup: refresh"></textarea><br/>
+						<textarea id="trace_json" v-on:keyup="refresh()"></textarea><br/>
 						<div id="timing"></div>
 					</div>
 				</div>

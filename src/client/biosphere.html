@@ -38,13 +38,13 @@
 	<template id="time-template">
 		<div>
 			<div>T= {{currTimestamp}}</div>
-			<div v-style="vertical-align: middle" class="mdl-spinner mdl-js-spinner" v-class="is-active: processing"></div>
-			<button v-on="click: start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
-			<button v-on="click: stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
+			<div v-bind:style="{'vertical-align': middle}" class="mdl-spinner mdl-js-spinner" v-bind:class="{'is-active': processing}"></div>
+			<button v-on:click="start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
+			<button v-on:click="stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
 
-			<div v-repeat="year in years">
+			<div v-for="year in years">
 				<h6>Year {{year.index}}</h6>
-				<div v-repeat="sol in year.sols" class="day" v-class="avail: sol.avail, active: sol.active" v-on="click: set_day(sol.index)">
+				<div v-for="sol in year.sols" class="day" v-bind:class="{'avail': sol.avail, 'active': sol.active}" v-on:click="set_day(sol.index)">
 					<span>{{sol.index_in_year}}</span>
 				</div>
 			</div>
@@ -54,7 +54,7 @@
 	</template>
 
 	<div class="mdl-layout mdl-js-layout">
-		<bs-header biosphere-name="{{biosphere_name}}" loading="{{loading}}" inline-template>
+		<bs-header :biosphere-name="biosphere_name" :loading="loading" inline-template>
 			<header id="header" class="mdl-layout__header">
 				<div class="mdl-layout__header-row">
 					<span class="mdl-layout-title">
@@ -75,14 +75,14 @@
 		<main class="mdl-layout__content">
 			<div class="mdl-grid">
 				<div id="time" class="mdl-cell mdl-cell--3-col mdl-card mdl-shadow--2dp">
-					<bs-time state={{state}} head-timestamp={{head_timestamp}} persisted-years={{persisted_years}} curr-timestamp={{curr_timestamp}}></bs-time>
+					<bs-time :state="state" :head-timestamp="head_timestamp" :persisted-years="persisted_years" :curr-timestamp="curr_timestamp"></bs-time>
 				</div>
 				<div class="viewport-container mdl-cell mdl-cell--9-col mdl-card mdl-shadow--2dp">
 					<div id="viewport"></div>
-					<button v-show="!inspecting" v-on="click: enter_inspect" class="viewport-overlay mdl-button mdl-js-button mdl-js-ripple-effect">
+					<button v-show="!inspecting" v-on:click="enter_inspect()" class="viewport-overlay mdl-button mdl-js-button mdl-js-ripple-effect">
 						<i class="material-icons">search</i>INSPECT
 					</button>
-					<button v-show="inspecting" v-on="click: exit_inspect" class="viewport-overlay mdl-button mdl-js-button mdl-js-ripple-effect" style="color: white">
+					<button v-show="inspecting" v-on:click="exit_inspect()" class="viewport-overlay mdl-button mdl-js-button mdl-js-ripple-effect" style="color: white">
 						<i class="material-icons">close</i>
 					</button>
 				</div>
@@ -94,7 +94,7 @@
 					</bs-composition>
 				</div>
 				<div class="mdl-cell mdl-cell--9-col mdl-card mdl-shadow--2dp">
-					<bs-inspector stats="{{stats}}" inline-template>
+					<bs-inspector :stats="stats" inline-template>
 						<pre>{{stats}}</pre>
 					</bs-inspector>
 				</div>
