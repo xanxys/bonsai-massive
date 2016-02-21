@@ -20,6 +20,9 @@ service FrontendService {
     // Administrative, write.
     rpc AddBiosphere(AddBiosphereQ) returns (AddBiosphereS);
 
+    // Administrative, write.
+    rpc DeleteBiosphere(DeleteBiosphereQ) returns (DeleteBiosphereS);
+
     // Change execution state of a biosphere.
     // Intentionally kept simple for "emergency shutdown" to reliably work,
     // regardless of other RPCs.
@@ -202,6 +205,20 @@ message AddBiosphereS {
     // Description of the newly created biosphere (only valid when success is
     // true AND request is not test_only).
     BiosphereDesc biosphere_desc = 2;
+}
+
+message DeleteBiosphereQ {
+    // Must always set. Write permission is required even when test_only,
+    // to simulate actual effect.
+    UserAuth auth = 1;
+
+    // Biosphere to delete.
+    uint64 biosphere_id = 2;
+}
+
+message DeleteBiosphereS {
+    // Biosphere is succesfully deleted, or has been deleted already.
+    bool deleted = 1;
 }
 
 // Client viewer information. This is used to cull unnecessary pats / details
