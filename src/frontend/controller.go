@@ -2,6 +2,7 @@ package main
 
 import (
 	"./api"
+	"errors"
 	"fmt"
 	"github.com/kr/pretty"
 	"golang.org/x/net/context"
@@ -9,6 +10,47 @@ import (
 	"log"
 	"time"
 )
+
+// Abstract interface to communicate with set of chunk servers collectively
+// running a biosphere.
+type RunningBiosphere struct {
+	fe *FeServiceImpl
+	ip string
+}
+
+// Caller must close conn after done.
+func (rb *RunningBiosphere) GetConn() (*grpc.ClientConn, error) {
+	if rb.ip == "" {
+		err := rb.refetchIp()
+		if err != nil {
+			return nil, err
+		}
+	}
+	conn, err := grpc.Dial(fmt.Sprintf("%s:9000", rb.ip),
+		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+	if err != nil {
+		log.Printf("Invalidating IP %s because of error %#v", rb.ip, err)
+		rb.ip = ""
+		return nil, err
+	}
+	return conn, nil
+}
+
+func (rb *RunningBiosphere) refetchIp() error {
+	ctx := context.Background()
+	chunks, err := rb.fe.GetChunkServerInstances(ctx)
+	if err != nil {
+		log.Printf("IP fetch failed %#v", err)
+		return errors.New("")
+	}
+	if len(chunks) == 0 {
+		log.Print("Active chunk server not found")
+		return errors.New("")
+	}
+	chunkInstance := chunks[0]
+	rb.ip = chunkInstance.NetworkInterfaces[0].NetworkIP
+	return nil
+}
 
 // Issue-and-forget type of commands.
 type ControllerCommand struct {
@@ -21,6 +63,8 @@ type ControllerCommand struct {
 	// Query managed biospheres and their states.
 	// This is a few seconds old. (depending on polling interval)
 	getBiosphereStates chan map[uint64]api.BiosphereState
+
+	getBiosphere chan *RunningBiosphere
 }
 
 const chunkIdFormat = "%d-%d:%d"
@@ -34,6 +78,9 @@ func (fe *FeServiceImpl) StatefulLoop() {
 	var targetState *ControllerCommand
 	latestState := make(map[uint64]api.BiosphereState)
 	infTicks := time.Tick(10 * time.Second)
+	rb := &RunningBiosphere{
+		fe: fe,
+	}
 	for {
 		select {
 		case cmd := <-fe.cmdQueue:
@@ -48,6 +95,9 @@ func (fe *FeServiceImpl) StatefulLoop() {
 					frozenState[k] = v
 				}
 				cmd.getBiosphereStates <- frozenState
+			} else if cmd.getBiosphere != nil {
+				log.Printf("Received getBiosphere")
+				cmd.getBiosphere <- rb
 			} else {
 				log.Printf("Received controller command: %v", cmd)
 				targetState = cmd

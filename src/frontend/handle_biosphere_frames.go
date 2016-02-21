@@ -3,16 +3,13 @@ package main
 import (
 	"./api"
 	"errors"
-	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
-	"google.golang.org/grpc"
 	"log"
 	"math"
 	"math/rand"
-	"time"
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
@@ -80,29 +77,20 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		}
 		timestamp = q.SnapshotTimestamp
 	} else {
-		enumTrace := InitTrace("GetChunkServerInstances")
-		chunks, err := fe.GetChunkServerInstances(ctx)
-		if err != nil {
-			return nil, err
+		enumTrace := InitTrace("getBiosphere")
+		resultCh := make(chan *RunningBiosphere, 1)
+		fe.cmdQueue <- &ControllerCommand{
+			getBiosphereStates: nil,
+			getBiosphere:       resultCh,
 		}
-		FinishTrace(enumTrace, trace)
-
-		if len(chunks) == 0 {
-			log.Print("Active chunk server not found, returning dummy frame.")
-			return &api.BiosphereFramesS{
-				Content: fallbackContent(),
-			}, nil
-		}
-
-		chunkInstance := chunks[0]
-		ip := chunkInstance.NetworkInterfaces[0].NetworkIP
-
-		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+		result := <-resultCh
+		conn, err := result.GetConn()
 		if err != nil {
 			return nil, err
 		}
 		defer conn.Close()
+		FinishTrace(enumTrace, trace)
+
 		chunkService := api.NewChunkServiceClient(conn)
 		chunkIds := make([]string, len(bsTopo.GetChunkTopos()))
 		for ix, chunkTopo := range bsTopo.GetChunkTopos() {
