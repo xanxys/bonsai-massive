@@ -24,6 +24,7 @@ $(document).ready(() => {
             },
             delete: function(biosphere) {
                 console.log('deleting', biosphere.biosphere_id);
+                this.loading = true;
                 call_fe('delete_biosphere', {
                     biosphere_id: biosphere.biosphere_id,
                 }, true).done(data => {
