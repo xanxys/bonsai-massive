@@ -13,7 +13,10 @@ import (
 )
 
 func NewController(fe *FeServiceImpl) *Controller {
-	ctrl := &Controller{fe: fe}
+	ctrl := &Controller{
+		fe:          fe,
+		targetState: make(map[uint64]TargetState),
+	}
 	ctrl.pool = NewPoolController(fe, ctrl)
 	return ctrl
 }
