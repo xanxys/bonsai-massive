@@ -2,192 +2,243 @@ package main
 
 import (
 	"./api"
-	"errors"
 	"fmt"
-	"github.com/kr/pretty"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 )
 
-// Abstract interface to communicate with set of chunk servers collectively
-// running a biosphere.
-type RunningBiosphere struct {
-	fe *FeServiceImpl
-	ip string
+func NewController(fe *FeServiceImpl) *Controller {
+	ctrl := &Controller{fe: fe}
+	ctrl.pool = NewPoolController(fe, ctrl)
+	return ctrl
 }
 
-// Caller must close conn after done.
-func (rb *RunningBiosphere) GetConn() (*grpc.ClientConn, error) {
-	if rb.ip == "" {
-		err := rb.refetchIp()
+func (ctrl *Controller) PostChange() {
+	ctrl.Reallocate()
+}
+
+// All methods are thread-safe, and are guranteed to return within 150ms.
+// (one RPC w/ chunk servers or nothing).
+type Controller struct {
+	fe   *FeServiceImpl
+	pool *PoolController
+	// BiosphereId -> TargetState
+	targetState map[uint64]TargetState
+}
+
+/*
+BiosphereState
+   = Stopped
+   // Waiting for resource allocation
+   | Waiting
+   // ChunkId -> IP address
+   | Running map[string]string
+*/
+type BiosphereStateFlag int
+
+const (
+	Stopped BiosphereStateFlag = iota
+	Waiting
+	Running
+)
+
+type TargetState struct {
+	BsTopo BiosphereTopology
+	Env    *api.BiosphereEnvConfig
+}
+
+type BiosphereState struct {
+	flag BiosphereStateFlag
+	// ChunkId -> IP address (only available when flag == Running)
+	chunks map[string]string
+}
+
+func (ctrl *Controller) GetBiosphereState(biosphereId uint64) BiosphereState {
+	state, ok := ctrl.GetCurrentState()[biosphereId]
+	if ok {
+		return state
+	} else {
+		return BiosphereState{flag: Stopped}
+	}
+}
+
+// TargetState != nil: Make it Running with specified parameters.
+// TargetState == nil: Stop it.
+//
+// retval: target state is already achieved.
+func (ctrl *Controller) SetBiosphereState(biosphereId uint64, targetState *TargetState) bool {
+	if targetState != nil {
+		ctrl.targetState[biosphereId] = *targetState
+	} else {
+		delete(ctrl.targetState, biosphereId)
+	}
+	ctrl.resetCoreTarget()
+	if targetState != nil {
+		ips := ctrl.pool.GetUsableIp()
+		if len(ips) > 0 {
+			ctrl.Reallocate()
+			return true
+		} else {
+			return false
+		}
+	} else {
+		ctrl.Reallocate()
+		return true
+	}
+}
+
+func (ctrl *Controller) resetCoreTarget() {
+	const coresPerChunk = 0.25
+	numCores := float64(0)
+	for _, ts := range ctrl.targetState {
+		numCores += float64(len(ts.BsTopo.GetChunkTopos())) * coresPerChunk
+	}
+	ctrl.pool.SetTargetCores(numCores)
+}
+
+func (ctrl *Controller) GetCurrentState() map[uint64]BiosphereState {
+	ctx := context.Background()
+
+	biospheres := make(map[uint64]BiosphereState)
+	for _, ip := range ctrl.pool.GetUsableIp() {
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
 		if err != nil {
-			return nil, err
+			log.Printf("Couldn't connect to supposedly grpc-ok chunk server %s", ip)
+			continue
+		}
+		defer conn.Close()
+		service := api.NewChunkServiceClient(conn)
+		s, err := service.ChunkSummary(ctx, &api.ChunkSummaryQ{})
+		if err != nil {
+			log.Printf("ChunkSummary@%s failed with %v", ip, err)
+			continue
+		}
+		for _, chunk := range s.Chunks {
+			biosphereId, err := strconv.ParseUint(strings.Split(chunk.ChunkId, "-")[0], 10, 64)
+			if err != nil {
+				log.Panicf("Unexpected chunkId %s found! (expecting <uint64 biosphere id>-<chunk descriptor>)", chunk.ChunkId)
+				continue
+			}
+			_, ok := biospheres[biosphereId]
+			if !ok {
+				biospheres[biosphereId] = BiosphereState{
+					flag:   Running,
+					chunks: make(map[string]string),
+				}
+			}
+			biospheres[biosphereId].chunks[chunk.ChunkId] = ip
 		}
 	}
-	conn, err := grpc.Dial(fmt.Sprintf("%s:9000", rb.ip),
-		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-	if err != nil {
-		log.Printf("Invalidating IP %s because of error %#v", rb.ip, err)
-		rb.ip = ""
-		return nil, err
+	// Upgrade some of Stopped to Waiting.
+	for bsId, _ := range ctrl.targetState {
+		state, ok := biospheres[bsId]
+		if !(ok && state.flag == Running) {
+			biospheres[bsId] = BiosphereState{flag: Waiting}
+		}
 	}
-	return conn, nil
+	return biospheres
 }
 
-func (rb *RunningBiosphere) refetchIp() error {
+// Reallocate all chunks optimally. After this method, all Waiting will become Running.
+func (ctrl *Controller) Reallocate() {
 	ctx := context.Background()
-	chunks, err := rb.fe.GetChunkServerInstances(ctx)
+	biospheres := ctrl.GetCurrentState()
+	log.Printf("Reallocating chunks: current biospherse=%#v, target=%#v", biospheres, ctrl.targetState)
+	// TODO: take snapshots of running biospheres instead of starting from persistent snapshot
+
+	ips := ctrl.pool.GetUsableIp()
+	if len(ips) == 0 {
+		log.Print("ERROR: Chunk Reallocate requested, but doing nothing because 0 usable ips found. Probably a bug.")
+		return
+	}
+
+	// Turn down all biospheres.
+	for _, ip := range ips {
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+		if err != nil {
+			log.Printf("ERROR: Unusable (%v) IP %s returned from GetUsableIp", err, ip)
+			return
+		}
+		defer conn.Close()
+		chunkService := api.NewChunkServiceClient(conn)
+		chunkService.DeleteChunk(ctx, &api.DeleteChunkQ{})
+	}
+
+	// Calculate IP <-> chunk correspondence.
+	client, err := ctrl.fe.AuthDatastore(ctx)
 	if err != nil {
-		log.Printf("IP fetch failed %#v", err)
-		return errors.New("")
+		log.Printf("ERROR: Datastore failed with %#v", err)
+		return
 	}
-	if len(chunks) == 0 {
-		log.Print("Active chunk server not found")
-		return errors.New("")
+
+	numChunks := 0
+	for _, ts := range ctrl.targetState {
+		numChunks += len(GenerateEnv(ts.BsTopo, ts.Env))
 	}
-	chunkInstance := chunks[0]
-	rb.ip = chunkInstance.NetworkInterfaces[0].NetworkIP
-	return nil
-}
+	chunkIndex := 0
+	chunkLocation := make(map[string]string)            // ChunkId -> IP address
+	serverChunks := make(map[string][]*api.SpawnChunkQ) // IP address -> [ChunkGen]
+	for _, ts := range ctrl.targetState {
+		// TODO: This is slow. Do something.
+		firstChunkId := GenerateEnv(ts.BsTopo, ts.Env)[0].Topology.ChunkId
+		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", firstChunkId)
+		var ss []*PersistentChunkSnapshot
+		_, err := client.GetAll(ctx, query, &ss)
+		if err != nil {
+			log.Printf("ERROR: failed to retrieve max timestamp %v", err)
+			return
+		}
+		maxTimestamp := uint64(0)
+		for _, snapshot := range ss {
+			if uint64(snapshot.Timestamp) > maxTimestamp {
+				maxTimestamp = uint64(snapshot.Timestamp)
+			}
+		}
 
-// Issue-and-forget type of commands.
-type ControllerCommand struct {
-	// Start new biosphere.
-	bsId           uint64
-	bsTopo         BiosphereTopology
-	env            *api.BiosphereEnvConfig
-	startTimestamp uint64
+		for _, genReq := range GenerateEnv(ts.BsTopo, ts.Env) {
+			serverIndex := (chunkIndex * len(ips)) / numChunks
+			serverIp := ips[serverIndex]
+			genReq.SnapshotModulo = 5000
+			genReq.StartTimestamp = maxTimestamp
+			chunkLocation[genReq.Topology.ChunkId] = serverIp
+			serverChunks[serverIp] = append(serverChunks[serverIp], genReq)
+			chunkIndex++
+		}
+	}
+	log.Printf("Assignment: %#v %#v", chunkLocation, serverChunks)
 
-	// Query managed biospheres and their states.
-	// This is a few seconds old. (depending on polling interval)
-	getBiosphereStates chan map[uint64]api.BiosphereState
+	// Respawn biospheres.
+	for _, ip := range ips {
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+		if err != nil {
+			log.Printf("ERROR: Unusable (%v) IP %s returned from GetUsableIp", err, ip)
+			return
+		}
+		defer conn.Close()
+		chunkService := api.NewChunkServiceClient(conn)
 
-	getBiosphere chan *RunningBiosphere
+		for _, genReq := range serverChunks[ip] {
+			for _, neighbor := range genReq.Topology.Neighbors {
+				neighborIp := chunkLocation[neighbor.ChunkId]
+				if neighborIp == ip {
+					neighbor.Internal = true
+				} else {
+					neighbor.Internal = false
+					neighbor.Address = neighborIp
+				}
+			}
+			chunkService.SpawnChunk(ctx, genReq)
+		}
+	}
+	log.Printf("Reallocate complete!")
 }
 
 const chunkIdFormat = "%d-%d:%d"
-
-// Magically ensured (not yet) that only one instance of this code is always
-// running in FE cluster. (staging & prod will have different ones.)
-//
-// Arbitrary code that needs to run continuously forever on this server.
-func (fe *FeServiceImpl) StatefulLoop() {
-	log.Println("Starting stateful loop")
-	var targetState *ControllerCommand
-	latestState := make(map[uint64]api.BiosphereState)
-	infTicks := time.Tick(10 * time.Second)
-	rb := &RunningBiosphere{
-		fe: fe,
-	}
-	for {
-		select {
-		case cmd := <-fe.cmdQueue:
-			if cmd == nil {
-				log.Printf("Received nil command")
-				targetState = nil
-				latestState = make(map[uint64]api.BiosphereState)
-			} else if cmd.getBiosphereStates != nil {
-				log.Printf("Received getBiosphereStates")
-				frozenState := make(map[uint64]api.BiosphereState)
-				for k, v := range latestState {
-					frozenState[k] = v
-				}
-				cmd.getBiosphereStates <- frozenState
-			} else if cmd.getBiosphere != nil {
-				log.Printf("Received getBiosphere")
-				cmd.getBiosphere <- rb
-			} else {
-				log.Printf("Received controller command: %v", cmd)
-				targetState = cmd
-				latestState[cmd.bsId] = api.BiosphereState_T_RUN
-			}
-		case <-infTicks:
-			ctx := context.Background()
-			fe.applyDelta(ctx, latestState, targetState)
-		}
-	}
-}
-
-// Modify chunk servers so that they will become targetState eventually.
-// This function must ensure it completes within a few seconds at most.
-//
-// This function just ensures proper number of chunk servers is running.
-// It's basically same as kubernetes replication controller, but GKE price model
-// is not suitable for me, so I'll manage chunk servers here... for now.
-func (fe *FeServiceImpl) applyDelta(ctx context.Context, latestState map[uint64]api.BiosphereState, targetState *ControllerCommand) {
-	chunkInstances, err := fe.GetChunkServerInstances(ctx)
-	if err != nil {
-		log.Printf("Error while fetching instance list %v", err)
-		return
-	}
-	if targetState != nil && len(chunkInstances) == 0 {
-		log.Printf("Allocating 1 node")
-		latestState[targetState.bsId] = api.BiosphereState_T_RUN
-		clientCompute, err := fe.AuthCompute(ctx)
-		if err != nil {
-			log.Printf("Error in allocation: %v", err)
-			return
-		}
-		fe.prepare(clientCompute)
-	} else if targetState != nil && len(chunkInstances) > 0 {
-		for _, instance := range chunkInstances {
-			ip := instance.NetworkInterfaces[0].NetworkIP
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-			if err != nil {
-				// Server not ready yet. This is expected, so don't do anything and just wait for next cycle.
-				return
-			}
-			defer conn.Close()
-			chunkService := api.NewChunkServiceClient(conn)
-			_, err = chunkService.Status(ctx, &api.StatusQ{})
-			if err != nil {
-				// Server not ready yet. This is expected, so don't do anything and just wait for next cycle.
-				return
-			}
-			fe.applyChunkDelta(ctx, ip, chunkService, latestState, targetState)
-		}
-	} else if targetState == nil && len(chunkInstances) > 0 {
-		log.Printf("Deallocating %d nodes", len(chunkInstances))
-		clientCompute, err := fe.AuthCompute(ctx)
-		if err != nil {
-			log.Printf("Error in compute auth: %v", err)
-			return
-		}
-		names := make([]string, len(chunkInstances))
-		for ix, chunkInstance := range chunkInstances {
-			names[ix] = chunkInstance.Name
-		}
-		fe.deleteInstances(clientCompute, names)
-	}
-}
-
-// After confirming chunk sever is properly responding at ipAddress, try to
-// match its state to targetState.
-func (fe *FeServiceImpl) applyChunkDelta(ctx context.Context, ipAddress string, chunkService api.ChunkServiceClient, latestState map[uint64]api.BiosphereState, targetState *ControllerCommand) {
-	summary, err := chunkService.ChunkSummary(ctx, &api.ChunkSummaryQ{})
-	if err != nil {
-		log.Printf("Supposed-to-be-alive failed to return ChunkSummaryQ with error %v", err)
-		return
-	}
-
-	if len(summary.Chunks) != len(targetState.bsTopo.GetChunkTopos()) {
-		if len(summary.Chunks) == 0 {
-			chunkGens := GenerateEnv(targetState.bsTopo, targetState.env)
-			log.Printf("Spawning %d new chunks: %# v", len(chunkGens), pretty.Formatter(chunkGens))
-			for _, chunkGen := range chunkGens {
-				chunkGen.SnapshotModulo = 5000
-				chunkGen.StartTimestamp = targetState.startTimestamp
-				chunkService.SpawnChunk(ctx, chunkGen)
-			}
-			return
-		} else {
-			log.Printf("Some strange number (%d) of chunks found; probably some bug", len(summary.Chunks))
-			return
-		}
-	} else {
-		latestState[targetState.bsId] = api.BiosphereState_RUNNING
-	}
-}

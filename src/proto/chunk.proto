@@ -32,8 +32,8 @@ service ChunkService {
 
     rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
 
-    // Move some chunks to other chunk server?
-    // rpc MigrateChunk()
+    // Delete chunks in the server.
+    rpc DeleteChunk(DeleteChunkQ) returns (DeleteChunkS);
 }
 
 // Spawn a chunk in this chunk server. This request itself is very lightweight.
@@ -62,6 +62,13 @@ message SpawnChunkQ {
 }
 
 message SpawnChunkS {
+}
+
+// By default, delte all chunks in this server.
+message DeleteChunkQ {
+}
+
+message DeleteChunkS {
 }
 
 message StatusQ {

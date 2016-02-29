@@ -3,13 +3,16 @@ package main
 import (
 	"./api"
 	"errors"
+	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
+	"google.golang.org/grpc"
 	"log"
 	"math"
 	"math/rand"
+	"time"
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
@@ -78,14 +81,16 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		timestamp = q.SnapshotTimestamp
 	} else {
 		enumTrace := InitTrace("getBiosphere")
-		resultCh := make(chan *RunningBiosphere, 1)
-		fe.cmdQueue <- &ControllerCommand{
-			getBiosphereStates: nil,
-			getBiosphere:       resultCh,
+		bsState := fe.controller.GetBiosphereState(q.BiosphereId)
+		firstIp := ""
+		for _, ip := range bsState.chunks {
+			firstIp = ip
+			break
 		}
-		result := <-resultCh
-		conn, err := result.GetConn()
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", firstIp),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
 		if err != nil {
+			log.Printf("Invalidating IP %s because of error %#v", firstIp, err)
 			return nil, err
 		}
 		defer conn.Close()

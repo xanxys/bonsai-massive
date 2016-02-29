@@ -14,7 +14,8 @@ type FeServiceImpl struct {
 
 	*ServerCred
 	chunkContainerName string
-	cmdQueue           chan *ControllerCommand
+
+	controller *Controller
 }
 
 func NewFeService(envType string) *FeServiceImpl {
@@ -27,9 +28,8 @@ func NewFeService(envType string) *FeServiceImpl {
 		ServerCred:         NewServerCred(),
 		chunkContainerName: string(cont),
 	}
-	// TODO: Ensure one loop is always running.
-	fe.cmdQueue = make(chan *ControllerCommand, 50)
-	go fe.StatefulLoop()
+	// TODO: Ensure one loop is always running when fe crashes.
+	fe.controller = NewController(fe)
 	return fe
 }
 

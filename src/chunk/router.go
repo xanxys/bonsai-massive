@@ -224,6 +224,12 @@ func (router *ChunkRouter) GetChunks() []*api.ChunkTopology {
 	return topos
 }
 
+func (router *ChunkRouter) DeleteAllChunks() {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+	// TODO: implement
+}
+
 // Returns true if caller should continue RequestNeighbor & NotifyResult.
 // When false is returned, caller must not touch router again because it's already
 // executed by other goroutine.

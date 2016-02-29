@@ -12,9 +12,6 @@ import (
 const tickPerYear = 5000
 
 func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*api.BiospheresS, error) {
-	stateReceiver := make(chan map[uint64]api.BiosphereState, 1)
-	fe.cmdQueue <- &ControllerCommand{getBiosphereStates: stateReceiver}
-
 	client, err := fe.AuthDatastore(ctx)
 	if err != nil {
 		return nil, err
@@ -27,12 +24,17 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		return nil, err
 	}
 
-	chunkState := <-stateReceiver
 	var bios []*api.BiosphereDesc
 	for ix, meta := range metas {
-		state, ok := chunkState[uint64(keys[ix].ID())]
-		if !ok {
-			state = api.BiosphereState_STOPPED
+		bsId := uint64(keys[ix].ID())
+		bsState := fe.controller.GetBiosphereState(bsId)
+		stateProto := api.BiosphereState_UNKNOWN
+		if bsState.flag == Stopped {
+			stateProto = api.BiosphereState_STOPPED
+		} else if bsState.flag == Waiting {
+			stateProto = api.BiosphereState_T_RUN
+		} else if bsState.flag == Running {
+			stateProto = api.BiosphereState_RUNNING
 		}
 		topo := NewCylinderTopology(uint64(keys[ix].ID()), int(meta.Nx), int(meta.Ny))
 		chunkId := topo.GetChunkTopos()[0].ChunkId
@@ -63,11 +65,11 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		sort.Sort(I32Slice(persistedYears))
 
 		bios = append(bios, &api.BiosphereDesc{
-			BiosphereId:    uint64(keys[ix].ID()),
+			BiosphereId:    bsId,
 			Name:           meta.Name,
 			NumCores:       uint32(meta.Nx*meta.Ny/5) + 1,
 			NumTicks:       maxTimestamp,
-			State:          state,
+			State:          stateProto,
 			Nx:             meta.Nx,
 			Ny:             meta.Ny,
 			PersistedYears: persistedYears,

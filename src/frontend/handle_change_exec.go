@@ -8,7 +8,7 @@ import (
 
 func (fe *FeServiceImpl) ChangeExec(ctx context.Context, q *api.ChangeExecQ) (*api.ChangeExecS, error) {
 	if q.TargetState == api.ChangeExecQ_STOPPED {
-		fe.cmdQueue <- nil
+		fe.controller.SetBiosphereState(q.BiosphereId, nil)
 	} else if q.TargetState == api.ChangeExecQ_RUNNING {
 		canWrite, err := fe.isWriteAuthorized(q.Auth)
 		if err != nil {
@@ -21,13 +21,7 @@ func (fe *FeServiceImpl) ChangeExec(ctx context.Context, q *api.ChangeExecQ) (*a
 		if err != nil {
 			return nil, err
 		}
-		fe.cmdQueue <- &ControllerCommand{
-			bsId:               q.BiosphereId,
-			bsTopo:             bsTopo,
-			env:                envConfig,
-			startTimestamp:     q.StartTimestamp,
-			getBiosphereStates: nil,
-		}
+		fe.controller.SetBiosphereState(q.BiosphereId, &TargetState{bsTopo, envConfig})
 	}
 	return &api.ChangeExecS{}, nil
 }
