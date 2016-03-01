@@ -58,10 +58,12 @@ func (ctrl *PoolController) LoopIter(loopIter int) {
 		}
 	}
 	sort.Strings(grpcOkIp)
-	if !reflect.DeepEqual(ctrl.lastGrpcOkIp, grpcOkIp) {
+	ipListChanged := !reflect.DeepEqual(ctrl.lastGrpcOkIp, grpcOkIp)
+	ctrl.lastGrpcOkIp = grpcOkIp
+	if ipListChanged {
+		log.Printf("Notifying ip change (lastGrpcOkIp=%v)", ctrl.lastGrpcOkIp)
 		ctrl.configHandler.PostChange()
 	}
-	ctrl.lastGrpcOkIp = grpcOkIp
 
 	// Check gRPC status and notify if delta is detected.
 	targetNum := ctrl.GetTargetNum()
