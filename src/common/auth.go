@@ -12,11 +12,6 @@ import (
 	"log"
 )
 
-const (
-	ProjectId = "bonsai-genesis"
-	zone      = "us-central1-b"
-)
-
 type ServerCred struct {
 	cred *jwt.Config
 }

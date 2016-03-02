@@ -2,9 +2,9 @@ package main
 
 import (
 	"./api"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
@@ -127,11 +127,9 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
 	}
 	FinishTrace(trace, nil)
-	marshaler := &jsonpb.Marshaler{
-		OrigName: true,
-	}
-	traceJson, _ := marshaler.MarshalToString(trace)
-	log.Printf("Timing: %s", traceJson)
+	ctRequest := ConvertToCloudTrace(trace)
+	ctRequestJson, _ := json.Marshal(ctRequest)
+	log.Printf("Cloud Timing: %s", string(ctRequestJson[:]))
 	return s, nil
 }
 
