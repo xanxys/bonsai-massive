@@ -41,7 +41,9 @@ type TraceFlattener struct {
 }
 
 func (tf *TraceFlattener) Flatten(parentSpanId string, tr *api.TimingTrace) {
-	spanId := fmt.Sprintf("%d", len(tf.spans))
+	// Although undocumented, spanId must be uint64 >= 1.
+	// (otherwise it fails with "INVALID_ARGUMENT" error)
+	spanId := fmt.Sprintf("%d", len(tf.spans)+1)
 	span := &CTSpan{
 		SpanId:       spanId,
 		Name:         tr.Name,
@@ -72,9 +74,9 @@ type CTTrace struct {
 }
 
 type CTSpan struct {
-	SpanId string
+	SpanId string `json:"spanId"`
 	// "SPAN_KIND_UNSPECIFIED" "RPC_SERVER" "RPC_CLIENT"
-	Kind         string            `json:"kind"`
+	Kind         string            `json:"kind,omitempty"`
 	Name         string            `json:"name"`
 	StartTime    string            `json:"startTime"`
 	EndTime      string            `json:"endTime"`
