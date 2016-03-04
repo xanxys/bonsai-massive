@@ -2,8 +2,13 @@ package main
 
 import (
 	"./api"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"golang.org/x/net/context"
+	"log"
 	"math/rand"
+	"net/http"
 	"time"
 )
 
@@ -20,6 +25,33 @@ func FinishTrace(child, parent *api.TimingTrace) {
 	}
 	if parent != nil {
 		parent.Children = append(parent.Children, child)
+	}
+}
+
+// Do best to post a new trace to cloud trace, but does not guarantee its success.
+func PostNewTrace(trace *api.TimingTrace, cred *ServerCred) {
+	ctx := context.Background()
+
+	ctQ := ConvertToCloudTrace(trace)
+	ctQJson, _ := json.Marshal(ctQ)
+	httpQ, err := http.NewRequest(
+		"PATCH",
+		fmt.Sprintf("https://cloudtrace.googleapis.com/v1/projects/%s/traces", ProjectId),
+		bytes.NewReader(ctQJson))
+	httpQ.Header.Add("Content-Type", "application/json")
+	if err != nil {
+		log.Printf("Failed to craft http request %#v", err)
+		return
+	}
+
+	httpClient := cred.AuthRawHttp(ctx)
+	httpS, err := httpClient.Do(httpQ)
+	if err != nil {
+		log.Printf("Posting trace failed with error %#v request: %#v response: %#v", err, httpQ, httpS)
+		return
+	}
+	if httpS.StatusCode != 200 {
+		log.Printf("Trace patch request returned with non-200: %s response: %#v", string(ctQJson[:]), httpS)
 	}
 }
 

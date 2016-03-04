@@ -10,6 +10,7 @@ import (
 	"google.golang.org/cloud/datastore"
 	"io/ioutil"
 	"log"
+	"net/http"
 )
 
 type ServerCred struct {
@@ -26,6 +27,7 @@ func NewServerCred() *ServerCred {
 		datastore.ScopeDatastore,
 		datastore.ScopeUserEmail,
 		"https://www.googleapis.com/auth/cloud-platform",
+		"https://www.googleapis.com/auth/trace.append",
 		"https://www.googleapis.com/auth/compute")
 	if err != nil {
 		log.Fatal(err)
@@ -48,4 +50,9 @@ func (cred *ServerCred) AuthCompute(ctx context.Context) (*compute.Service, erro
 	client := cred.cred.Client(oauth2.NoContext)
 	service, err := compute.New(client)
 	return service, err
+}
+
+func (cred *ServerCred) AuthRawHttp(ctx context.Context) *http.Client {
+	client := cred.cred.Client(oauth2.NoContext)
+	return client
 }

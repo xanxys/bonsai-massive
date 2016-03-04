@@ -2,7 +2,6 @@ package main
 
 import (
 	"./api"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
@@ -16,7 +15,7 @@ import (
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
-	trace := InitTrace("BiosphereFrames")
+	trace := InitTrace("/frontend.BiosphereFrames")
 
 	type snapshotFetchResult struct {
 		ChunkId  string
@@ -127,9 +126,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
 	}
 	FinishTrace(trace, nil)
-	ctRequest := ConvertToCloudTrace(trace)
-	ctRequestJson, _ := json.Marshal(ctRequest)
-	log.Printf("Cloud Timing: %s", string(ctRequestJson[:]))
+	go PostNewTrace(trace, fe.ServerCred)
 	return s, nil
 }
 
