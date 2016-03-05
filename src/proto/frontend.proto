@@ -273,6 +273,11 @@ message BiosphereEnvConfig {
     // Randomness seed of this config. Result for same (nx, ny) must be same.
     // But there's no point in showing this parameter.
     int32 seed = 1;
+
+    // id of google cloud storage file, that contains binary proto of
+    // ChunkSnapshot (but the grains can span multiple chunks; out-of-boundary
+    // grains will be discarded).
+    string storage_file_id = 2;
 }
 
 // Next ID: 9
