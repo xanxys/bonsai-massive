@@ -15,7 +15,8 @@ import (
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
-	trace := InitTrace("/frontend.BiosphereFrames")
+	ctx = TraceStart(ctx, "/frontend.BiosphereFrames")
+	defer TraceEnd(ctx, fe.ServerCred)
 
 	type snapshotFetchResult struct {
 		ChunkId  string
@@ -27,11 +28,11 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	if err != nil {
 		return nil, err
 	}
-	FinishTrace(topoTrace, trace)
+	FinishTrace(topoTrace, GetCurrentTrace(ctx))
 
 	snapshots := make(map[string]*api.ChunkSnapshot)
 	var timestamp uint64
-	fetchTrace := InitTrace("FetchSnapshot")
+	fetchTrace := InitTrace("/frontend._.FetchSnapshot")
 	if q.FetchSnapshot {
 		client, err := fe.AuthDatastore(ctx)
 		if err != nil {
@@ -41,7 +42,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		snapshotCh := make(chan *snapshotFetchResult, 5)
 		for _, chunkTopo := range bsTopo.GetChunkTopos() {
 			go func(chunkId string) {
-				fetchChunkTrace := InitTrace("FetchChunkSnapshot")
+				fetchChunkTrace := InitTrace("/frontend._.FetchChunkSnapshot")
 				query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId).Filter("Timestamp=", int64(q.SnapshotTimestamp)).Limit(1)
 				var ss []*PersistentChunkSnapshot
 				_, err := client.GetAll(ctx, query, &ss)
@@ -79,7 +80,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		}
 		timestamp = q.SnapshotTimestamp
 	} else {
-		enumTrace := InitTrace("getBiosphere")
+		enumTrace := InitTrace("/frontend._.getBiosphere")
 		bsState := fe.controller.GetBiosphereState(q.BiosphereId)
 		firstIp := ""
 		for _, ip := range bsState.chunks {
@@ -93,7 +94,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 			return nil, err
 		}
 		defer conn.Close()
-		FinishTrace(enumTrace, trace)
+		FinishTrace(enumTrace, GetCurrentTrace(ctx))
 
 		chunkService := api.NewChunkServiceClient(conn)
 		chunkIds := make([]string, len(bsTopo.GetChunkTopos()))
@@ -113,21 +114,18 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		snapshots = resp.Snapshot
 		timestamp = resp.Timestamp
 	}
-	FinishTrace(fetchTrace, trace)
+	FinishTrace(fetchTrace, GetCurrentTrace(ctx))
 
 	var maybeCone *OrientedCone
 	if q.VisibleRegion != nil {
 		maybeCone = NewCone(q.VisibleRegion)
 	}
-	s := &api.BiosphereFramesS{
+	return &api.BiosphereFramesS{
 		ContentTimestamp: timestamp,
 		Points:           snapshotToPointCloud(maybeCone, bsTopo, snapshots),
 		Stat:             snapshotToStat(snapshots),
 		Cells:            snapshotToCellStats(bsTopo, snapshots),
-	}
-	FinishTrace(trace, nil)
-	go PostNewTrace(trace, fe.ServerCred)
-	return s, nil
+	}, nil
 }
 
 func snapshotToPointCloud(maybeCone *OrientedCone, bsTopo BiosphereTopology, snapshot map[string]*api.ChunkSnapshot) *api.PointCloud {

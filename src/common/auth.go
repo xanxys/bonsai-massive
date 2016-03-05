@@ -38,6 +38,9 @@ func NewServerCred() *ServerCred {
 }
 
 func (cred *ServerCred) AuthDatastore(ctx context.Context) (*datastore.Client, error) {
+	ctx = TraceStart(ctx, "/frontend._.AuthDatastore")
+	defer TraceEnd(ctx, cred)
+
 	client, err := datastore.NewClient(
 		ctx, ProjectId, cloud.WithTokenSource(cred.cred.TokenSource(ctx)))
 	if err != nil {

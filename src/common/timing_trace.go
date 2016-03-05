@@ -12,6 +12,52 @@ import (
 	"time"
 )
 
+type TraceContext struct {
+	trace *api.TimingTrace
+	// Top-level if parent is nil.
+	parent *api.TimingTrace
+}
+
+func TraceStart(ctx context.Context, name string) context.Context {
+	trace, ok := ctx.Value("trace").(*TraceContext)
+	if !ok {
+		// No existing trace: top level trace
+		trace := InitTrace(name)
+		return context.WithValue(ctx, "trace", &TraceContext{
+			trace: trace,
+		})
+	} else {
+		// Existing trace: sub-trace
+		cTrace := InitTrace(name)
+		return context.WithValue(ctx, "trace", &TraceContext{
+			trace:  cTrace,
+			parent: trace.trace,
+		})
+	}
+}
+
+func TraceEnd(ctx context.Context, cred *ServerCred) {
+	traceCtx, ok := ctx.Value("trace").(*TraceContext)
+	if ok {
+		FinishTrace(traceCtx.trace, traceCtx.parent)
+		if traceCtx.parent == nil {
+			go PostNewTrace(traceCtx.trace, cred)
+		}
+	} else {
+		log.Printf("ERROR: Calling TraceEnd for non-TraceStart-ed context")
+	}
+}
+
+func GetCurrentTrace(ctx context.Context) *api.TimingTrace {
+	trace, ok := ctx.Value("trace").(*TraceContext)
+	if ok {
+		return trace.trace
+	} else {
+		log.Printf("FATAL: GetCurrentTrace for non-TraceStarted context")
+		return nil
+	}
+}
+
 func InitTrace(name string) *api.TimingTrace {
 	return &api.TimingTrace{
 		Name:  name,

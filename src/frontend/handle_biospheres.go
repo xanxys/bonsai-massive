@@ -12,6 +12,9 @@ import (
 const tickPerYear = 5000
 
 func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*api.BiospheresS, error) {
+	ctx = TraceStart(ctx, "/frontend.Biospheres")
+	defer TraceEnd(ctx, fe.ServerCred)
+
 	client, err := fe.AuthDatastore(ctx)
 	if err != nil {
 		return nil, err
