@@ -7,6 +7,9 @@ import (
 )
 
 func (fe *FeServiceImpl) ChangeExec(ctx context.Context, q *api.ChangeExecQ) (*api.ChangeExecS, error) {
+	ctx = TraceStart(ctx, "/frontend.ChangeExec")
+	defer TraceEnd(ctx, fe.ServerCred)
+
 	if q.TargetState == api.ChangeExecQ_STOPPED {
 		fe.controller.SetBiosphereState(q.BiosphereId, nil)
 	} else if q.TargetState == api.ChangeExecQ_RUNNING {

@@ -10,6 +10,9 @@ import (
 )
 
 func (fe *FeServiceImpl) DeleteBiosphere(ctx context.Context, q *api.DeleteBiosphereQ) (*api.DeleteBiosphereS, error) {
+	ctx = TraceStart(ctx, "/frontend.DeleteBiosphere")
+	defer TraceEnd(ctx, fe.ServerCred)
+
 	if q.Auth == nil {
 		return nil, errors.New("DeleteBiosphere requires auth")
 	}

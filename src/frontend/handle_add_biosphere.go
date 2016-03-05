@@ -9,6 +9,9 @@ import (
 )
 
 func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ) (*api.AddBiosphereS, error) {
+	ctx = TraceStart(ctx, "/frontend.AddBiosphere")
+	defer TraceEnd(ctx, fe.ServerCred)
+
 	if q.Auth == nil {
 		return nil, errors.New("AddBiosphere requires auth")
 	}
