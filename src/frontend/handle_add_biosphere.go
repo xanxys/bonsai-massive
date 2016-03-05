@@ -15,7 +15,7 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 	if q.Auth == nil {
 		return nil, errors.New("AddBiosphere requires auth")
 	}
-	canWrite, err := fe.isWriteAuthorized(q.Auth)
+	canWrite, err := fe.isWriteAuthorized(ctx, q.Auth)
 	if err != nil {
 		return nil, err
 	}

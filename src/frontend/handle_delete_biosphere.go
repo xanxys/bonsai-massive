@@ -16,7 +16,7 @@ func (fe *FeServiceImpl) DeleteBiosphere(ctx context.Context, q *api.DeleteBiosp
 	if q.Auth == nil {
 		return nil, errors.New("DeleteBiosphere requires auth")
 	}
-	canWrite, err := fe.isWriteAuthorized(q.Auth)
+	canWrite, err := fe.isWriteAuthorized(ctx, q.Auth)
 	if err != nil {
 		return nil, err
 	}

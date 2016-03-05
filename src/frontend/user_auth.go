@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 	"log"
 	"net/http"
 )
@@ -16,7 +17,10 @@ type googleOAuth2V3Resp struct {
 }
 
 // Decided if the user is allowed to do write operations.
-func (fe *FeServiceImpl) isWriteAuthorized(auth *api.UserAuth) (bool, error) {
+func (fe *FeServiceImpl) isWriteAuthorized(ctx context.Context, auth *api.UserAuth) (bool, error) {
+	ctx = TraceStart(ctx, "/frontend._.isWriteAuthorized")
+	defer TraceEnd(ctx, fe.ServerCred)
+
 	log.Printf("Validating authentication token")
 	resp, err := http.Get(fmt.Sprintf("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=%s", auth.IdToken))
 	if err != nil {
