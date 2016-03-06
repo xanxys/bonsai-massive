@@ -93,6 +93,9 @@ func (fe *FeServiceImpl) getStorage(ctx context.Context, objectName string) {
 		log.Printf("ERROR: Failed to unmarshal snapshot proto %v", err)
 		return
 	}
+
+	// Convert to chunk snapshots and write them.
+	//
 }
 
 func (fe *FeServiceImpl) isValidNewConfig(ctx context.Context, dsClient *datastore.Client, config *api.BiosphereCreationConfig) (bool, error) {

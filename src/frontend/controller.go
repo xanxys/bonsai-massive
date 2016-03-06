@@ -210,6 +210,11 @@ func (ctrl *Controller) Reallocate() {
 			serverIp := ips[serverIndex]
 			genReq.SnapshotModulo = 5000
 			genReq.StartTimestamp = maxTimestamp
+			if ts.Env.StorageFileId != "" {
+				genReq.InitFromSnapshot = true
+				genReq.NumWater = 0
+				genReq.NumSoil = 0
+			}
 			chunkLocation[genReq.Topology.ChunkId] = serverIp
 			serverChunks[serverIp] = append(serverChunks[serverIp], genReq)
 			chunkIndex++

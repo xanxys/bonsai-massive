@@ -58,6 +58,8 @@ message SpawnChunkQ {
     // If chunk server cannot find specified snapshot, SpawnChunk will silently fail.
     uint64 start_timestamp = 6;
 
+    bool init_from_snapshot = 7;
+
     reserved 1;
 }
 
