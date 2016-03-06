@@ -32,6 +32,7 @@ func main() {
 		return
 	}
 
+	rand.Seed(time.Now().UnixNano())
 	objectName := fmt.Sprintf("envgen-%dx%d:%s:%08x", nx, ny, time.Now().Format("2006-01-02"), rand.Uint32())
 	object := &storage.Object{Name: objectName}
 	log.Printf("Uploading to gs://%s/%s", InitialEnvBucket, objectName)
@@ -56,18 +57,20 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	rand.Seed(seed)
 	var grains []*api.Grain
 
-	for ix := 0; ix < 40; ix++ {
-		for iy := 0; iy < 40; iy++ {
-			grains = append(grains, &api.Grain{
-				Id: uint64(ix + 1),
-				Pos: &api.CkPosition{
-					X: float32(ix) * 0.1,
-					Y: float32(iy) * 0.1,
-					Z: 0.1,
-				},
-				Vel:  &api.CkVelocity{0, 0, 0},
-				Kind: api.Grain_SOIL,
-			})
+	for iz := 0; iz < 5; iz++ {
+		for ix := 0; ix < 10; ix++ {
+			for iy := 0; iy < 10; iy++ {
+				grains = append(grains, &api.Grain{
+					Id: uint64(ix + 1),
+					Pos: &api.CkPosition{
+						X: float32(ix)*0.1 + 0.5,
+						Y: float32(iy)*0.1 + 0.5,
+						Z: float32(iz)*0.1 + 0.1,
+					},
+					Vel:  &api.CkVelocity{0, 0, 0},
+					Kind: api.Grain_SOIL,
+				})
+			}
 		}
 	}
 
