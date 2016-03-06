@@ -6,6 +6,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/storage/v1"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/datastore"
 	"io/ioutil"
@@ -26,6 +27,7 @@ func NewServerCred() *ServerCred {
 		jsonKey,
 		datastore.ScopeDatastore,
 		datastore.ScopeUserEmail,
+		storage.DevstorageFullControlScope,
 		"https://www.googleapis.com/auth/cloud-platform",
 		"https://www.googleapis.com/auth/trace.append",
 		"https://www.googleapis.com/auth/compute")
@@ -47,6 +49,11 @@ func (cred *ServerCred) AuthDatastore(ctx context.Context) (*datastore.Client, e
 		return nil, err
 	}
 	return client, nil
+}
+
+func (cred *ServerCred) AuthStorage(ctx context.Context) (*storage.Service, error) {
+	client := cred.cred.Client(oauth2.NoContext)
+	return storage.New(client)
 }
 
 func (cred *ServerCred) AuthCompute(ctx context.Context) (*compute.Service, error) {

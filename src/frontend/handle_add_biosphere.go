@@ -6,7 +6,11 @@ import (
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
+	"io/ioutil"
+	"log"
 )
+
+const InitialEnvBucket = "bonsai_initial_envs"
 
 func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ) (*api.AddBiosphereS, error) {
 	ctx = TraceStart(ctx, "/frontend.AddBiosphere")
@@ -36,6 +40,10 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 		return &api.AddBiosphereS{Success: valid}, nil
 	}
 
+	if q.Config.Env.StorageFileId != "" {
+		fe.getStorage(ctx, q.Config.Env.StorageFileId)
+	}
+
 	envBlob, err := proto.Marshal(q.Config.Env)
 	if err != nil {
 		return nil, err
@@ -60,6 +68,33 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 			NumCores:    uint32(meta.Nx*meta.Ny/5) + 1,
 		},
 	}, nil
+}
+
+func (fe *FeServiceImpl) getStorage(ctx context.Context, objectName string) {
+	ctx = TraceStart(ctx, "/frontend._.getStorage")
+	defer TraceEnd(ctx, fe.ServerCred)
+
+	service, err := fe.AuthStorage(ctx)
+
+	res, err := service.Objects.Get(InitialEnvBucket, objectName).Download()
+	if err != nil {
+		// TODO: should report error to user
+		log.Printf("Failed to retrieve cloud storage object containing initial env, %v", err)
+		return
+	}
+	defer res.Body.Close()
+	blob, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("ERROR: Failed to download storage %v", err)
+		return
+	}
+	snapshot := &api.ChunkSnapshot{}
+	err = proto.Unmarshal(blob, snapshot)
+	if err != nil {
+		// TODO: should report error to user
+		log.Printf("ERROR: Failed to unmarshal snapshot proto %v", err)
+		return
+	}
 }
 
 func (fe *FeServiceImpl) isValidNewConfig(ctx context.Context, dsClient *datastore.Client, config *api.BiosphereCreationConfig) (bool, error) {

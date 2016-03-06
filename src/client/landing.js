@@ -66,7 +66,6 @@ $(document).ready(() => {
                             name: this.name,
                             nx: this.nx,
                             ny: this.ny,
-                            file_id: "",
                             env: {
                                 seed: Math.floor(Math.random() * 1e9),
                                 storage_file_id: this.file_id,
