@@ -181,7 +181,7 @@ func (router *ChunkRouter) RequestSnapshot(chunkIds []string) chan *api.Snapshot
 	for _, chunkId := range chunkIds {
 		cache, ok := router.exportCache[chunkId]
 		if !ok {
-			log.Printf("Specified chunk id (%s) not registered; ignoring")
+			log.Printf("Specified chunk id (%s) not registered; ignoring", chunkId)
 			continue
 		}
 		if cache.timestamp < minTimestamp {

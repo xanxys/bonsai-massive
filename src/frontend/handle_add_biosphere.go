@@ -127,13 +127,9 @@ func (fe *FeServiceImpl) expandStorageToSnapshot(ctx context.Context, bsTopo Bio
 	for _, chunk := range bsTopo.GetChunkTopos() {
 		offset := offsets[chunk.ChunkId]
 		key := ChunkKey{int(offset.X), int(offset.Y)}
-		grains, ok := bins[key]
-		if !ok {
-			continue
-		}
-
+		// We need to create snapshot even though 0 grains is contained.
 		chunkSnapshot := &api.ChunkSnapshot{
-			Grains: grains,
+			Grains: bins[key],
 		}
 		chunkBlob, err := proto.Marshal(chunkSnapshot)
 		if err != nil {
