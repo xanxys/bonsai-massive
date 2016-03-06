@@ -10,8 +10,6 @@ import (
 	"log"
 )
 
-const InitialEnvBucket = "bonsai_initial_envs"
-
 func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ) (*api.AddBiosphereS, error) {
 	ctx = TraceStart(ctx, "/frontend.AddBiosphere")
 	defer TraceEnd(ctx, fe.ServerCred)
