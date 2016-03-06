@@ -56,8 +56,8 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	rand.Seed(seed)
 	var grains []*api.Grain
 
-	for ix := 0; ix < 10; ix++ {
-		for iy := 0; iy < 10; iy++ {
+	for ix := 0; ix < 40; ix++ {
+		for iy := 0; iy < 40; iy++ {
 			grains = append(grains, &api.Grain{
 				Id: uint64(ix + 1),
 				Pos: &api.CkPosition{

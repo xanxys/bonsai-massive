@@ -38,10 +38,6 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 		return &api.AddBiosphereS{Success: valid}, nil
 	}
 
-	if q.Config.Env.StorageFileId != "" {
-		fe.getStorage(ctx, q.Config.Env.StorageFileId)
-	}
-
 	envBlob, err := proto.Marshal(q.Config.Env)
 	if err != nil {
 		return nil, err
@@ -58,6 +54,20 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 		return nil, err
 	}
 
+	if q.Config.Env.StorageFileId != "" {
+		bsTopo := NewCylinderTopology(uint64(key.ID()), int(meta.Nx), int(meta.Ny))
+		err = fe.expandStorageToSnapshot(ctx, bsTopo, q.Config.Env.StorageFileId)
+		if err != nil {
+			log.Printf("ERROR: Failed to initialize with snapshot %v", err)
+			log.Printf("Deleting biosphere entry %v", key)
+			dsErr := client.Delete(ctx, key)
+			if dsErr != nil {
+				log.Printf("ERROR: Failed to delete BiosphereMeta(%v); datastore might have become inconsistent", key)
+			}
+			return nil, err
+		}
+	}
+
 	return &api.AddBiosphereS{
 		Success: true,
 		BiosphereDesc: &api.BiosphereDesc{
@@ -68,7 +78,9 @@ func (fe *FeServiceImpl) AddBiosphere(ctx context.Context, q *api.AddBiosphereQ)
 	}, nil
 }
 
-func (fe *FeServiceImpl) getStorage(ctx context.Context, objectName string) {
+// Reads storage file (binary proto of ChunkSnapshot) and copies it as snapshots
+// of multiple chunks.
+func (fe *FeServiceImpl) expandStorageToSnapshot(ctx context.Context, bsTopo BiosphereTopology, objectName string) error {
 	ctx = TraceStart(ctx, "/frontend._.getStorage")
 	defer TraceEnd(ctx, fe.ServerCred)
 
@@ -76,26 +88,76 @@ func (fe *FeServiceImpl) getStorage(ctx context.Context, objectName string) {
 
 	res, err := service.Objects.Get(InitialEnvBucket, objectName).Download()
 	if err != nil {
-		// TODO: should report error to user
-		log.Printf("Failed to retrieve cloud storage object containing initial env, %v", err)
-		return
+		log.Printf("WARNING: Failed to retrieve cloud storage object containing initial env, %v", err)
+		return err
 	}
 	defer res.Body.Close()
 	blob, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("ERROR: Failed to download storage %v", err)
-		return
+		return err
 	}
 	snapshot := &api.ChunkSnapshot{}
 	err = proto.Unmarshal(blob, snapshot)
 	if err != nil {
-		// TODO: should report error to user
 		log.Printf("ERROR: Failed to unmarshal snapshot proto %v", err)
-		return
+		return err
+	}
+
+	// Bin grains.
+	type ChunkKey struct {
+		ix, iy int
+	}
+	bins := make(map[ChunkKey][]*api.Grain)
+	for _, grain := range snapshot.Grains {
+		key := ChunkKey{int(grain.Pos.X), int(grain.Pos.Y)}
+		localGrain := proto.Clone(grain).(*api.Grain)
+		localGrain.Pos.X -= float32(key.ix)
+		localGrain.Pos.Y -= float32(key.iy)
+		bins[key] = append(bins[key], localGrain)
+	}
+
+	dsClient, err := fe.AuthDatastore(ctx)
+	if err != nil {
+		return err
 	}
 
 	// Convert to chunk snapshots and write them.
-	//
+	offsets := bsTopo.GetGlobalOffsets()
+	for _, chunk := range bsTopo.GetChunkTopos() {
+		offset := offsets[chunk.ChunkId]
+		key := ChunkKey{int(offset.X), int(offset.Y)}
+		grains, ok := bins[key]
+		if !ok {
+			continue
+		}
+
+		chunkSnapshot := &api.ChunkSnapshot{
+			Grains: grains,
+		}
+		chunkBlob, err := proto.Marshal(chunkSnapshot)
+		if err != nil {
+			log.Printf("ERROR: Failed to marshal chunk snapshot proto %v", err)
+			return err
+		}
+
+		// TODO: use transaction.
+		dsKey := datastore.NewIncompleteKey(ctx, "PersistentChunkSnapshot", nil)
+		_, err = func(ctx context.Context) (*datastore.Key, error) {
+			ctx = TraceStart(ctx, "/google/datastore.Put")
+			defer TraceEnd(ctx, fe.ServerCred)
+			return dsClient.Put(ctx, dsKey, &PersistentChunkSnapshot{
+				ChunkId:   chunk.ChunkId,
+				Timestamp: 0,
+				Snapshot:  chunkBlob,
+			})
+		}(ctx)
+		if err != nil {
+			log.Printf("ERROR: Failed to write chunk snapshot %v; snapshot became inconsistent", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (fe *FeServiceImpl) isValidNewConfig(ctx context.Context, dsClient *datastore.Client, config *api.BiosphereCreationConfig) (bool, error) {

@@ -21,7 +21,7 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 	relToId, idToRel, wall := decodeTopo(topo)
 
 	var chunk *GrainChunk
-	if q.StartTimestamp > 0 && !q.InitFromSnapshot {
+	if q.StartTimestamp > 0 || q.InitFromSnapshot {
 		loadedChunk, err := resumeFromSnapshot(ctx, topo.ChunkId, q.StartTimestamp, cred)
 		if err != nil {
 			log.Printf("Resuming failed with %#v, not starting %s", err, topo.ChunkId)
