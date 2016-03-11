@@ -56,16 +56,30 @@ func GetStorageService(ctx context.Context) (*storage.Service, error) {
 func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	rand.Seed(seed)
 	var grains []*api.Grain
+	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5, 0.5, 0}, 5, 10, 10)...)
+	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5 + rand.Float32(), 0.5 + rand.Float32(), 0.6}, 10, 10, 5)...)
+	grains = append(grains, GeneratePackedWaterCP(Vec3f{1.7 + rand.Float32()*0.5, rand.Float32(), 0.1}, 7, 7, 20, true)...)
 
-	for iz := 0; iz < 5; iz++ {
-		for ix := 0; ix < 10; ix++ {
-			for iy := 0; iy < 10; iy++ {
+	return &api.ChunkSnapshot{
+		Grains: grains,
+	}
+}
+
+// Genrate soil with cP (primitive cubic) lattice.
+func GeneratePackedSoilCP(org Vec3f, nx, ny, nz int) []*api.Grain {
+	const latticeSize = 0.1
+	const groundOffset = 0.1
+
+	var grains []*api.Grain
+	for iz := 0; iz < nz; iz++ {
+		for ix := 0; ix < nx; ix++ {
+			for iy := 0; iy < ny; iy++ {
 				grains = append(grains, &api.Grain{
 					Id: uint64(ix + 1),
 					Pos: &api.CkPosition{
-						X: float32(ix)*0.1 + 0.5,
-						Y: float32(iy)*0.1 + 0.5,
-						Z: float32(iz)*0.1 + 0.1,
+						X: float32(ix)*latticeSize + org.X,
+						Y: float32(iy)*latticeSize + org.Y,
+						Z: float32(iz)*latticeSize + groundOffset + org.Z,
 					},
 					Vel:  &api.CkVelocity{0, 0, 0},
 					Kind: api.Grain_SOIL,
@@ -73,8 +87,39 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 			}
 		}
 	}
+	return grains
+}
 
-	return &api.ChunkSnapshot{
-		Grains: grains,
+// Genrate water with cP (primitive cubic) lattice.
+// natural==true: Add small random noise to make grains behave like fluid
+// natural==false: Put grains at perfect lattice, making them non-fluid (when rest on simple ground)
+func GeneratePackedWaterCP(org Vec3f, nx, ny, nz int, natural bool) []*api.Grain {
+	const latticeSize = 0.1
+	const groundOffset = 0.1
+	const noiseAmplitude = 0.001
+
+	var grains []*api.Grain
+	for iz := 0; iz < nz; iz++ {
+		for ix := 0; ix < nx; ix++ {
+			for iy := 0; iy < ny; iy++ {
+				pos := &api.CkPosition{
+					X: float32(ix)*latticeSize + org.X,
+					Y: float32(iy)*latticeSize + org.Y,
+					Z: float32(iz)*latticeSize + groundOffset + org.Z,
+				}
+				if natural {
+					pos.X += (rand.Float32()*2 - 1) * noiseAmplitude
+					pos.Y += (rand.Float32()*2 - 1) * noiseAmplitude
+					pos.Z += (rand.Float32()*2 - 1) * noiseAmplitude
+				}
+				grains = append(grains, &api.Grain{
+					Id:   uint64(ix + 1),
+					Pos:  pos,
+					Vel:  &api.CkVelocity{0, 0, 0},
+					Kind: api.Grain_WATER,
+				})
+			}
+		}
 	}
+	return grains
 }
