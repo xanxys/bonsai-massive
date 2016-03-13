@@ -96,6 +96,8 @@ message PoolDebug {
     int32 target_num = 2;
     string last_non_zero = 3;
     string current_time = 4;
+    bool is_cooldown = 5;
+    string cooldown_remaining = 6;
 }
 
 

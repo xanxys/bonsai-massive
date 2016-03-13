@@ -41,12 +41,18 @@ func NewPoolController(fe *FeServiceImpl, handler ConfigHandler) *PoolController
 }
 
 func (ctrl *PoolController) GetDebug() *api.PoolDebug {
-	return &api.PoolDebug{
+	now := time.Now()
+	debug := &api.PoolDebug{
 		GrpcOkIp:    ctrl.lastGrpcOkIp,
 		TargetNum:   int32(ctrl.targetNum),
 		LastNonZero: ctrl.lastNonZeroTarget.Format(time.RFC3339),
-		CurrentTime: time.Now().Format(time.RFC3339),
+		CurrentTime: now.Format(time.RFC3339),
 	}
+	if ctrl.targetNum == 0 && now.Sub(ctrl.lastNonZeroTarget).Seconds() < cooldownPeriodSecond {
+		debug.IsCooldown = true
+		debug.CooldownRemaining = fmt.Sprintf("%.1f sec", now.Sub(ctrl.lastNonZeroTarget).Seconds())
+	}
+	return debug
 }
 
 func (ctrl *PoolController) GetUsableIp() []string {
@@ -105,6 +111,9 @@ func (ctrl *PoolController) LoopIter(loopIter int) {
 			}
 		}
 		ctrl.fe.deleteInstances(clientCompute, namesToKill)
+	}
+	if ctrl.targetNum > 0 {
+		ctrl.lastNonZeroTarget = time.Now()
 	}
 }
 
