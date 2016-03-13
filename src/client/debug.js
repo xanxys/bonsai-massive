@@ -11,7 +11,7 @@ $(document).ready(() => {
             // For some reason, () => doesn't work.
             update: function() {
                 call_fe('debug', {}).done(data => {
-                    bs.$set('debug', JSON.stringify(data, null, 2));
+                    bs.$set('debug', JSON.stringify(JSON.parse(data.encodeJSON()), null, 2));
                 });
             },
             enter: function(biosphere) {

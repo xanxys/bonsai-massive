@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./api"
 	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -37,6 +38,15 @@ func NewPoolController(fe *FeServiceImpl, handler ConfigHandler) *PoolController
 		}
 	}()
 	return ctrl
+}
+
+func (ctrl *PoolController) GetDebug() *api.PoolDebug {
+	return &api.PoolDebug{
+		GrpcOkIp:    ctrl.lastGrpcOkIp,
+		TargetNum:   int32(ctrl.targetNum),
+		LastNonZero: ctrl.lastNonZeroTarget.Format(time.RFC3339),
+		CurrentTime: time.Now().Format(time.RFC3339),
+	}
 }
 
 func (ctrl *PoolController) GetUsableIp() []string {

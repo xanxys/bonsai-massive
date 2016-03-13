@@ -61,6 +61,19 @@ type BiosphereState struct {
 	chunks map[string]string
 }
 
+func (ctrl *Controller) GetDebug() *api.ControllerDebug {
+	m := make(map[uint64]*api.ControllerDebug_BiosphereState)
+	for bsId, state := range ctrl.GetCurrentState() {
+		m[bsId] = &api.ControllerDebug_BiosphereState{
+			Flag:   api.ControllerDebug_BiosphereFlag(state.flag),
+			Chunks: state.chunks,
+		}
+	}
+	return &api.ControllerDebug{
+		Biospheres: m,
+	}
+}
+
 func (ctrl *Controller) GetBiosphereState(biosphereId uint64) BiosphereState {
 	state, ok := ctrl.GetCurrentState()[biosphereId]
 	if ok {

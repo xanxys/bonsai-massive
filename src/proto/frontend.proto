@@ -69,36 +69,33 @@ message DebugQ {
 }
 
 message DebugS {
-
     // Contain error message that is impossible to attribute to each chunk server.
     string chunk_servers_error = 1;
 
-    // Latter entries are always stricter than entries before them.
-    enum ChunkServerHealth {
-        // The machine shows up in compute engine VM list.
-        // This is always true, so this is the default fallback (0).
-        ALLOCATED = 0;
+    ControllerDebug controller_debug = 2;
+    PoolDebug pool_debug = 3;
+}
 
-        // Possible to create gRPC connection.
-        GRPC_OK = 1;
-
-        // Possible to get successful Status RPC response.
-        STATUS_OK = 2;
+message ControllerDebug {
+    enum BiosphereFlag {
+        STOPPED = 0;
+        WAITING = 1;
+        RUNNING = 2;
+    }
+    message BiosphereState {
+        BiosphereFlag flag = 1;
+        // chunk id -> ip
+        map<string, string> chunks = 2;
     }
 
-    message ChunkServerState {
-        string ip_address = 1;
-        // Human-readable state (might be error message when fails to retrieve).
-        string state = 2;
+    map<uint64, BiosphereState> biospheres = 1;
+}
 
-        ChunkServerHealth health = 3;
-
-        // Observed RTT (in second) when STATUS_OK.
-        float rtt = 4;
-    }
-    // Returns all known (including running) chunk server descriptions,
-    // excluding already terminated chunk servers.
-    repeated ChunkServerState chunk_servers = 2;
+message PoolDebug {
+    repeated string grpc_ok_ip = 1;
+    int32 target_num = 2;
+    string last_non_zero = 3;
+    string current_time = 4;
 }
 
 
