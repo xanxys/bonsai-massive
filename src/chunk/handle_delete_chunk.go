@@ -6,6 +6,8 @@ import (
 )
 
 func (ck *CkServiceImpl) DeleteChunk(ctx context.Context, q *api.DeleteChunkQ) (*api.DeleteChunkS, error) {
-	ck.DeleteAllChunks()
+	for _, chunkId := range q.ChunkId {
+		ck.ChunkRouter.DeleteChunk(chunkId)
+	}
 	return &api.DeleteChunkS{}, nil
 }

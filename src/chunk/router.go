@@ -56,6 +56,8 @@ type ChunkRouter struct {
 	snapshotReqs  []*SnapshotRequest
 	exportCache   map[string]*ExportCache
 	runningChunks map[string]*api.ChunkTopology
+
+	quitChannels map[string]chan bool
 }
 
 // Create a new chunk.
@@ -224,25 +226,31 @@ func (router *ChunkRouter) GetChunks() []*api.ChunkTopology {
 	return topos
 }
 
-func (router *ChunkRouter) DeleteAllChunks() {
+func (router *ChunkRouter) DeleteChunk(chunkId string) {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
-	// TODO: implement
+	ch, ok := router.quitChannels[chunkId]
+	if ok {
+		ch <- true
+		delete(router.quitChannels, chunkId)
+	}
 }
 
-// Returns true if caller should continue RequestNeighbor & NotifyResult.
-// When false is returned, caller must not touch router again because it's already
+// Returns quit channel if caller should continue RequestNeighbor & NotifyResult.
+// When nil is returned, caller must not touch router again because it's already
 // executed by other goroutine.
-func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) bool {
+func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) chan bool {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
 
 	if router.runningChunks[topo.ChunkId] != nil {
 		log.Printf("Trying to run chunk %s even though it's running, ignoring", topo.ChunkId)
-		return false
+		return nil
 	}
 	router.runningChunks[topo.ChunkId] = topo
-	return true
+	ch := make(chan bool)
+	router.quitChannels[topo.ChunkId] = ch
+	return ch
 }
 
 // Request neighbors necessary for stepping chunk from timestap to timetamp+1,

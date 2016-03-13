@@ -32,7 +32,8 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 		chunk = initializeWithSources(q)
 	}
 
-	if !router.RegisterNewChunk(topo) {
+	quitCh := router.RegisterNewChunk(topo)
+	if quitCh == nil {
 		log.Printf("RunChunk(%s) exiting because it's already running", topo.ChunkId)
 		return
 	}
@@ -47,59 +48,63 @@ func RunChunk(router *ChunkRouter, q *api.SpawnChunkQ, cred *ServerCred) {
 	})
 
 	for {
-		nImport := <-router.RequestNeighbor(chunk.Timestamp, topo)
-
-		// Unpack imported things and import.
-		incomingGrains := make([]*Grain, len(nImport.IncomingGrains))
-		for ix, grainProto := range nImport.IncomingGrains {
-			incomingGrains[ix] = deser(grainProto)
-		}
-		var envGrains []*Grain
-		for chunkId, sGrains := range nImport.EnvGrains {
-			rel := idToRel[chunkId]
-			deltaPos := Vec3f{float32(rel.Dx), float32(rel.Dy), 0}
-			for _, grainProto := range sGrains {
-				grain := deser(grainProto)
-				grain.Position = grain.Position.Add(deltaPos)
-				envGrains = append(envGrains)
+		select {
+		case <-quitCh:
+			log.Printf("Quit signal received")
+			break
+		case nImport := <-router.RequestNeighbor(chunk.Timestamp, topo):
+			// Unpack imported things and import.
+			incomingGrains := make([]*Grain, len(nImport.IncomingGrains))
+			for ix, grainProto := range nImport.IncomingGrains {
+				incomingGrains[ix] = deser(grainProto)
 			}
-		}
-		chunk.IncorporateAddition(incomingGrains)
-
-		// Persist when requested.
-		if q.SnapshotModulo > 0 && chunk.Timestamp%uint64(q.SnapshotModulo) == 0 {
-			key, err := takeSnapshot(ctx, q.Topology.ChunkId, cred, chunk)
-			if err != nil {
-				log.Printf("Error: Failed to take snapshot with %#v", err)
+			var envGrains []*Grain
+			for chunkId, sGrains := range nImport.EnvGrains {
+				rel := idToRel[chunkId]
+				deltaPos := Vec3f{float32(rel.Dx), float32(rel.Dy), 0}
+				for _, grainProto := range sGrains {
+					grain := deser(grainProto)
+					grain.Position = grain.Position.Add(deltaPos)
+					envGrains = append(envGrains)
+				}
 			}
-			log.Printf("Snapshot key=%v", key)
-		}
+			chunk.IncorporateAddition(incomingGrains)
 
-		// Actual simulation.
-		escapedGrains := chunk.Step(envGrains, wall)
+			// Persist when requested.
+			if q.SnapshotModulo > 0 && chunk.Timestamp%uint64(q.SnapshotModulo) == 0 {
+				key, err := takeSnapshot(ctx, q.Topology.ChunkId, cred, chunk)
+				if err != nil {
+					log.Printf("Error: Failed to take snapshot with %#v", err)
+				}
+				log.Printf("Snapshot key=%v", key)
+			}
 
-		// Pack exported things.
-		grains := make([]*api.Grain, len(chunk.Grains))
-		for ix, grain := range chunk.Grains {
-			grains[ix] = ser(grain)
-		}
-		bins := make(map[string][]*api.Grain)
-		for _, escapedGrain := range escapedGrains {
-			coord := binExternal(relToId, escapedGrain.Position)
-			if coord == nil {
-				continue
+			// Actual simulation.
+			escapedGrains := chunk.Step(envGrains, wall)
+
+			// Pack exported things.
+			grains := make([]*api.Grain, len(chunk.Grains))
+			for ix, grain := range chunk.Grains {
+				grains[ix] = ser(grain)
 			}
-			sGrain := ser(escapedGrain)
-			sGrain.Pos = &api.CkPosition{
-				coord.Pos.X, coord.Pos.Y, coord.Pos.Z,
+			bins := make(map[string][]*api.Grain)
+			for _, escapedGrain := range escapedGrains {
+				coord := binExternal(relToId, escapedGrain.Position)
+				if coord == nil {
+					continue
+				}
+				sGrain := ser(escapedGrain)
+				sGrain.Pos = &api.CkPosition{
+					coord.Pos.X, coord.Pos.Y, coord.Pos.Z,
+				}
+				bins[coord.Key] = append(bins[coord.Key], sGrain)
 			}
-			bins[coord.Key] = append(bins[coord.Key], sGrain)
+			nExport := &NeighborExport{
+				ChunkGrains:   grains,
+				EscapedGrains: bins,
+			}
+			router.NotifyResult(chunk.Timestamp, topo, nExport)
 		}
-		nExport := &NeighborExport{
-			ChunkGrains:   grains,
-			EscapedGrains: bins,
-		}
-		router.NotifyResult(chunk.Timestamp, topo, nExport)
 	}
 }
 

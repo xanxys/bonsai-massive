@@ -171,7 +171,16 @@ func (ctrl *Controller) Reallocate() {
 		}
 		defer conn.Close()
 		chunkService := api.NewChunkServiceClient(conn)
-		chunkService.DeleteChunk(ctx, &api.DeleteChunkQ{})
+		csummary, err := chunkService.ChunkSummary(ctx, &api.ChunkSummaryQ{})
+		if err != nil {
+			log.Printf("ERROR: Unable to get chunk summary from IP %s: %v", ip, err)
+			return
+		}
+		chunkIds := make([]string, len(csummary.Chunks))
+		for ix, chunkTopo := range csummary.Chunks {
+			chunkIds[ix] = chunkTopo.ChunkId
+		}
+		chunkService.DeleteChunk(ctx, &api.DeleteChunkQ{ChunkId: chunkIds})
 	}
 
 	// Calculate IP <-> chunk correspondence.

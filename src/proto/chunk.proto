@@ -66,8 +66,8 @@ message SpawnChunkQ {
 message SpawnChunkS {
 }
 
-// By default, delte all chunks in this server.
 message DeleteChunkQ {
+    repeated string chunk_id = 1;
 }
 
 message DeleteChunkS {
