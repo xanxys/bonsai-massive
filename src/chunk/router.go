@@ -68,6 +68,7 @@ func StartNewRouter() *ChunkRouter {
 		exportQueue:   make(chan *ExportCache, 10),
 		exportCache:   make(map[string]*ExportCache),
 		runningChunks: make(map[string]*api.ChunkTopology),
+		quitChannels:  make(map[string]chan bool),
 	}
 	go func() {
 		var reqs []ImportRequest
