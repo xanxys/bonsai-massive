@@ -193,6 +193,7 @@ func (ctrl *Controller) Reallocate() {
 		for ix, chunkTopo := range csummary.Chunks {
 			chunkIds[ix] = chunkTopo.ChunkId
 		}
+		log.Printf("deleting chunks@ %s: %#v", ip, chunkIds)
 		chunkService.DeleteChunk(ctx, &api.DeleteChunkQ{ChunkId: chunkIds})
 	}
 

@@ -235,6 +235,7 @@ func (router *ChunkRouter) DeleteChunk(chunkId string) {
 		ch <- true
 		delete(router.quitChannels, chunkId)
 	}
+	delete(router.runningChunks, chunkId)
 }
 
 // Returns quit channel if caller should continue RequestNeighbor & NotifyResult.
