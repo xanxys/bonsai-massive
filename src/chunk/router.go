@@ -4,225 +4,184 @@ import (
 	"./api"
 	"log"
 	"sync"
+	"time"
 )
-
-// Immutable structure that holds incoming grains from neighbor / env grains.
-type NeighborImport struct {
-	// Incoming grains.
-	IncomingGrains []*api.Grain
-
-	// Frozen neighbor chunks. (in their coordinates)
-	EnvGrains map[string][]*api.Grain
-}
 
 // Immutable structure that holds outgoing grains / env grains visible from other
 // chunks.
 type NeighborExport struct {
+	OriginChunkId string
+
+	Timestamp uint64
+
 	// Can be a subset of a chunk, but it's safe to pass everything.
 	ChunkGrains []*api.Grain
 
-	// Frozen escaped grains after canonicalization.
+	// We don't care much about performance, but rather this will prevent
+	// potential grain duplication.
+	// key: destination chunk id
+	// value: grain in destionatio coordinate
 	EscapedGrains map[string][]*api.Grain
 }
 
-type ImportRequest struct {
-	timestamp uint64
-	topo      *api.ChunkTopology
-	receiver  chan *NeighborImport
-}
-
 type SnapshotRequest struct {
+	receiver       chan *api.SnapshotS
+	targetChunkIds map[string]bool
+	expireAt       time.Time
+
+	// Phase 1. Determine target timestamp
+	collectedTimestamp map[string]uint64
+
+	// Phase 2. Collect snapshot.
+	isTimestampValid  bool
 	timestamp         uint64
-	targetChunkIds    map[string]bool
-	collectedSnapshot map[string]*api.ChunkSnapshot
-	receiver          chan *api.SnapshotS
+	collectedSnapshot map[string]*NeighborExport
 }
 
-// Apparently, we only need to remember two timestamps for stepping to always work.
-type ExportCache struct {
-	chunkId string
-	// Timestamp of head.
-	timestamp  uint64
-	head, prev *NeighborExport
+type ChunkMetadata struct {
+	topo   *api.ChunkTopology
+	quitCh chan bool
+	recvCh chan *NeighborExport
 }
 
 // All exported methods are thread-safe, and are supposed to be called from goroutines
 // simulating each chunk or grpc request handler.
 type ChunkRouter struct {
-	requestQueue chan *ImportRequest
-	exportQueue  chan *ExportCache
-
 	stateMutex    sync.Mutex
 	snapshotReqs  []*SnapshotRequest
-	exportCache   map[string]*ExportCache
-	runningChunks map[string]*api.ChunkTopology
-
-	quitChannels map[string]chan bool
+	runningChunks map[string]*ChunkMetadata
 }
 
 // Create a new chunk.
 func StartNewRouter() *ChunkRouter {
 	log.Printf("Starting chunk router")
 	router := &ChunkRouter{
-		requestQueue:  make(chan *ImportRequest, 10),
-		exportQueue:   make(chan *ExportCache, 10),
-		exportCache:   make(map[string]*ExportCache),
-		runningChunks: make(map[string]*api.ChunkTopology),
-		quitChannels:  make(map[string]chan bool),
+		runningChunks: make(map[string]*ChunkMetadata),
 	}
 	go func() {
-		var reqs []ImportRequest
 		for {
-			select {
-			case req := <-router.requestQueue:
-				router.stateMutex.Lock()
-				// It's possible that new request is already satisfied by existing exports.
-				reqs = append(reqs, maybeResolveRequests([]ImportRequest{*req}, router.exportCache)...)
-				router.stateMutex.Unlock()
-			case export := <-router.exportQueue:
-				router.stateMutex.Lock()
-				if router.exportCache[export.chunkId] == nil {
-					router.exportCache[export.chunkId] = export
-				} else {
-					if export.timestamp != router.exportCache[export.chunkId].timestamp+1 {
-						log.Panicf("Invalid export (chunk id=%s), current cache HEAD=%d, exported=%d",
-							export.chunkId, router.exportCache[export.chunkId].timestamp, export.timestamp)
-					}
-					router.exportCache[export.chunkId].timestamp++
-					router.exportCache[export.chunkId].prev = router.exportCache[export.chunkId].head
-					router.exportCache[export.chunkId].head = export.head
-				}
-				reqs = maybeResolveRequests(reqs, router.exportCache)
-				router.snapshotReqs = updateSnapshotReqs(router.snapshotReqs, export)
-				router.stateMutex.Unlock()
-			}
+			time.Sleep(time.Second)
+			router.MaybeExpireRequests()
 		}
 	}()
 	return router
 }
 
-// Resolve some requests and returns requests still pending.
-func maybeResolveRequests(reqs []ImportRequest, exportCache map[string]*ExportCache) []ImportRequest {
-	var pendingReqs []ImportRequest
-	for _, req := range reqs {
-		goodExports := make(map[string]*NeighborExport)
-		for _, neighbor := range req.topo.Neighbors {
-			export, ok := exportCache[neighbor.ChunkId]
-			if !ok {
-				break
-			}
-			if export.head != nil && req.timestamp == export.timestamp {
-				goodExports[neighbor.ChunkId] = export.head
-			} else if export.prev != nil && req.timestamp == export.timestamp-1 {
-				goodExports[neighbor.ChunkId] = export.prev
-			} else {
-				break
-			}
-		}
-		// Not enough exports found.
-		if len(goodExports) < len(req.topo.Neighbors) {
-			pendingReqs = append(pendingReqs, req)
-			continue
-		}
-		// Ok to send out.
-		nImport := &NeighborImport{
-			IncomingGrains: nil,
-			EnvGrains:      make(map[string][]*api.Grain),
-		}
-		for chunkId, export := range goodExports {
-			nImport.IncomingGrains = append(nImport.IncomingGrains, export.EscapedGrains[req.topo.ChunkId]...)
-			nImport.EnvGrains[chunkId] = export.ChunkGrains
-		}
-		req.receiver <- nImport
-	}
-	return pendingReqs
-}
-
-// Call this with every new export. Each snapshotrequest will collect necessary information,
-// and resolve itself when it's ready.
-func updateSnapshotReqs(reqs []*SnapshotRequest, newExport *ExportCache) []*SnapshotRequest {
-	var pendingReqs []*SnapshotRequest
-	for _, req := range reqs {
-		if req.targetChunkIds[newExport.chunkId] && req.collectedSnapshot[newExport.chunkId] == nil {
-			if newExport.timestamp == req.timestamp {
-				req.collectedSnapshot[newExport.chunkId] = &api.ChunkSnapshot{
-					Grains: newExport.head.ChunkGrains,
-				}
-			} else if newExport.timestamp > req.timestamp {
-				log.Printf("Somehow missed capturing snapshot of chunk %s @ %d (already @ %d)",
-					newExport.chunkId, req.timestamp, newExport.timestamp)
-			}
-		}
-
-		if len(req.targetChunkIds) == len(req.collectedSnapshot) {
-			log.Printf("SnapshotRequest resolved (ids=%#v@t=%d)", req.targetChunkIds, req.timestamp)
-			req.receiver <- &api.SnapshotS{
-				Timestamp: req.timestamp,
-				Snapshot:  req.collectedSnapshot,
-			}
-		} else {
-			pendingReqs = append(pendingReqs, req)
-		}
-	}
-	return pendingReqs
-}
-
 // Take synchronized snapshot of given chunks at earliest convenient timestamp.
-// Note that depending on given chunkIds and/or execution status, it might never
-// return and waste memory forever.
-// (e.g. when they're from different biospheres running at totally different timestamp)
-func (router *ChunkRouter) RequestSnapshot(chunkIds []string) chan *api.SnapshotS {
+func (router *ChunkRouter) RequestSnapshot(chunkIds []string, waitFor time.Duration) chan *api.SnapshotS {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
 
 	ch := make(chan *api.SnapshotS, 1)
-
-	// Calculate nearest not-exported timestamp.
 	targetChunkIds := make(map[string]bool)
-	minTimestamp := uint64(0xffffffffffffffff)
-	maxTimestamp := uint64(0)
 	for _, chunkId := range chunkIds {
-		cache, ok := router.exportCache[chunkId]
-		if !ok {
-			log.Printf("Specified chunk id (%s) not registered; ignoring", chunkId)
-			continue
-		}
-		if cache.timestamp < minTimestamp {
-			minTimestamp = cache.timestamp
-		}
-		if cache.timestamp > maxTimestamp {
-			maxTimestamp = cache.timestamp
-		}
 		targetChunkIds[chunkId] = true
 	}
 	if len(targetChunkIds) == 0 {
-		log.Printf("No valid id was specified; returning empty snapshot")
+		log.Printf("WARNING: No valid id was specified; returning empty snapshot")
 		ch <- &api.SnapshotS{}
 		return ch
 	}
-	if minTimestamp+uint64(len(chunkIds)) < maxTimestamp {
-		log.Printf("Too different timestamp observed (min: %d, max: %d, delta:%d) in %v, impossible to synchronize. Returning empty snapshot",
-			minTimestamp, maxTimestamp, maxTimestamp-minTimestamp, chunkIds)
-		ch <- &api.SnapshotS{}
-		return ch
-	}
-	targetTimestamp := maxTimestamp + 1
-	log.Printf("Registering snapshot request with target (%d) %v", targetTimestamp, targetChunkIds)
+	log.Printf("Registering snapshot request with target chunkIds=%v", targetChunkIds)
 	router.snapshotReqs = append(router.snapshotReqs, &SnapshotRequest{
-		timestamp:         targetTimestamp,
-		targetChunkIds:    targetChunkIds,
-		collectedSnapshot: make(map[string]*api.ChunkSnapshot),
-		receiver:          ch,
+		receiver:           ch,
+		targetChunkIds:     targetChunkIds,
+		expireAt:           time.Now().Add(waitFor),
+		collectedTimestamp: make(map[string]uint64),
 	})
 	return ch
+}
+
+func (router *ChunkRouter) MaybeExpireRequests() {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+	router.maybeResolveSnapshotRequests(nil)
+}
+
+func (router *ChunkRouter) maybeResolveSnapshotRequests(maybePacket *NeighborExport) {
+	var qs []*SnapshotRequest
+	for _, q := range router.snapshotReqs {
+		if !router.maybeResolveSnapshotRequest(q, maybePacket) {
+			qs = append(qs, q)
+		}
+	}
+	router.snapshotReqs = qs
+}
+
+// Returns: resolved?
+// Need to be called with locked mutex.
+func (router *ChunkRouter) maybeResolveSnapshotRequest(q *SnapshotRequest, packet *NeighborExport) bool {
+	if time.Now().After(q.expireAt) {
+		log.Printf("WARNING: Snapshot request expired; returning empty snapshot")
+		q.receiver <- &api.SnapshotS{}
+		return true
+	}
+	if packet == nil || !q.targetChunkIds[packet.OriginChunkId] {
+		return false
+	}
+	if !q.isTimestampValid {
+		q.collectedTimestamp[packet.OriginChunkId] = packet.Timestamp
+		if len(q.collectedTimestamp) < len(q.targetChunkIds) {
+			return false
+		}
+		maxTimestamp := uint64(0)
+		for _, timestamp := range q.collectedTimestamp {
+			if timestamp > maxTimestamp {
+				maxTimestamp = timestamp
+			}
+		}
+		q.isTimestampValid = true
+		q.timestamp = maxTimestamp + 1
+		q.collectedSnapshot = make(map[string]*NeighborExport)
+		return false
+	} else {
+		if q.timestamp != packet.Timestamp {
+			return false
+		}
+		q.collectedSnapshot[packet.OriginChunkId] = packet
+		if len(q.collectedSnapshot) < len(q.targetChunkIds) {
+			return false
+		}
+		q.receiver <- assembleSnapshot(q)
+		return true
+	}
+}
+
+func assembleSnapshot(q *SnapshotRequest) *api.SnapshotS {
+	bins := make(map[string][]*api.Grain)
+	for srcChunkId, packet := range q.collectedSnapshot {
+		bins[srcChunkId] = append(bins[srcChunkId], packet.ChunkGrains...)
+		for dstChunkId, grains := range packet.EscapedGrains {
+			bins[dstChunkId] = append(bins[dstChunkId], grains...)
+		}
+	}
+	// 	__        ___    ____  _   _ ___ _   _  ____
+	// \ \      / / \  |  _ \| \ | |_ _| \ | |/ ___|
+	//  \ \ /\ / / _ \ | |_) |  \| || ||  \| | |  _
+	//   \ V  V / ___ \|  _ <| |\  || || |\  | |_| |
+	//    \_/\_/_/   \_\_| \_\_| \_|___|_| \_|\____|
+	//
+	// When particles are emitted (ParticleSource exists), these snapshot does not
+	// reflect accurate snapshot. (emitted particles are not included)
+
+	s := &api.SnapshotS{
+		Timestamp: q.timestamp,
+		Snapshot:  make(map[string]*api.ChunkSnapshot),
+	}
+	for chunkId, grains := range bins {
+		s.Snapshot[chunkId] = &api.ChunkSnapshot{
+			Grains: grains,
+		}
+	}
+	return s
 }
 
 func (router *ChunkRouter) GetChunks() []*api.ChunkTopology {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
 	var topos []*api.ChunkTopology
-	for _, topo := range router.runningChunks {
-		topos = append(topos, topo)
+	for _, chunkMeta := range router.runningChunks {
+		topos = append(topos, chunkMeta.topo)
 	}
 	return topos
 }
@@ -230,18 +189,19 @@ func (router *ChunkRouter) GetChunks() []*api.ChunkTopology {
 func (router *ChunkRouter) DeleteChunk(chunkId string) {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
-	ch, ok := router.quitChannels[chunkId]
-	if ok {
-		ch <- true
-		delete(router.quitChannels, chunkId)
+	chunkMeta, ok := router.runningChunks[chunkId]
+	if !ok {
+		log.Printf("WARNING: Trying to delete non-running chunk %s", chunkId)
+		return
 	}
+	chunkMeta.quitCh <- true
 	delete(router.runningChunks, chunkId)
 }
 
 // Returns quit channel if caller should continue RequestNeighbor & NotifyResult.
 // When nil is returned, caller must not touch router again because it's already
 // executed by other goroutine.
-func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) chan bool {
+func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) *ChunkMetadata {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
 
@@ -249,24 +209,31 @@ func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) chan bool {
 		log.Printf("Trying to run chunk %s even though it's running, ignoring", topo.ChunkId)
 		return nil
 	}
-	router.runningChunks[topo.ChunkId] = topo
-	ch := make(chan bool)
-	router.quitChannels[topo.ChunkId] = ch
-	return ch
-}
-
-// Request neighbors necessary for stepping chunk from timestap to timetamp+1,
-// with given topo. Returns a channel that returns that data once.
-func (router *ChunkRouter) RequestNeighbor(timestamp uint64, topo *api.ChunkTopology) chan *NeighborImport {
-	ch := make(chan *NeighborImport, 1)
-	router.requestQueue <- &ImportRequest{timestamp, topo, ch}
-	return ch
-}
-
-func (router *ChunkRouter) NotifyResult(timestamp uint64, topo *api.ChunkTopology, export *NeighborExport) {
-	router.exportQueue <- &ExportCache{
-		chunkId:   topo.ChunkId,
-		timestamp: timestamp,
-		head:      export,
+	meta := &ChunkMetadata{
+		topo:   topo,
+		quitCh: make(chan bool),
+		recvCh: make(chan *NeighborExport, 10),
 	}
+	router.runningChunks[topo.ChunkId] = meta
+	return meta
+}
+
+func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_ChunkNeighbor, packet *NeighborExport) {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+
+	for _, node := range nodes {
+		if node.Internal {
+			meta, ok := router.runningChunks[node.ChunkId]
+			if ok {
+				// TODO: we can optimzie by dropping escaped grains of different destination.
+				meta.recvCh <- packet
+			} else {
+				log.Printf("WARNING: Mutlicast target %s is not running. packet %#v dropped", node.ChunkId, packet)
+			}
+		} else {
+			log.Printf("ERROR: Multicast to external node not supported yet")
+		}
+	}
+	router.maybeResolveSnapshotRequests(packet)
 }
