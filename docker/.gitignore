@@ -2,6 +2,7 @@
 key.json
 ca-bundle.crt
 config.chunk-container
+*.pem
 # Frontend
 static/
 frontend-server.bin

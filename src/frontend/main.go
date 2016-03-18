@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"golang.org/x/net/http2"
 	"io"
 	"io/ioutil"
 	"log"
@@ -165,6 +166,10 @@ func main() {
 	var fe api.FrontendServiceServer
 	fe = NewFeService(envType)
 
+	var server http.Server
+	server.Addr = fmt.Sprintf(":%d", port)
+	http2.ConfigureServer(&server, nil)
+
 	// Dispatchers.
 	http.HandleFunc("/api/debug", GzipHandler(JsonpbHandler(fe.Debug)))
 	http.HandleFunc("/api/biospheres", GzipHandler(JsonpbHandler(fe.Biospheres)))
@@ -185,5 +190,5 @@ func main() {
 	http.HandleFunc("/debug/proto/common.proto", FileServingHandler("common.proto"))
 
 	// Start FE server and block on it forever.
-	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	server.ListenAndServeTLS("/etc/ssl/fullchain.pem", "/etc/ssl/privkey.pem")
 }
