@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"log"
+	"time"
 )
 
 func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*api.SpawnChunkS, error) {
@@ -59,6 +60,8 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 	for ix, grain := range proc.chunk.Grains {
 		grains[ix] = ser(grain)
 	}
+	// Wait until other chunks starts running.
+	time.Sleep(time.Second)
 	proc.router.MulticastToNeighbors(proc.topo.Neighbors, &NeighborExport{
 		OriginChunkId: proc.topo.ChunkId,
 		Timestamp:     proc.chunk.Timestamp,

@@ -211,7 +211,7 @@ func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) *ChunkMetad
 	}
 	meta := &ChunkMetadata{
 		topo:   topo,
-		quitCh: make(chan bool),
+		quitCh: make(chan bool, 1), // Needs 1+ for DeleteChunk to not block
 		recvCh: make(chan *NeighborExport, 10),
 	}
 	router.runningChunks[topo.ChunkId] = meta
