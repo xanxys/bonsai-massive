@@ -183,6 +183,7 @@ func main() {
 	http.HandleFunc("/", FileServingHandler("landing.html"))
 	http.HandleFunc("/biosphere/", FileServingHandler("biosphere.html"))
 	http.HandleFunc("/debug", FileServingHandler("debug.html"))
+
 	// Terrible hack to change common.proto path, since we can't customize how protobuf.js
 	// handles imports.
 	http.HandleFunc("/proto/common.proto", FileServingHandler("common.proto"))
