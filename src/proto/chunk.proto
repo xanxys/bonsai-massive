@@ -38,7 +38,7 @@ service ChunkService {
 
 // Spawn a chunk in this chunk server. This request itself is very lightweight.
 // (although server might slowdown afterwards).
-// Next ID: 7
+// Next ID: 9
 message SpawnChunkQ {
     ChunkTopology topology = 2;
 
@@ -59,6 +59,11 @@ message SpawnChunkQ {
     uint64 start_timestamp = 6;
 
     bool init_from_snapshot = 7;
+
+    // Wait after simulating each frame. Use >0 to slow simulation, and 0 for
+    // fastest simulation.
+    // unit: second.
+    float frame_wait = 8;
 
     reserved 1;
 }
