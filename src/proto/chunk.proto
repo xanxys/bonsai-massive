@@ -62,8 +62,7 @@ message SpawnChunkQ {
 
     // Wait after simulating each frame. Use >0 to slow simulation, and 0 for
     // fastest simulation.
-    // unit: second.
-    float frame_wait = 8;
+    uint32 frame_wait_ns = 8;
 
     reserved 1;
 }

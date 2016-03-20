@@ -17,6 +17,7 @@ func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*a
 		router:         ck.ChunkRouter,
 		topo:           q.Topology,
 		snapshotModulo: q.SnapshotModulo,
+		frameWait:      time.Duration(q.FrameWaitNs),
 	}
 	go proc.RunChunk(q)
 	return &api.SpawnChunkS{}, nil
@@ -27,6 +28,7 @@ type ChunkProcess struct {
 	router         *ChunkRouter
 	topo           *api.ChunkTopology
 	snapshotModulo int32
+	frameWait      time.Duration
 
 	// Derived in RunChunk
 	relToId map[ChunkRel]string
@@ -123,6 +125,9 @@ func (proc *ChunkProcess) assembleAndStep(ctx context.Context, neighbors map[str
 
 	// Actual simulation.
 	escapedGrains := proc.chunk.Step(envGrains, proc.wall)
+	if proc.frameWait > 0 {
+		time.Sleep(proc.frameWait)
+	}
 
 	// Pack exported things.
 	grains := make([]*api.Grain, len(proc.chunk.Grains))

@@ -24,7 +24,7 @@ func (fe *FeServiceImpl) ChangeExec(ctx context.Context, q *api.ChangeExecQ) (*a
 		if err != nil {
 			return nil, err
 		}
-		fe.controller.SetBiosphereState(q.BiosphereId, &TargetState{bsTopo, envConfig})
+		fe.controller.SetBiosphereState(q.BiosphereId, &TargetState{bsTopo, envConfig, q.Slow})
 	}
 	return &api.ChangeExecS{}, nil
 }

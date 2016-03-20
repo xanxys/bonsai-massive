@@ -101,7 +101,7 @@ message PoolDebug {
 }
 
 
-// NextId: 5
+// NextId: 6
 message ChangeExecQ {
     UserAuth auth = 3;
 
@@ -114,8 +114,9 @@ message ChangeExecQ {
     }
     State target_state = 2;
 
-    // Used only when target_state == RUNNING.
+    // Options for target_state == RUNNING:
     uint64 start_timestamp = 4;
+    bool slow = 5;
 }
 
 message ChangeExecS {

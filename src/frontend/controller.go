@@ -53,6 +53,7 @@ const (
 type TargetState struct {
 	BsTopo BiosphereTopology
 	Env    *api.BiosphereEnvConfig
+	Slow   bool
 }
 
 type BiosphereState struct {
@@ -237,6 +238,11 @@ func (ctrl *Controller) Reallocate() {
 				genReq.InitFromSnapshot = true
 				genReq.NumWater = 0
 				genReq.NumSoil = 0
+			}
+			if ts.Slow {
+				genReq.FrameWaitNs = uint32(1 * time.Second)
+			} else {
+				genReq.FrameWaitNs = 0
 			}
 			chunkLocation[genReq.Topology.ChunkId] = serverIp
 			serverChunks[serverIp] = append(serverChunks[serverIp], genReq)
