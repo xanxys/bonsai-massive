@@ -240,7 +240,7 @@ func (ctrl *Controller) Reallocate() {
 				genReq.NumSoil = 0
 			}
 			if ts.Slow {
-				genReq.FrameWaitNs = uint32(1 * time.Second)
+				genReq.FrameWaitNs = uint32(200 * time.Millisecond)
 			} else {
 				genReq.FrameWaitNs = 0
 			}
