@@ -40,6 +40,7 @@
 			<div>T= {{currTimestamp}}</div>
 			<div v-bind:style="{'vertical-align': middle}" class="mdl-spinner mdl-js-spinner" v-bind:class="{'is-active': processing}"></div>
 			<button v-on:click="start" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start</button>
+			<button v-on:click="start_slow" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="is_stopped">Start (slow)</button>
 			<button v-on:click="stop" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" v-if="!is_stopped">Stop</button>
 
 			<div v-for="year in years">

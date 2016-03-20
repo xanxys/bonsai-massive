@@ -434,7 +434,10 @@ $(document).ready(function() {
         },
         methods: {
             start: function() {
-                this.$parent.start_server();
+                this.$parent.start_server(false);
+            },
+            start_slow: function() {
+                this.$parent.start_server(true);
             },
             stop: function() {
                 this.$parent.stop_server();
@@ -468,13 +471,14 @@ $(document).ready(function() {
             persisted_years: [],
         },
         methods: {
-            start_server: function() {
+            start_server: function(is_slow) {
                 var _this = this;
                 this.state = 3; // T_RUN
                 call_fe('change_exec', {
                     biosphere_id: document.biosphere_id,
                     target_state: 1, // RUNNING
                     start_timestamp: this.head_timestamp,
+                    slow: is_slow,
                 }, true).done((data) => {
                     _this.update();
                 });
