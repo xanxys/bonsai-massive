@@ -31,7 +31,7 @@ const sandRadius = 0.04
 const sandStiffness = 2e-2
 const frictionStatic = 1.5  // must be in [0, inf)
 const frictionDynamic = 0.7 // must be in [0, frictionStatic)
-const adhesion = 1000       // Pa
+const adhesion = 10         // Pa
 
 type Grain struct {
 	Kind api.Grain_Kind
@@ -409,8 +409,8 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 					}
 				}
 				gradsT := []CGrad{
-					CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-fTangent)},
-					CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(-fTangent)},
+					CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-fTangent - adhesionConstraintV)},
+					CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(fTangent + adhesionConstraintV)},
 				}
 				cs = append(cs, Constraint{
 					Value: fTangent + adhesionConstraintV,
