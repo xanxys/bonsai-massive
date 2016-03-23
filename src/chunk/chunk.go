@@ -27,11 +27,11 @@ const massGrain = 0.1 * 113.0 / 20.0 // V_sphere(h) * densityBase
 const numIter = 3
 
 // Sand config.
-const sandRadius = 0.04
+const sandRadius = 0.06
 const sandStiffness = 2e-2
 const frictionStatic = 1.5  // must be in [0, inf)
 const frictionDynamic = 0.7 // must be in [0, frictionStatic)
-const adhesion = 10         // Pa
+const adhesion = 50         // Pa
 
 type Grain struct {
 	Kind api.Grain_Kind
