@@ -29,8 +29,9 @@ const numIter = 3
 // Sand config.
 const sandRadius = 0.04
 const sandStiffness = 2e-2
-const frictionStatic = 0.5  // must be in [0, 1)
-const frictionDynamic = 0.3 // must be in [0, frictionStatic)
+const frictionStatic = 1.5  // must be in [0, inf)
+const frictionDynamic = 0.7 // must be in [0, frictionStatic)
+const adhesion = 1000       // Pa
 
 type Grain struct {
 	Kind api.Grain_Kind
@@ -125,6 +126,24 @@ func SphKernelGrad(dp Vec3f, h float32) Vec3f {
 		return dp.MultS(powInt(h-dpLen, 2) / dpLen)
 	} else {
 		return NewVec3f0()
+	}
+}
+
+// Calculate approximate contact surface from distance of two particles.
+func ContactSurface(penetration float32, r float32) float32 {
+	if penetration <= 0 {
+		return 0
+	} else {
+		return float32(math.Pi) * powInt(r, 2) * (1 - powInt(penetration/r-1, 2))
+	}
+}
+
+func ContractSurfaceGrad(penetration float32, r float32) float32 {
+	if penetration <= 0 {
+		return 0
+	} else {
+		dist := 2*r - penetration
+		return -2 * float32(math.Pi) * dist
 	}
 }
 
@@ -344,52 +363,59 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 			}
 			dp := world.Grains[ixTarget].positionNew.Sub(world.Grains[ixOther].positionNew)
 			penetration := sandRadius*2 - dp.Length()
-			if penetration > 0 {
-				// Collision (no penetration) constraint.
-				fNormal := penetration * sandStiffness
-				dp = dp.Normalized()
-				cs = append(cs, Constraint{
-					Value: fNormal,
-					Grads: []CGrad{
-						CGrad{
-							grainIndex: ixOther,
-							grad:       dp.MultS(sandStiffness),
-						},
-						CGrad{
-							grainIndex: ixTarget,
-							grad:       dp.MultS(-sandStiffness),
-						},
+			if penetration <= 0 {
+				continue
+			}
+			dirNormal := dp.Normalized()
+			adhesionForce := adhesion * ContactSurface(penetration, sandRadius)
+			adhesionConstraintV := (powInt(dt, 2) / massGrain) * adhesionForce
+			adhesionGrad := adhesion * (powInt(dt, 2) / massGrain) * ContractSurfaceGrad(penetration, sandRadius) // d(penetration)/dp = - d|dp|/dp
+			// Collision (no penetration) constraint.
+			// This is basically sum of linear repulsion and parabolic adhesion.
+			// See https://docs.google.com/drawings/d/1me1s4YCbvSEOfAmPU4O_ZVZMv3w-k9KrmjdBdqibf3g/edit?usp=sharing
+			// for diagram.
+			fNormal := penetration*sandStiffness - adhesionConstraintV
+			cs = append(cs, Constraint{
+				Value: fNormal,
+				Grads: []CGrad{
+					CGrad{
+						grainIndex: ixOther,
+						grad:       dirNormal.MultS(sandStiffness - adhesionGrad),
 					},
-				})
+					CGrad{
+						grainIndex: ixTarget,
+						grad:       dirNormal.MultS(-sandStiffness + adhesionGrad),
+					},
+				},
+			})
 
-				// Tangential friction constraint.
-				dv := world.Grains[ixTarget].positionNew.Sub(world.Grains[ixTarget].Position).Sub(
-					world.Grains[ixOther].positionNew.Sub(world.Grains[ixOther].Position))
-				dirTangent := dv.ProjectOnPlane(dp)
-				dirTangentLen := dirTangent.Length()
+			// Tangential friction constraint.
+			// Both max static friction & dynamic friction are proportional to
+			// force along normal (collision).
+			dv := world.Grains[ixTarget].positionNew.Sub(world.Grains[ixTarget].Position).Sub(
+				world.Grains[ixOther].positionNew.Sub(world.Grains[ixOther].Position))
+			dirTangent := dv.ProjectOnPlane(dp)
+			dirTangentLen := dirTangent.Length()
 
-				// Both max static friction & dynamic friction are proportional to
-				// force along normal (collision).
-				dvLen := dv.Length()
-				if dirTangentLen > 1e-6 && dvLen > 1e-6 {
-					dirTangent := dirTangent.MultS(1 / dirTangentLen)
-					fTangent := dvLen // Static friction by default.
-					if fTangent >= fNormal*frictionStatic {
-						// Switch to dynamic friction if force is too large.
-						fTangent = fNormal * frictionDynamic
-						if fTangent >= dvLen {
-							log.Panicln("Dynamic friction condition breached")
-						}
+			dvLen := dv.Length()
+			if dirTangentLen > 1e-6 && dvLen > 1e-6 {
+				dirTangent := dirTangent.MultS(1 / dirTangentLen)
+				fTangent := dvLen // Static friction by default.
+				if fTangent >= fNormal*frictionStatic {
+					// Switch to dynamic friction if force is too large.
+					fTangent = fNormal * frictionDynamic
+					if fTangent >= dvLen {
+						log.Panicln("Dynamic friction condition breached")
 					}
-					gradsT := []CGrad{
-						CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-fTangent)},
-						CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(-fTangent)},
-					}
-					cs = append(cs, Constraint{
-						Value: fTangent,
-						Grads: gradsT,
-					})
 				}
+				gradsT := []CGrad{
+					CGrad{grainIndex: ixOther, grad: dirTangent.MultS(-fTangent)},
+					CGrad{grainIndex: ixTarget, grad: dirTangent.MultS(-fTangent)},
+				}
+				cs = append(cs, Constraint{
+					Value: fTangent + adhesionConstraintV,
+					Grads: gradsT,
+				})
 			}
 		}
 		return cs

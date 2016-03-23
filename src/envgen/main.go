@@ -56,9 +56,12 @@ func GetStorageService(ctx context.Context) (*storage.Service, error) {
 func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	rand.Seed(seed)
 	var grains []*api.Grain
-	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5, 0.5, 0}, 5, 10, 10)...)
-	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5 + rand.Float32(), 0.5 + rand.Float32(), 0.6}, 10, 10, 5)...)
-	grains = append(grains, GeneratePackedWaterCP(Vec3f{1.7 + rand.Float32()*0.5, rand.Float32(), 0.1}, 7, 7, 20, true)...)
+	//grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5, 0.5, 0}, 5, 10, 10)...)
+	//grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5 + rand.Float32(), 0.5 + rand.Float32(), 0.6}, 10, 10, 5)...)
+	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.1, 0.5, 0}, 7, 7, 10, 0.2)...)
+	grains = append(grains, GeneratePackedSoilCP(Vec3f{1.1, 0.5, 0}, 7, 7, 10, 0.21)...)
+	grains = append(grains, GeneratePackedSoilCP(Vec3f{2.1, 0.5, 0}, 7, 7, 10, 0.3)...)
+	grains = append(grains, GeneratePackedWaterCP(Vec3f{1.7 + rand.Float32()*0.5, rand.Float32() + 1.2, 0.1}, 7, 7, 20, true)...)
 
 	return &api.ChunkSnapshot{
 		Grains: grains,
@@ -66,8 +69,7 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 }
 
 // Genrate soil with cP (primitive cubic) lattice.
-func GeneratePackedSoilCP(org Vec3f, nx, ny, nz int) []*api.Grain {
-	const latticeSize = 0.1
+func GeneratePackedSoilCP(org Vec3f, nx, ny, nz int, latticeSize float32) []*api.Grain {
 	const groundOffset = 0.1
 
 	var grains []*api.Grain
