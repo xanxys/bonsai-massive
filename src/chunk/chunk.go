@@ -193,10 +193,14 @@ func (ps *ParticleSource) MaybeEmit(timestamp uint64) []*Grain {
 // 1': 3D GUI class
 // 2. Panel GUI class
 type GrainChunk struct {
-	Grains []*Grain
-	// This should be moved to frontend.
-	Sources   []*ParticleSource
+	Grains    []*Grain
 	Timestamp uint64
+
+	gravityAccel Vec3f
+
+	// TODO: This should be moved to frontend.
+	Sources []*ParticleSource
+
 	// Enable error checking. This will cause a few times slowdown.
 	checkErrors bool
 }
@@ -209,8 +213,9 @@ type ChunkWall struct {
 
 func NewGrainChunk(checkErrors bool) *GrainChunk {
 	return &GrainChunk{
-		Timestamp:   0,
-		checkErrors: checkErrors,
+		Timestamp:    0,
+		checkErrors:  checkErrors,
+		gravityAccel: Vec3f{0, 0, -1},
 	}
 }
 
@@ -435,8 +440,6 @@ func (world *GrainChunk) IncorporateAddition(inGrains []*Grain) {
 // calculate single step using very stable position-based dynamics. Returns
 // grains that escaped this chunk. (they'll be removed from world)
 func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
-	accel := Vec3f{0, 0, -1}
-
 	// Biological / chemical process (might emit new grain when dividing).
 	var cloned []*Grain
 	for _, grain := range world.Grains {
@@ -478,7 +481,7 @@ func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 
 	// Apply gravity & velocity.
 	for _, grain := range world.Grains {
-		grain.positionNew = grain.Position.Add(grain.Velocity.MultS(dt)).Add(accel.MultS(0.5 * dt * dt))
+		grain.positionNew = grain.Position.Add(grain.Velocity.MultS(dt)).Add(world.gravityAccel.MultS(0.5 * dt * dt))
 	}
 	// Index spatially.
 	neighbors := world.IndexNeighbors(h)
