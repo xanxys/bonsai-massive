@@ -15,7 +15,7 @@ const dt = 1 / 30.00
 // Global simulation config.
 const floorStatic = 0.7
 const floorDynamic = 0.5
-const cfmEpsilon = 1e-3
+const cfmEpsilon = 1e-2
 const sandWaterEquiv = 0.3
 const cellWaterEquiv = 0.5
 
@@ -27,11 +27,11 @@ const massGrain = 0.1 * 113.0 / 20.0 // V_sphere(h) * densityBase
 const numIter = 3
 
 // Sand config.
-const sandRadius = 0.06
+const sandRadius = 0.05
 const sandStiffness = 2e-2
 const frictionStatic = 1.5  // must be in [0, inf)
 const frictionDynamic = 0.7 // must be in [0, frictionStatic)
-const adhesion = 50         // Pa
+const adhesion = 80         // Pa
 
 type Grain struct {
 	Kind api.Grain_Kind
@@ -422,6 +422,7 @@ func (world *GrainChunk) ConstraintsFor(neighbors [][]int, ixTarget int) []Const
 					Grads: gradsT,
 				})
 			}
+
 		}
 		return cs
 	}
