@@ -31,7 +31,7 @@ const sandRadius = 0.05
 const sandStiffness = 2e-2
 const frictionStatic = 1.5  // must be in [0, inf)
 const frictionDynamic = 0.7 // must be in [0, frictionStatic)
-const adhesion = 80         // Pa
+const adhesion = 45         // Pa
 
 type Grain struct {
 	Kind api.Grain_Kind

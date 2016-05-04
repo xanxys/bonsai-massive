@@ -58,9 +58,9 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	var grains []*api.Grain
 	//grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5, 0.5, 0}, 5, 10, 10)...)
 	//grains = append(grains, GeneratePackedSoilCP(Vec3f{0.5 + rand.Float32(), 0.5 + rand.Float32(), 0.6}, 10, 10, 5)...)
-	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.1, 0.5, 0}, 7, 7, 10, 0.2)...)
-	grains = append(grains, GeneratePackedSoilCP(Vec3f{1.1, 0.5, 0}, 7, 7, 10, 0.21)...)
-	grains = append(grains, GeneratePackedSoilCP(Vec3f{2.1, 0.5, 0}, 7, 7, 10, 0.3)...)
+	grains = append(grains, GeneratePackedSoilCP(Vec3f{0.1, 0.5, 0}, 10, 10, 100, 0.1)...)
+	// grains = append(grains, GeneratePackedSoilCP(Vec3f{1.1, 0.5, 0}, 7, 7, 10, 0.21)...)
+	//grains = append(grains, GeneratePackedSoilCP(Vec3f{2.1, 0.5, 0}, 7, 7, 10, 0.3)...)
 	grains = append(grains, GeneratePackedWaterCP(Vec3f{1.7 + rand.Float32()*0.5, rand.Float32() + 1.2, 0.1}, 7, 7, 20, true)...)
 
 	return &api.ChunkSnapshot{
