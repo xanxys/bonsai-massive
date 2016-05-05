@@ -41,16 +41,13 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 	ctx := context.Background()
 
 	proc.relToId, proc.idToRel, proc.wall = decodeTopo(proc.topo)
-	if q.StartTimestamp > 0 || q.InitFromSnapshot {
-		loadedChunk, err := resumeFromSnapshot(ctx, proc.topo.ChunkId, q.StartTimestamp, proc.cred)
-		if err != nil {
-			log.Printf("Resuming failed with %#v, not starting %s", err, proc.topo.ChunkId)
-			return
-		}
-		proc.chunk = loadedChunk
-	} else {
-		proc.chunk = initializeWithSources(q)
+
+	loadedChunk, err := resumeFromSnapshot(ctx, proc.topo.ChunkId, q.StartTimestamp, proc.cred)
+	if err != nil {
+		log.Printf("Resuming failed with %#v, not starting %s", err, proc.topo.ChunkId)
+		return
 	}
+	proc.chunk = loadedChunk
 
 	chunkMeta := proc.router.RegisterNewChunk(proc.topo)
 	if chunkMeta == nil {
@@ -201,18 +198,6 @@ func resumeFromSnapshot(ctx context.Context, chunkId string, startTimestamp uint
 		log.Printf("Error: Failed to delete %d snapshots when resuming from t=%d: %#v", len(keysToDelete), startTimestamp, keysToDelete)
 	}
 	return chunk, nil
-}
-
-func initializeWithSources(q *api.SpawnChunkQ) *GrainChunk {
-	chunk := NewGrainChunk(false)
-	if q.NumSoil > 0 {
-		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_SOIL, int(q.NumSoil), Vec3f{0.5, 0.5, 2.0}))
-	}
-	if q.NumWater > 0 {
-		chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_WATER, int(q.NumWater), Vec3f{0.5, 0.55, 2.1}))
-	}
-	chunk.Sources = append(chunk.Sources, NewParticleSource(api.Grain_CELL, int(10), Vec3f{0.55, 0.5, 2.2}))
-	return chunk
 }
 
 func decodeTopo(topo *api.ChunkTopology) (map[ChunkRel]string, map[string]ChunkRel, *ChunkWall) {

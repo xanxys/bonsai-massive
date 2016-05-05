@@ -71,25 +71,17 @@ func perlin2(seed uint64, x, y float64) float64 {
 	return v
 }
 
-// Generate actual particle nunmbers from given environment config and topology.
+// Generate empty environment.
+// Seed will be ignored completely.
+// TODO: migrate to genenv
 // len(result) == <#chunks in topo>
 // This function is deterministic.
 func GenerateEnv(topo BiosphereTopology, env *api.BiosphereEnvConfig) []*api.SpawnChunkQ {
 	topos := topo.GetChunkTopos()
-	offsets := topo.GetGlobalOffsets()
 	chunkQs := make([]*api.SpawnChunkQ, len(topos))
 	for chunkIx, topo := range topos {
-		chunkOffset := offsets[topo.ChunkId]
-		height := perlin2(uint64(env.Seed), float64(chunkOffset.X), float64(chunkOffset.Y))
-
-		hWater := 0.3
-		if height > 0.5 {
-			hWater = 0.01
-		}
 		chunkQs[chunkIx] = &api.SpawnChunkQ{
 			Topology: topo,
-			NumSoil:  int32(height * 300),
-			NumWater: int32(hWater * 300),
 		}
 	}
 	return chunkQs

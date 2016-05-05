@@ -234,11 +234,6 @@ func (ctrl *Controller) Reallocate() {
 			serverIp := ips[serverIndex]
 			genReq.SnapshotModulo = 5000
 			genReq.StartTimestamp = maxTimestamp
-			if ts.Env.StorageFileId != "" {
-				genReq.InitFromSnapshot = true
-				genReq.NumWater = 0
-				genReq.NumSoil = 0
-			}
 			if ts.Slow {
 				genReq.FrameWaitNs = uint32(200 * time.Millisecond)
 			} else {
