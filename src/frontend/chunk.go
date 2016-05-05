@@ -7,11 +7,13 @@ import (
 	"math/rand"
 )
 
+const CorePerMachine = 8
+const MachineType = "n1-highcpu-8"
+
 const GoogleCloudLoggingScope = "https://www.googleapis.com/auth/logging.write"
 
 func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	name := fmt.Sprintf("chunk-server-%d", rand.Int63n(1000000000))
-	const machineType = "n1-standard-4"
 
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + ProjectId
 	// Run `gcloud compute images list --project google-containers`
@@ -23,7 +25,7 @@ func (fe *FeServiceImpl) prepare(service *compute.Service) {
 	instance := &compute.Instance{
 		Name:        name,
 		Description: "Exposes a set of chunks as gRPC service.",
-		MachineType: fmt.Sprintf("%s/zones/%s/machineTypes/%s", prefix, zone, machineType),
+		MachineType: fmt.Sprintf("%s/zones/%s/machineTypes/%s", prefix, zone, MachineType),
 		Disks: []*compute.AttachedDisk{
 			{
 				AutoDelete: true,

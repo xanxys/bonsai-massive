@@ -140,5 +140,5 @@ func (ctrl *PoolController) GetTargetNum() int {
 }
 
 func (ctrl *PoolController) SetTargetCores(cores float64) {
-	ctrl.targetNum = int(math.Ceil(cores / 4))
+	ctrl.targetNum = int(math.Ceil(cores / CorePerMachine))
 }
