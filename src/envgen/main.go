@@ -74,7 +74,21 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	wPacker.natural = true
 	grains = append(grains, wPacker.Generate()...)
 
-	//grains = append(grains, )
+	for i := 0; i < 10; i++ {
+		pos := Vec3f{rand.Float32(), rand.Float32(), 2}
+		grains = append(grains, &api.Grain{
+			Id:   uint64(rand.Uint32()),
+			Pos:  &api.CkPosition{pos.X, pos.Y, pos.Z},
+			Vel:  &api.CkVelocity{0, 0, 0},
+			Kind: api.Grain_CELL,
+			CellProp: &api.CellProp{
+				Quals: make(map[string]int32),
+				Cycle: &api.CellProp_Cycle{
+					IsDividing: false,
+				},
+			},
+		})
+	}
 
 	return &api.ChunkSnapshot{
 		Grains: grains,
