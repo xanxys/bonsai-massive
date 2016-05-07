@@ -58,11 +58,12 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	var grains []*api.Grain
 
 	sPacker := NewGrainPacker(api.Grain_SOIL)
-	sPacker.latticeSize = 0.1
+	sPacker.latticeSize = 0.07
 	sPacker.org = Vec3f{0.1, 0.5, 0}
 	sPacker.nx = 10
 	sPacker.ny = 10
-	sPacker.nz = 100
+	sPacker.nz = 40
+	sPacker.packType = CI
 	grains = append(grains, sPacker.Generate()...)
 
 	wPacker := NewGrainPacker(api.Grain_WATER)
@@ -72,6 +73,8 @@ func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	wPacker.nz = 20
 	wPacker.natural = true
 	grains = append(grains, wPacker.Generate()...)
+
+	//grains = append(grains, )
 
 	return &api.ChunkSnapshot{
 		Grains: grains,
@@ -120,19 +123,33 @@ func (packer *GrainPacker) Generate() []*api.Grain {
 	for iz := 0; iz < packer.nz; iz++ {
 		for ix := 0; ix < packer.nx; ix++ {
 			for iy := 0; iy < packer.ny; iy++ {
-				pos := Vec3f{float32(ix), float32(iy), float32(iz)}.MultS(packer.latticeSize).Add(offset)
-				if packer.natural {
-					noiseBase := Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(2).SubS(1)
-					pos = pos.Add(noiseBase.MultS(noiseAmplitude))
+				for _, unitOffset := range packer.generateUnitOffsets() {
+					baseIndex := Vec3f{float32(ix), float32(iy), float32(iz)}
+					pos := baseIndex.Add(unitOffset).MultS(packer.latticeSize).Add(offset)
+					if packer.natural {
+						noiseBase := Vec3f{rand.Float32(), rand.Float32(), rand.Float32()}.MultS(2).SubS(1)
+						pos = pos.Add(noiseBase.MultS(noiseAmplitude))
+					}
+					grains = append(grains, &api.Grain{
+						Id:   uint64(ix + 1),
+						Pos:  &api.CkPosition{pos.X, pos.Y, pos.Z},
+						Vel:  &api.CkVelocity{0, 0, 0},
+						Kind: packer.grainType,
+					})
 				}
-				grains = append(grains, &api.Grain{
-					Id:   uint64(ix + 1),
-					Pos:  &api.CkPosition{pos.X, pos.Y, pos.Z},
-					Vel:  &api.CkVelocity{0, 0, 0},
-					Kind: packer.grainType,
-				})
+
 			}
 		}
 	}
 	return grains
+}
+
+func (packer *GrainPacker) generateUnitOffsets() []Vec3f {
+	switch packer.packType {
+	case CP:
+		return []Vec3f{Vec3f{0, 0, 0}}
+	case CI:
+		return []Vec3f{Vec3f{0, 0, 0}, Vec3f{0.5, 0.5, 0.5}}
+	}
+	return nil
 }
