@@ -42,8 +42,16 @@ func (v Vec3f) Add(u Vec3f) Vec3f {
 	return Vec3f{v.X + u.X, v.Y + u.Y, v.Z + u.Z}
 }
 
+func (v Vec3f) AddS(s float32) Vec3f {
+	return Vec3f{v.X + s, v.Y + s, v.Z + s}
+}
+
 func (v Vec3f) Sub(u Vec3f) Vec3f {
 	return Vec3f{v.X - u.X, v.Y - u.Y, v.Z - u.Z}
+}
+
+func (v Vec3f) SubS(s float32) Vec3f {
+	return Vec3f{v.X - s, v.Y - s, v.Z - s}
 }
 
 func (v Vec3f) MultS(s float32) Vec3f {
