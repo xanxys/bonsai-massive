@@ -21,7 +21,6 @@ It is assumed you use a single GKE cluster for all environments.
 import argparse
 import datetime
 import http.client
-import http.server
 import io
 import json
 import os
@@ -130,154 +129,9 @@ def show_prod_deployment():
         print("===================================================================")
 
 
-class FakeServerHandler(http.server.SimpleHTTPRequestHandler):
-    """
-    Fake server that serves static files (including special URLs such as "/debug")
-    identically from working directory files as the real server, but proxies
-    everything to a real server determined by args.env.
-    """
-
-    def do_GET(self):
-        maybe_fn = self.get_filename_from_url()
-        mapping = self.emulate_build()
-        if maybe_fn == True:
-            print('PROXYING')
-            self.do_get_proxy()
-        elif maybe_fn == False or maybe_fn not in mapping:
-            print('STATIC:NOT_FOUND_LOCALLY %s -> %s' % (self.path, maybe_fn))
-            self.send_error(404,
-                message="""File not found (FakeServer). You actually don't have the file, or FakeServer is behaving differently from real servers.""")
-        else:
-            print('STATIC %s -> %s' % (self.path, maybe_fn))
-            self.do_get_static_file(mapping[maybe_fn])
-
-    def do_POST(self):
-        print('PROXYING(POST): %s' % self.path)
-        self.do_post_proxy()
-
-    def do_get_static_file(self, file_path):
-        ctype = self.guess_type(file_path)
-        try:
-            f = open(file_path, 'rb')
-            self.send_response(200)
-            self.send_header('Content-Type', ctype)
-            self.end_headers()
-            shutil.copyfileobj(f, self.wfile)
-            f.close()
-        except IOError:
-            print('->PROXY')
-            self.do_get_proxy()
-
-    def get_filename_from_url(self):
-        """
-        Converts URL to filename.
-        Returns either:
-        1. filename (str)
-        2. False (when path is definitely not found)
-        3. True (when path might be found on real server)
-        path needs to start with "/"
-        """
-        path_components = [c for c in self.path.split('/') if c]
-        if len(path_components) == 0:
-            return 'landing.html'
-        elif len(path_components) >= 2 and path_components[0] == 'static':
-            if len(path_components) == 2:
-                return path_components[1]
-            else:
-                return False
-        elif path_components == ['debug']:
-            return 'debug.html'
-        elif len(path_components) == 2 and path_components[0] == 'biosphere':
-            return 'biosphere.html'
-        else:
-            return True
-
-    def emulate_build(self):
-        """
-        Create mapping from filename to file path,
-        simulating BUILD file.
-        """
-        filename_blacklist = set(['BUILD', '.gitignore'])
-        mapping = {}
-        for (dir_path, dir_names, file_names) in os.walk('src/client'):
-            for file_name in file_names:
-                if file_name in filename_blacklist:
-                    continue
-                mapping[file_name] = os.path.join(dir_path, file_name)
-        for (dir_path, dir_names, file_names) in os.walk('src/proto'):
-            for file_name in file_names:
-                if file_name in filename_blacklist:
-                    continue
-                mapping[file_name] = os.path.join(dir_path, file_name)
-        return mapping
-
-    def do_get_proxy(self):
-        host, port = SERVERS[args.env]
-        conn = http.client.HTTPConnection(host, port)
-        conn.request('GET', 'http://%s:%d%s' % (
-            host, port, self.path), None, {
-                'Accept-Encoding': self.parse_headers().get('accept-encoding', '')
-            })
-        resp = conn.getresponse()
-
-        self.send_response(resp.status)
-        self.send_header('Content-Encoding', resp.getheader('Content-Encoding'))
-        self.send_header('Content-Type', resp.getheader('Content-Type'))
-        self.end_headers()
-        shutil.copyfileobj(resp, self.wfile)
-        conn.close()
-
-    def do_post_proxy(self):
-        content_len = int(self.parse_headers().get('content-length', 0))
-        post_body = self.rfile.read(content_len)
-        print('post body: %d bytes' % len(post_body))
-
-        host, port = SERVERS[args.env]
-        conn = http.client.HTTPConnection(host, port)
-        conn.request('POST', 'http://%s:%d%s' % (
-            host, port, self.path), post_body, {
-                'Accept-Encoding': self.parse_headers().get('accept-encoding', '')
-            })
-        resp = conn.getresponse()
-
-        self.send_response(resp.status)
-        self.send_header('Content-Encoding', resp.getheader('Content-Encoding'))
-        self.send_header('Content-Type', resp.getheader('Content-Type'))
-        self.end_headers()
-        shutil.copyfileobj(resp, self.wfile)
-        conn.close()
-
-    def parse_headers(self):
-        """
-        Return dict (lowercase header name -> header content string)
-        """
-        headers = {}
-        for line in self.headers.as_string().split('\n'):
-            line = line.strip()
-            ix = line.find(':')
-            if ix < 0:
-                continue
-            headers[line[:ix].lower()] = line[ix+1:].strip()
-        return headers
-
-
-def run_fake_server():
-    fake_server_config = ('0.0.0.0', FAKE_PORT)
-    fake_server_url = 'http://%s:%d/' % fake_server_config
-    real_server_url = 'http://%s:%d/' % SERVERS[args.env]
-    print("Running fake server at %s with fallback %s" % (fake_server_url, real_server_url))
-    httpd = http.server.HTTPServer(fake_server_config, FakeServerHandler)
-    httpd.serve_forever()
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Launch bonsai service or fake server")
     # Modes
-    parser.add_argument("--fake",
-        default=False, action='store_const', const=True,
-        help="""
-        Run very lightweight fake python server which serves static files from
-        working directory, and proxies other requests to real server on GKE.
-        """)
     parser.add_argument('--remote',
         default=False, action='store_const', const=True,
         help="""
@@ -298,9 +152,6 @@ if __name__ == '__main__':
     args = parser.parse_args() # this is a global variable.
     if args.env not in ['staging', 'prod']:
         raise RuntimeError("Invalid --env. It must be either staging or prod.")
-
-    if args.fake:
-        run_fake_server()
 
     if args.remote:
         if args.env != 'prod':
