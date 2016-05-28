@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/cloud/datastore"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,6 +20,7 @@ func (ck *CkServiceImpl) SpawnChunk(ctx context.Context, q *api.SpawnChunkQ) (*a
 		router:         ck.ChunkRouter,
 		topo:           q.Topology,
 		snapshotModulo: q.SnapshotModulo,
+		recordModulo:   q.RecordModulo,
 		frameWait:      time.Duration(q.FrameWaitNs),
 	}
 	go proc.RunChunk(q)
@@ -28,6 +32,7 @@ type ChunkProcess struct {
 	router         *ChunkRouter
 	topo           *api.ChunkTopology
 	snapshotModulo int32
+	recordModulo   int32
 	frameWait      time.Duration
 
 	// Derived in RunChunk
@@ -118,6 +123,13 @@ func (proc *ChunkProcess) assembleAndStep(ctx context.Context, neighbors map[str
 			log.Printf("Error: Failed to take snapshot with %#v", err)
 		}
 		log.Printf("Snapshot key=%v", key)
+	}
+	// Stream to bigquery when requested.
+	if proc.recordModulo > 0 && proc.chunk.Timestamp%uint64(proc.recordModulo) == 0 {
+		err := takeRecord(ctx, proc.topo.ChunkId, proc.cred, proc.chunk)
+		if err != nil {
+			log.Printf("Error: Failed to record with %#v", err)
+		}
 	}
 
 	// Actual simulation.
@@ -249,6 +261,59 @@ func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *
 		return nil, err
 	}
 	return key, nil
+}
+
+func takeRecord(ctx context.Context, chunkId string, cred *ServerCred, chunk *GrainChunk) error {
+	bqSvc, err := cred.AuthBigquery(ctx)
+	if err != nil {
+		return err
+	}
+	rows := make([]*bigquery.TableDataInsertAllRequestRows, len(chunk.Grains))
+	for ix, grain := range chunk.Grains {
+		rows[ix] = &bigquery.TableDataInsertAllRequestRows{Json: convertGrainToRecord(chunkId, chunk.Timestamp, grain)}
+	}
+	tableSvc := bigquery.NewTabledataService(bqSvc)
+	q := &bigquery.TableDataInsertAllRequest{
+		Rows: rows,
+	}
+	s, err := tableSvc.InsertAll(ProjectId, BigqueryDatasetId, BigqueryGrainRecordTableId, q).Do()
+	if err != nil {
+		return err
+	}
+	if len(s.InsertErrors) > 0 {
+		return fmt.Errorf("%d rows failed to insert; first error: %#v", len(s.InsertErrors), s.InsertErrors[0].Errors)
+	}
+	return nil
+}
+
+func convertGrainToRecord(chunkId string, timestamp uint64, grain *Grain) map[string]bigquery.JsonValue {
+	// HACK HACK. Chunk server is not supposed to know about topology of chunks nor biosphere id.
+	// format: <biosphere id> "-" <dx> ":" <dy>
+	chunkIdParts := strings.Split(chunkId, "-")
+	bsId, _ := strconv.ParseUint(chunkIdParts[0], 10, 64)
+	dx, _ := strconv.ParseInt(strings.Split(chunkIdParts[1], ":")[0], 10, 32)
+	dy, _ := strconv.ParseInt(strings.Split(chunkIdParts[1], ":")[1], 10, 32)
+
+	absPos := Vec3f{float32(dx), float32(dy), 0}.Add(grain.Position)
+
+	return map[string]bigquery.JsonValue{
+		"biosphere_id": bsId,
+		"chunk_id":     chunkId,
+		"grain_id":     grain.Id,
+		"timestamp":    timestamp,
+		"pos": map[string]float32{
+			"x": absPos.X,
+			"y": absPos.Y,
+			"z": absPos.Z,
+		},
+		"vel": map[string]float32{
+			"x": grain.Velocity.X,
+			"y": grain.Velocity.Y,
+			"z": grain.Velocity.Z,
+		},
+		"kind":     int32(grain.Kind),
+		"cellprop": grain.CellProp,
+	}
 }
 
 type ChunkRel struct {

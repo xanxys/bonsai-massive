@@ -38,13 +38,20 @@ service ChunkService {
 
 // Spawn a chunk in this chunk server. This request itself is very lightweight.
 // (although server might slowdown afterwards).
-// Next ID: 9
+// Next ID: 10
 message SpawnChunkQ {
     ChunkTopology topology = 2;
 
     // Store snapshot when timestamp % snapshot_modulo == 0.
     // Does nothing when snapshot_modulo <= 0.
     int32 snapshot_modulo = 5;
+
+    // Send grains to bigquery storage for analysis,
+    // when timestamp % record_modulo == 0.
+    // Unlike snapshot_modulo, these records are not 100% reliable. (e.g.
+    // can contain missing or duplicated grains)
+    // Does nothing when snapshot_modulo <= 0.
+    int32 record_modulo = 9;
 
     // Create a chunk, content filled from PersistentChunkSnapshot in datastore.
     // The chunk server will delete snaphots that have

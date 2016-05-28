@@ -5,6 +5,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
+	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/storage/v1"
 	"google.golang.org/cloud"
@@ -60,6 +61,11 @@ func (cred *ServerCred) AuthCompute(ctx context.Context) (*compute.Service, erro
 	client := cred.cred.Client(oauth2.NoContext)
 	service, err := compute.New(client)
 	return service, err
+}
+
+func (cred *ServerCred) AuthBigquery(ctx context.Context) (*bigquery.Service, error) {
+	client := cred.cred.Client(oauth2.NoContext)
+	return bigquery.New(client)
 }
 
 func (cred *ServerCred) AuthRawHttp(ctx context.Context) *http.Client {
