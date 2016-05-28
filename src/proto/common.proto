@@ -5,7 +5,7 @@ package api;
 // other grains. Cell doesn't have rotation or angular velocity.
 //
 // Mass is 1 (base) +
-// Next ID: 7
+// Next ID: 8
 message CellProp {
     // A qual is modeled after proteins.
     // Quals can only exist in Cells, and type of a qual is completely
@@ -27,6 +27,14 @@ message CellProp {
     // * zs: Increase affinity with SOIL
     // * zc: Increase affinity with CELL
     map<string, int32> quals = 4;
+
+    // Usable energy stored in cells.
+    // When energy >= 10000, cell will die.
+    // When energy == 0, cell will die.
+    // Each timestep consumes 1 energy.
+    //
+    // For now, only way to increase energy is photosynthesis.
+    uint32 energy = 7;
 
     // Mass of genome is 0.
     message Gene {

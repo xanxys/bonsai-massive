@@ -71,6 +71,7 @@ func NewGrain(kind api.Grain_Kind, initialPos Vec3f) *Grain {
 }
 
 // Create an imperfect clone of given cell.
+// Must be called after halving of energy.
 func (parent *Grain) CloneCell() *Grain {
 	if parent.Kind != api.Grain_CELL {
 		log.Panicf("Expecting cell grain, got %#v", parent)
@@ -85,6 +86,7 @@ func (parent *Grain) CloneCell() *Grain {
 			Cycle: &api.CellProp_Cycle{
 				IsDividing: false,
 			},
+			Energy: parent.CellProp.Energy,
 		},
 	}
 }
@@ -442,9 +444,10 @@ func (world *GrainChunk) IncorporateAddition(inGrains []*Grain) {
 // grains that escaped this chunk. (they'll be removed from world)
 func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 	// Biological / chemical process (might emit new grain when dividing).
-	var cloned []*Grain
+	var newGrains []*Grain
 	for _, grain := range world.Grains {
 		if grain.Kind != api.Grain_CELL {
+			newGrains = append(newGrains, grain)
 			continue
 		}
 		for _, gene := range grain.CellProp.Genome {
@@ -464,8 +467,10 @@ func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 			grain.CellProp.Cycle.DivisionCount++
 			if grain.CellProp.Cycle.DivisionCount > 1000 && grain.Velocity.LengthSq() > 0 {
 				log.Printf("Cell %d divided", grain.Id)
+				halfEnergy := grain.CellProp.Energy / 2
 				grain.CellProp.Cycle.IsDividing = false
-				cloned = append(cloned, grain.CloneCell())
+				grain.CellProp.Energy = halfEnergy
+				newGrains = append(newGrains, grain.CloneCell())
 			}
 		} else {
 			if grain.CellProp.Quals["zd"] > 0 {
@@ -473,8 +478,16 @@ func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 				grain.CellProp.Cycle.DivisionCount = 0
 			}
 		}
+		grain.CellProp.Energy -= 1
+
+		// Remove from world when energy level is out-of-normal.
+		if grain.CellProp.Energy <= 0 || grain.CellProp.Energy >= 10000 {
+			log.Printf("Cell %d died (energy=%d)", grain.Id, grain.CellProp.Energy)
+			continue
+		}
+		newGrains = append(newGrains, grain)
 	}
-	world.Grains = append(world.Grains, cloned...)
+	world.Grains = newGrains
 
 	// We won't add / remove grains in this Step anymore, so we can safely append env grains
 	// which will be removed later in Step.

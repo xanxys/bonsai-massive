@@ -145,10 +145,11 @@ func (packer *GrainPacker) Generate() []*api.Grain {
 						pos = pos.Add(noiseBase.MultS(noiseAmplitude))
 					}
 					grains = append(grains, &api.Grain{
-						Id:   uint64(ix + 1),
-						Pos:  &api.CkPosition{pos.X, pos.Y, pos.Z},
-						Vel:  &api.CkVelocity{0, 0, 0},
-						Kind: packer.grainType,
+						Id:       uint64(ix + 1),
+						Pos:      &api.CkPosition{pos.X, pos.Y, pos.Z},
+						Vel:      &api.CkVelocity{0, 0, 0},
+						Kind:     packer.grainType,
+						CellProp: packer.MaybeGenerateCellProp(),
 					})
 				}
 
@@ -156,6 +157,15 @@ func (packer *GrainPacker) Generate() []*api.Grain {
 		}
 	}
 	return grains
+}
+
+func (packer *GrainPacker) MaybeGenerateCellProp() *api.CellProp {
+	if packer.grainType != api.Grain_CELL {
+		return nil
+	}
+	return &api.CellProp{
+		Energy: 5000,
+	}
 }
 
 func (packer *GrainPacker) generateUnitOffsets() []Vec3f {
