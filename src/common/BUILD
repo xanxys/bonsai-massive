@@ -25,7 +25,7 @@ genrule(
     srcs=[
         "//common:lib",
         "//proto:proto_go_src",
-    ],
+    ] + glob(["*_test.go"]),
     outs=[
         "common_test.bin",
         "run_common_test.sh",
