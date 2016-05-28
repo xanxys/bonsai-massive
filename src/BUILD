@@ -4,6 +4,7 @@ test_suite(
     tests=[
         "//chunk:server_test",
         "//common:common_test",
+        "//envgen:envgen_test",
         "//frontend:server_test",
     ]
 )
