@@ -1,0 +1,108 @@
+[{
+    "mode": "REQUIRED",
+    "name": "timestamp",
+    "type": "INTEGER"
+}, {
+    "mode": "NULLABLE",
+    "name": "grain_id",
+    "type": "INTEGER"
+}, {
+    "mode": "REQUIRED",
+    "name": "biosphere_id",
+    "type": "INTEGER"
+}, {
+    "mode": "NULLABLE",
+    "name": "chunk_id",
+    "type": "STRING"
+}, {
+    "description": "",
+    "fields": [{
+        "mode": "REQUIRED",
+        "name": "x",
+        "type": "FLOAT"
+    }, {
+        "mode": "NULLABLE",
+        "name": "y",
+        "type": "FLOAT"
+    }, {
+        "mode": "NULLABLE",
+        "name": "z",
+        "type": "FLOAT"
+    }],
+    "mode": "REQUIRED",
+    "name": "pos",
+    "type": "RECORD"
+}, {
+    "fields": [{
+        "mode": "NULLABLE",
+        "name": "x",
+        "type": "FLOAT"
+    }, {
+        "mode": "NULLABLE",
+        "name": "y",
+        "type": "FLOAT"
+    }, {
+        "mode": "NULLABLE",
+        "name": "z",
+        "type": "FLOAT"
+    }],
+    "mode": "REQUIRED",
+    "name": "vel",
+    "type": "RECORD"
+}, {
+    "mode": "REQUIRED",
+    "name": "kind",
+    "type": "INTEGER"
+}, {
+    "fields": [{
+        "mode": "NULLABLE",
+        "name": "energy",
+        "type": "INTEGER"
+    }, {
+        "fields": [{
+            "mode": "NULLABLE",
+            "name": "is_dividing",
+            "type": "BOOLEAN"
+        }, {
+            "mode": "NULLABLE",
+            "name": "division_count",
+            "type": "INTEGER"
+        }],
+        "mode": "NULLABLE",
+        "name": "cycle",
+        "type": "RECORD"
+    }, {
+        "fields": [{
+            "mode": "REPEATED",
+            "name": "activator",
+            "type": "STRING"
+        }, {
+            "mode": "REPEATED",
+            "name": "products",
+            "type": "STRING"
+        }, {
+            "mode": "NULLABLE",
+            "name": "activation_count",
+            "type": "INTEGER"
+        }],
+        "mode": "REPEATED",
+        "name": "genome",
+        "type": "RECORD"
+    }, {
+        "fields": [{
+            "mode": "REQUIRED",
+            "name": "qual",
+            "type": "STRING"
+        }, {
+            "mode": "REQUIRED",
+            "name": "num",
+            "type": "INTEGER"
+        }],
+        "mode": "REPEATED",
+        "name": "quals",
+        "type": "RECORD"
+    }],
+    "mode": "NULLABLE",
+    "name": "cellprop",
+    "type": "RECORD"
+}]

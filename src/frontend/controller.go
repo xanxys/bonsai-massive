@@ -233,6 +233,7 @@ func (ctrl *Controller) Reallocate() {
 			serverIndex := (chunkIndex * len(ips)) / numChunks
 			serverIp := ips[serverIndex]
 			genReq.SnapshotModulo = 5000
+			genReq.RecordModulo = 100
 			genReq.StartTimestamp = maxTimestamp
 			if ts.Slow {
 				genReq.FrameWaitNs = uint32(200 * time.Millisecond)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/kr/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/cloud/datastore"
@@ -128,7 +129,7 @@ func (proc *ChunkProcess) assembleAndStep(ctx context.Context, neighbors map[str
 	if proc.recordModulo > 0 && proc.chunk.Timestamp%uint64(proc.recordModulo) == 0 {
 		err := takeRecord(ctx, proc.topo.ChunkId, proc.cred, proc.chunk)
 		if err != nil {
-			log.Printf("Error: Failed to record with %#v", err)
+			log.Printf("Error: Failed to record with %# v", pretty.Formatter(err))
 		}
 	}
 
@@ -264,6 +265,11 @@ func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *
 }
 
 func takeRecord(ctx context.Context, chunkId string, cred *ServerCred, chunk *GrainChunk) error {
+	// Skip streaming when the chunk is empty.
+	if len(chunk.Grains) == 0 {
+		return nil
+	}
+
 	bqSvc, err := cred.AuthBigquery(ctx)
 	if err != nil {
 		return err
@@ -281,7 +287,9 @@ func takeRecord(ctx context.Context, chunkId string, cred *ServerCred, chunk *Gr
 		return err
 	}
 	if len(s.InsertErrors) > 0 {
-		return fmt.Errorf("%d rows failed to insert; first error: %#v", len(s.InsertErrors), s.InsertErrors[0].Errors)
+		return fmt.Errorf(
+			"%d rows failed to insert; first error: %# v",
+			len(s.InsertErrors), pretty.Formatter(s.InsertErrors[0].Errors))
 	}
 	return nil
 }
