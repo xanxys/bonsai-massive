@@ -22,7 +22,10 @@ World is divided to re-sizable chunks and they're simulated in parallel on googl
 Simulation is bit-wise reproducible when run in any chunk size and/or in presence of server failures.
 
 ![Deployment](https://docs.google.com/drawings/d/1cgvuM5Y_7A9-c1va3ftDwIgyta5Pe9MayIU3aiRTt9E/pub?w=851&amp;h=492)
+[link](https://docs.google.com/drawings/d/1cgvuM5Y_7A9-c1va3ftDwIgyta5Pe9MayIU3aiRTt9E/edit)
+
 ![Data flow](https://docs.google.com/drawings/d/1sQcEftxncmAuRojqud-RQ05DrXb53Im6t8XrnxmwQD4/pub?w=851&amp;h=492)
+[link](https://docs.google.com/drawings/d/1sQcEftxncmAuRojqud-RQ05DrXb53Im6t8XrnxmwQD4/edit)
 
 ## About Performance
 At 6d177626e0dddd23fbd9039e7945aa899e51eea1
