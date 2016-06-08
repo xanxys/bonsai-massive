@@ -274,15 +274,18 @@ func takeRecord(ctx context.Context, chunkId string, cred *ServerCred, chunk *Gr
 	if err != nil {
 		return err
 	}
+	log.Printf("Start takeRecord serialization")
 	rows := make([]*bigquery.TableDataInsertAllRequestRows, len(chunk.Grains))
 	for ix, grain := range chunk.Grains {
 		rows[ix] = &bigquery.TableDataInsertAllRequestRows{Json: convertGrainToRecord(chunkId, chunk.Timestamp, grain)}
 	}
+	log.Printf("End takeRecord serialization / Start takeRecord request")
 	tableSvc := bigquery.NewTabledataService(bqSvc)
 	q := &bigquery.TableDataInsertAllRequest{
 		Rows: rows,
 	}
 	s, err := tableSvc.InsertAll(ProjectId, BigqueryDatasetId, BigqueryGrainRecordTableId, q).Do()
+	log.Printf("End takeRecord request")
 	if err != nil {
 		return err
 	}
@@ -304,6 +307,27 @@ func convertGrainToRecord(chunkId string, timestamp uint64, grain *Grain) map[st
 
 	absPos := Vec3f{float32(dx), float32(dy), 0}.Add(grain.Position)
 
+	type QualPair struct {
+		qual string
+		num  int32
+	}
+
+	var cellprop map[string]bigquery.JsonValue
+	if grain.CellProp != nil {
+		qualPairs := make([]*QualPair, len(grain.CellProp.Quals))
+		index := 0
+		for qual, num := range grain.CellProp.Quals {
+			qualPairs[index] = &QualPair{qual, num}
+			index++
+		}
+		cellprop = map[string]bigquery.JsonValue{
+			"energy": grain.CellProp.Energy,
+			"cycle":  grain.CellProp.Cycle,
+			"genome": grain.CellProp.Genome,
+			"quals":  qualPairs,
+		}
+	}
+
 	return map[string]bigquery.JsonValue{
 		"biosphere_id": bsId,
 		"chunk_id":     chunkId,
@@ -320,7 +344,7 @@ func convertGrainToRecord(chunkId string, timestamp uint64, grain *Grain) map[st
 			"z": grain.Velocity.Z,
 		},
 		"kind":     int32(grain.Kind),
-		"cellprop": grain.CellProp,
+		"cellprop": cellprop,
 	}
 }
 

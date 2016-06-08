@@ -117,6 +117,9 @@ func (packer *GrainPacker) MaybeGenerateCellProp() *api.CellProp {
 	}
 	return &api.CellProp{
 		Energy: 5000,
+		Cycle:  &api.CellProp_Cycle{IsDividing: false},
+		Genome: []*api.CellProp_Gene{},
+		Quals:  map[string]int32{},
 	}
 }
 
