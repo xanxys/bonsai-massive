@@ -77,11 +77,12 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 	for {
 		select {
 		case <-chunkMeta.quitCh:
-			log.Printf("Quit signal received")
+			log.Printf("INFO: chunkId=%d: Quit signal received", proc.topo.ChunkId)
 			break
 		case packet := <-chunkMeta.recvCh:
 			if packet.Timestamp != proc.chunk.Timestamp {
-				log.Printf("WARNING: Dropped too new or too old neighbor packet (packet timestamp=%d chunk timestamp=%d)", packet.Timestamp, proc.chunk.Timestamp)
+				log.Printf("WARNING: chunkId=%d: Dropped too new or too old incoming neighbor packet (packet timestamp=%d chunk timestamp=%d)",
+					proc.topo.ChunkId, packet.Timestamp, proc.chunk.Timestamp)
 				continue
 			}
 			neighbors[packet.OriginChunkId] = packet
