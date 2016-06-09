@@ -27,6 +27,9 @@ Simulation is bit-wise reproducible when run in any chunk size and/or in presenc
 ![Data flow](https://docs.google.com/drawings/d/1sQcEftxncmAuRojqud-RQ05DrXb53Im6t8XrnxmwQD4/pub?w=851&amp;h=492)
 [link](https://docs.google.com/drawings/d/1sQcEftxncmAuRojqud-RQ05DrXb53Im6t8XrnxmwQD4/edit)
 
+![Logging](https://docs.google.com/drawings/d/1Wi-ZRtxABxR6FGD7fQ1U5N1KQCaZN4phXaMKOcmGwro/pub?w=725&h=416)
+[link](https://docs.google.com/drawings/d/1Wi-ZRtxABxR6FGD7fQ1U5N1KQCaZN4phXaMKOcmGwro/edit)
+
 ## About Performance
 At 6d177626e0dddd23fbd9039e7945aa899e51eea1
 (300 water particles & 300 soil particles, https://gyazo.com/9e414fc8ba2fecb76a08528d013c24c5),
