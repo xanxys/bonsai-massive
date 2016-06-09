@@ -6,4 +6,7 @@ const (
 	InitialEnvBucket           = "bonsai_initial_envs"
 	BigqueryDatasetId          = "grains"
 	BigqueryGrainRecordTableId = "grains"
+
+	BigqueryPlatformDatasetId = "platform"
+	BigquerySteppingTableId   = "stepping"
 )

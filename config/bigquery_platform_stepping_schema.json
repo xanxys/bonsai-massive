@@ -1,0 +1,21 @@
+[{
+    "mode": "REQUIRED",
+    "name": "start_at",
+    "type": "TIMESTAMP"
+}, {
+    "mode": "REQUIRED",
+    "name": "machine_ip",
+    "type": "STRING"
+}, {
+    "mode": "REQUIRED",
+    "name": "chunk_id",
+    "type": "STRING"
+}, {
+    "mode": "REQUIRED",
+    "name": "event_type",
+    "type": "STRING"
+}, {
+    "mode": "NULLABLE",
+    "name": "chunk_timestamp",
+    "type": "INTEGER"
+}]
