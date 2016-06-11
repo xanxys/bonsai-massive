@@ -66,6 +66,17 @@
 							</button>
 							<h5>Biosphere Stepping</h5>
 						</div>
+						<form action="#">
+							<div class="mdl-textfield mdl-js-textfield">
+								<input class="mdl-textfield__input" type="text" id="stepping_min_date" v-model="stepping_min_date_str">
+								<label class="mdl-textfield__label" for="stepping_min_date">Min Date</label>
+							</div>
+							<div class="mdl-textfield mdl-js-textfield">
+								<input class="mdl-textfield__input" type="text" id="stepping_max_date" v-model="stepping_max_date_str">
+								<label class="mdl-textfield__label" for="stepping_max_date">Max Date</label>
+							</div>
+						</form>
+
 						<div class="mdl-card__media">
 							<div id="stepping_timeline"></div>
 						</div>
