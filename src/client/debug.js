@@ -60,6 +60,8 @@ $(document).ready(() => {
             response: "",
             stepping_min_date_str: "",
             stepping_max_date_str: "",
+            st_min_ratio: 0,
+            st_max_ratio: 1,
         },
         methods: {
             // For some reason, () => doesn't work.
@@ -155,7 +157,10 @@ $(document).ready(() => {
             });
         });
         // Setting viewWindow doesn't work in timeline chart.
-        bs_stepping.chart.draw(dataTable, {height: 600});
+        bs_stepping.chart.draw(dataTable, {
+            height: 600,
+            hAxis: {minValue: min_d, maxValue: max_d}
+        });
     };
     bs_stepping.$watch('stepping_min_date_str', maybe_update_range);
     bs_stepping.$watch('stepping_max_date_str', maybe_update_range);

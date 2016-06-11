@@ -67,14 +67,16 @@
 							<h5>Biosphere Stepping</h5>
 						</div>
 						<form action="#">
+							Start
 							<div class="mdl-textfield mdl-js-textfield">
 								<input class="mdl-textfield__input" type="text" id="stepping_min_date" v-model="stepping_min_date_str">
-								<label class="mdl-textfield__label" for="stepping_min_date">Min Date</label>
 							</div>
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="1.0" v-model="st_min_ratio">
+							End
 							<div class="mdl-textfield mdl-js-textfield">
 								<input class="mdl-textfield__input" type="text" id="stepping_max_date" v-model="stepping_max_date_str">
-								<label class="mdl-textfield__label" for="stepping_max_date">Max Date</label>
 							</div>
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="1.0" v-model="st_max_ratio">
 						</form>
 
 						<div class="mdl-card__media">
