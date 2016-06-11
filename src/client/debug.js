@@ -78,7 +78,8 @@ $(document).ready(() => {
                     array_agg(
                       struct(
                         unix_millis(start_at) as start_ms,
-                        format("%s(%d)", event_type, chunk_timestamp) as label
+                        event_type,
+                        chunk_timestamp
                       )
                     ) as events
                   from
@@ -129,6 +130,11 @@ $(document).ready(() => {
             id: 'Event'
         });
         dataTable.addColumn({
+            type: 'string',
+            id: 'EventFull',
+            role: 'tooltip'
+        });
+        dataTable.addColumn({
             type: 'date',
             id: 'Start'
         });
@@ -136,7 +142,6 @@ $(document).ready(() => {
             type: 'date',
             id: 'End'
         });
-
         _.each(bs_stepping.stepping_rows, (row_location) => {
             let location = row_location.f[0].v + "/" + row_location.f[1].v;
             _.each(row_location.f[2].v, (row_ev) => {
@@ -144,8 +149,9 @@ $(document).ready(() => {
                 if (new Date(timestamp) < min_d || max_d < new Date(timestamp)) {
                     return;
                 }
-                let ev = row_ev.v.f[1].v;
-                dataTable.addRow([location, ev, new Date(timestamp), new Date(timestamp + 100)]);
+                let ev_type = row_ev.v.f[1].v;
+                let ev_label = `${ev_type} (${row_ev.v.f[2].v})`;
+                dataTable.addRow([location, ev_type, ev_label, new Date(timestamp), new Date(timestamp + 100)]);
             });
         });
         // Setting viewWindow doesn't work in timeline chart.
