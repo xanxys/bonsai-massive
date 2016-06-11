@@ -80,6 +80,7 @@ $(document).ready(() => {
                     array_agg(
                       struct(
                         unix_millis(start_at) as start_ms,
+                        unix_millis(end_at) as end_ms,
                         event_type,
                         chunk_timestamp
                       )
@@ -101,9 +102,10 @@ $(document).ready(() => {
                     var max_time_ms = 0;
                     _.each(resp.result.rows, (row_location) => {
                         _.each(row_location.f[2].v, (row_ev) => {
-                            let timestamp = parseInt(row_ev.v.f[0].v);
-                            min_time_ms = Math.min(min_time_ms, timestamp);
-                            max_time_ms = Math.max(max_time_ms, timestamp);
+                            let timestamp_start = parseInt(row_ev.v.f[0].v);
+                            let timestamp_end = parseInt(row_ev.v.f[1].v);
+                            min_time_ms = Math.min(min_time_ms, timestamp_start);
+                            max_time_ms = Math.max(max_time_ms, timestamp_end);
                         });
                     });
                     vm.stepping_min_date_str = new Date(min_time_ms).toISOString();
@@ -147,13 +149,18 @@ $(document).ready(() => {
         _.each(bs_stepping.stepping_rows, (row_location) => {
             let location = row_location.f[0].v + "/" + row_location.f[1].v;
             _.each(row_location.f[2].v, (row_ev) => {
-                let timestamp = parseInt(row_ev.v.f[0].v);
-                if (new Date(timestamp) < min_d || max_d < new Date(timestamp)) {
+                let timestamp_start = parseInt(row_ev.v.f[0].v);
+                let timestamp_end = parseInt(row_ev.v.f[1].v);
+                // Don't show if there's no overlap between event span & current view.
+                if (new Date(timestamp_end) < min_d || max_d < new Date(timestamp_start)) {
                     return;
                 }
-                let ev_type = row_ev.v.f[1].v;
-                let ev_label = `${ev_type} (${row_ev.v.f[2].v})`;
-                dataTable.addRow([location, ev_type, ev_label, new Date(timestamp), new Date(timestamp + 100)]);
+                timestamp_start = Math.max(timestamp_start, min_d);
+                timestamp_end = Math.min(timestamp_end, max_d);
+
+                let ev_type = row_ev.v.f[2].v;
+                let ev_label = `${ev_type} (${row_ev.v.f[3].v})`;
+                dataTable.addRow([location, ev_type, ev_label, new Date(timestamp_start), new Date(timestamp_end)]);
             });
         });
         // Setting viewWindow doesn't work in timeline chart.
