@@ -60,7 +60,7 @@ $(document).ready(() => {
             methods: {
                 // For some reason, () => doesn't get this.name properly.
                 create: function() {
-                    call_fe('add_biosphere',  {
+                    call_fe('add_biosphere', {
                         test_only: false,
                         config: {
                             name: this.name,
