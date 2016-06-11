@@ -61,20 +61,69 @@ type ChunkProcess struct {
 	chunk   *GrainChunk
 }
 
+type SteppingEvent struct {
+	ChunkId        string
+	EventType      string
+	ChunkTimestamp uint64
+	StartAtNano    int64
+}
+
+func NewEvent(eventType string, chunkId string, chunkTimestamp uint64) *SteppingEvent {
+	return &SteppingEvent{
+		ChunkId:        chunkId,
+		EventType:      eventType,
+		ChunkTimestamp: chunkTimestamp,
+		StartAtNano:    time.Now().UnixNano(),
+	}
+}
+
+// You should call this before checking errors, so that event will be logged to BQ.
+func (ev *SteppingEvent) End(cred *ServerCred) {
+	ctx := context.Background()
+	EndAtNano := time.Now().UnixNano()
+
+	bqSvc, err := cred.AuthBigquery(ctx)
+	if err != nil {
+		log.Printf("WARNING: Failed to log stepping event with %#v", err)
+		return
+	}
+	row := &bigquery.TableDataInsertAllRequestRows{
+		Json: map[string]bigquery.JsonValue{
+			"start_at":        float64(ev.StartAtNano) * 1e-9,
+			"end_at":          float64(EndAtNano) * 1e-9,
+			"machine_ip":      "unknown",
+			"chunk_id":        ev.ChunkId,
+			"chunk_timestamp": ev.ChunkTimestamp,
+			"event_type":      ev.EventType,
+		},
+	}
+	tableSvc := bigquery.NewTabledataService(bqSvc)
+	q := &bigquery.TableDataInsertAllRequest{
+		Rows: []*bigquery.TableDataInsertAllRequestRows{row},
+	}
+	_, err = tableSvc.InsertAll(ProjectId, BigqueryPlatformDatasetId, BigquerySteppingTableId, q).Do()
+	if err != nil {
+		log.Printf("WARNING: Failed to log stepping event with %#v", err)
+		return
+	}
+}
+
 func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 	ctx := context.Background()
 
 	// Register chunk earliest to get ready for reciving packets from neighbors.
-	go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_REGISTER, proc.topo.ChunkId, q.StartTimestamp)
+	regEv := NewEvent(STEPPING_EVENT_REGISTER, proc.topo.ChunkId, q.StartTimestamp)
 	chunkMeta := proc.router.RegisterNewChunk(proc.topo)
+	go regEv.End(proc.cred)
 	if chunkMeta == nil {
 		log.Printf("RunChunk(%s) exiting because it's already running", proc.topo.ChunkId)
 		return
 	}
 
 	proc.relToId, proc.idToRel, proc.wall = decodeTopo(proc.topo)
-	go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_RESUME, proc.topo.ChunkId, q.StartTimestamp)
+	resumeEv := NewEvent(STEPPING_EVENT_RESUME, proc.topo.ChunkId, q.StartTimestamp)
 	loadedChunk, err := resumeFromSnapshot(ctx, proc.topo.ChunkId, q.StartTimestamp, proc.cred)
+	go resumeEv.End(proc.cred)
 	if err != nil {
 		log.Printf("Resuming failed with %#v, not starting %s", err, proc.topo.ChunkId)
 		return
@@ -82,7 +131,7 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 	proc.chunk = loadedChunk
 
 	// Post initial empty state to unblock other chunks.
-	go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_MULTICAST, proc.topo.ChunkId, q.StartTimestamp)
+	mcEv := NewEvent(STEPPING_EVENT_MULTICAST, proc.topo.ChunkId, q.StartTimestamp)
 	grains := make([]*api.Grain, len(proc.chunk.Grains))
 	for ix, grain := range proc.chunk.Grains {
 		grains[ix] = ser(grain)
@@ -93,13 +142,18 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 		ChunkGrains:   grains,
 		EscapedGrains: make(map[string][]*api.Grain),
 	})
-	go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_WAIT_NEIGHBOR, proc.topo.ChunkId, q.StartTimestamp)
+	go mcEv.End(proc.cred)
+
+	waitEv := NewEvent(STEPPING_EVENT_WAIT_NEIGHBOR, proc.topo.ChunkId, q.StartTimestamp)
 	neighbors := make(map[string]*NeighborExport)
 	for {
 		select {
 		case <-chunkMeta.quitCh:
-			go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_QUIT, proc.topo.ChunkId, proc.chunk.Timestamp)
+			go waitEv.End(proc.cred)
+
+			quitEv := NewEvent(STEPPING_EVENT_QUIT, proc.topo.ChunkId, proc.chunk.Timestamp)
 			log.Printf("INFO: chunkId=%s: Quit signal received", proc.topo.ChunkId)
+			go quitEv.End(proc.cred)
 			break
 		case packet := <-chunkMeta.recvCh:
 			if packet.Timestamp != proc.chunk.Timestamp {
@@ -112,8 +166,11 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 				// Not enough packets collected.
 				continue
 			}
+			go waitEv.End(proc.cred)
+
 			proc.assembleAndStep(ctx, neighbors)
-			go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_WAIT_NEIGHBOR, proc.topo.ChunkId, proc.chunk.Timestamp)
+
+			waitEv = NewEvent(STEPPING_EVENT_WAIT_NEIGHBOR, proc.topo.ChunkId, proc.chunk.Timestamp)
 			neighbors = make(map[string]*NeighborExport)
 		}
 	}
@@ -158,14 +215,15 @@ func (proc *ChunkProcess) assembleAndStep(ctx context.Context, neighbors map[str
 	}
 
 	// Actual simulation.
-	go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_STEP, proc.topo.ChunkId, proc.chunk.Timestamp)
+	stepEv := NewEvent(STEPPING_EVENT_STEP, proc.topo.ChunkId, proc.chunk.Timestamp)
 	escapedGrains := proc.chunk.Step(envGrains, proc.wall)
+	go stepEv.End(proc.cred)
 	if proc.frameWait > 0 {
 		time.Sleep(proc.frameWait)
 	}
 
 	// Pack exported things.
-	go logSteppingEventBackground(ctx, proc.cred, STEPPING_EVENT_MULTICAST, proc.topo.ChunkId, proc.chunk.Timestamp)
+	mcEv := NewEvent(STEPPING_EVENT_MULTICAST, proc.topo.ChunkId, proc.chunk.Timestamp)
 	grains := make([]*api.Grain, len(proc.chunk.Grains))
 	for ix, grain := range proc.chunk.Grains {
 		grains[ix] = ser(grain)
@@ -189,6 +247,7 @@ func (proc *ChunkProcess) assembleAndStep(ctx context.Context, neighbors map[str
 		EscapedGrains: bins,
 	}
 	proc.router.MulticastToNeighbors(proc.topo.Neighbors, packet)
+	go mcEv.End(proc.cred)
 }
 
 func resumeFromSnapshot(ctx context.Context, chunkId string, startTimestamp uint64, cred *ServerCred) (*GrainChunk, error) {
@@ -288,33 +347,6 @@ func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *
 		return nil, err
 	}
 	return key, nil
-}
-
-func logSteppingEventBackground(ctx context.Context, cred *ServerCred, eventType string, chunkId string, timestamp uint64) {
-	logTimestamp := float64(time.Now().UnixNano()) * 1e-9
-	bqSvc, err := cred.AuthBigquery(ctx)
-	if err != nil {
-		log.Printf("WARNING: Failed to log stepping event with %#v", err)
-		return
-	}
-	row := &bigquery.TableDataInsertAllRequestRows{
-		Json: map[string]bigquery.JsonValue{
-			"start_at":        logTimestamp,
-			"machine_ip":      "unknown",
-			"chunk_id":        chunkId,
-			"chunk_timestamp": timestamp,
-			"event_type":      eventType,
-		},
-	}
-	tableSvc := bigquery.NewTabledataService(bqSvc)
-	q := &bigquery.TableDataInsertAllRequest{
-		Rows: []*bigquery.TableDataInsertAllRequestRows{row},
-	}
-	_, err = tableSvc.InsertAll(ProjectId, BigqueryPlatformDatasetId, BigquerySteppingTableId, q).Do()
-	if err != nil {
-		log.Printf("WARNING: Failed to log stepping event with %#v", err)
-		return
-	}
 }
 
 func takeRecord(ctx context.Context, chunkId string, cred *ServerCred, chunk *GrainChunk) error {

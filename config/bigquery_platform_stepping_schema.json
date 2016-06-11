@@ -4,6 +4,10 @@
     "type": "TIMESTAMP"
 }, {
     "mode": "REQUIRED",
+    "name": "end_at",
+    "type": "TIMESTAMP"
+}, {
+    "mode": "REQUIRED",
     "name": "machine_ip",
     "type": "STRING"
 }, {
