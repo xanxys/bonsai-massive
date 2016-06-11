@@ -291,6 +291,7 @@ func takeSnapshot(ctx context.Context, chunkId string, cred *ServerCred, chunk *
 }
 
 func logSteppingEventBackground(ctx context.Context, cred *ServerCred, eventType string, chunkId string, timestamp uint64) {
+	logTimestamp := float64(time.Now().UnixNano()) * 1e-9
 	bqSvc, err := cred.AuthBigquery(ctx)
 	if err != nil {
 		log.Printf("WARNING: Failed to log stepping event with %#v", err)
@@ -298,7 +299,7 @@ func logSteppingEventBackground(ctx context.Context, cred *ServerCred, eventType
 	}
 	row := &bigquery.TableDataInsertAllRequestRows{
 		Json: map[string]bigquery.JsonValue{
-			"start_at":        float64(time.Now().UnixNano()) * 1e-9,
+			"start_at":        logTimestamp,
 			"machine_ip":      "unknown",
 			"chunk_id":        chunkId,
 			"chunk_timestamp": timestamp,
