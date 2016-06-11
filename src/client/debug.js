@@ -58,10 +58,10 @@ $(document).ready(() => {
         el: '#card_stepping',
         data: {
             response: "",
-            stepping_min_date_str: "",
-            stepping_max_date_str: "",
-            st_min_ratio: 0,
-            st_max_ratio: 1,
+            stepping_view_min_str: "",
+            stepping_view_max_str: "",
+            st_view_min_ratio: 0,
+            st_view_max_ratio: 10000,
         },
         methods: {
             // For some reason, () => doesn't work.
@@ -108,8 +108,10 @@ $(document).ready(() => {
                             max_time_ms = Math.max(max_time_ms, timestamp_end);
                         });
                     });
-                    vm.stepping_min_date_str = new Date(min_time_ms).toISOString();
-                    vm.stepping_max_date_str = new Date(max_time_ms).toISOString();
+                    vm.stepping_min_date = new Date(min_time_ms);
+                    vm.stepping_max_date = new Date(max_time_ms);
+                    vm.stepping_view_min_str = vm.stepping_min_date.toISOString();
+                    vm.stepping_view_max_str = vm.stepping_max_date.toISOString();
                 }, (fail) => {
                     console.log('Failed to do BQ');
                 });
@@ -118,8 +120,8 @@ $(document).ready(() => {
     });
 
     let maybe_update_range = () => {
-        let min_d = new Date(bs_stepping.stepping_min_date_str);
-        let max_d = new Date(bs_stepping.stepping_max_date_str);
+        let min_d = new Date(bs_stepping.stepping_view_min_str);
+        let max_d = new Date(bs_stepping.stepping_view_max_str);
         if (isNaN(min_d) || isNaN(max_d)) {
             return;
         }
@@ -166,9 +168,22 @@ $(document).ready(() => {
         // Setting viewWindow doesn't work in timeline chart.
         bs_stepping.chart.draw(dataTable, {
             height: 600,
-            hAxis: {minValue: min_d, maxValue: max_d}
+            hAxis: {
+                minValue: min_d,
+                maxValue: max_d
+            }
         });
     };
-    bs_stepping.$watch('stepping_min_date_str', maybe_update_range);
-    bs_stepping.$watch('stepping_max_date_str', maybe_update_range);
+    bs_stepping.$watch('st_view_min_ratio', (val) => {
+        let t = val * 1e-4;
+        let view_min = bs_stepping.stepping_min_date * (1 - t) + bs_stepping.stepping_max_date * t;
+        bs_stepping.stepping_view_min_str = new Date(view_min).toISOString();
+    });
+    bs_stepping.$watch('st_view_max_ratio', (val) => {
+        let t = val * 1e-4;
+        let view_max = bs_stepping.stepping_min_date * (1 - t) + bs_stepping.stepping_max_date * t;
+        bs_stepping.stepping_view_max_str = new Date(view_max).toISOString();
+    });
+    bs_stepping.$watch('stepping_view_min_str', maybe_update_range);
+    bs_stepping.$watch('stepping_view_max_str', maybe_update_range);
 });

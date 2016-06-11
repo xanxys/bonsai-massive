@@ -69,14 +69,14 @@
 						<form action="#">
 							Start
 							<div class="mdl-textfield mdl-js-textfield">
-								<input class="mdl-textfield__input" type="text" id="stepping_min_date" v-model="stepping_min_date_str">
+								<input class="mdl-textfield__input" type="text" id="stepping_min_date" v-model="stepping_view_min_str">
 							</div>
-							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="1.0" v-model="st_min_ratio">
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="st_view_min_ratio">
 							End
 							<div class="mdl-textfield mdl-js-textfield">
-								<input class="mdl-textfield__input" type="text" id="stepping_max_date" v-model="stepping_max_date_str">
+								<input class="mdl-textfield__input" type="text" id="stepping_max_date" v-model="stepping_view_max_str">
 							</div>
-							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="1.0" v-model="st_max_ratio">
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="st_view_max_ratio">
 						</form>
 
 						<div class="mdl-card__media">
