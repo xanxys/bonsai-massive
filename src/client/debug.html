@@ -61,7 +61,7 @@
 				<div class=" mdl-cell mdl-cell--12-col">
 					<div id="card_stepping" class="mdl-card mdl-shadow--2dp" style="width: 100%">
 						<div class="mdl-card__title">
-							<button v-on:click="update" id="reload_stepping" class="mdl-button mdl-js-button mdl-button--icon">
+							<button v-on:click="update_whole" id="reload_stepping" class="mdl-button mdl-js-button mdl-button--icon">
 								<i class="material-icons">refresh</i>
 							</button>
 							<h5>Biosphere Stepping</h5>
@@ -71,21 +71,20 @@
 							<div id="stepping_summary"></div>
 						</div>
 						<form action="#">
-							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="st_center_coarse_ratio">
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="center_ratio">
 						</form>
-
 
 						<form action="#">
 							Start
 							<div class="mdl-textfield mdl-js-textfield">
-								<input class="mdl-textfield__input" type="text" id="stepping_min_date" v-model="stepping_view_min_str">
+								<input class="mdl-textfield__input" type="text" v-model="view_min_str">
 							</div>
-							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="st_view_min_ratio">
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="view_min_ratio">
 							End
 							<div class="mdl-textfield mdl-js-textfield">
-								<input class="mdl-textfield__input" type="text" id="stepping_max_date" v-model="stepping_view_max_str">
+								<input class="mdl-textfield__input" type="text" v-model="view_max_str">
 							</div>
-							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="st_view_max_ratio">
+							<input class="mdl-slider mdl-js-slider" type="range" min="0" max="10000" v-model="view_max_ratio">
 						</form>
 
 						<div class="mdl-card__media">

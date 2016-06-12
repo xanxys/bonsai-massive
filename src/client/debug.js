@@ -54,18 +54,62 @@ $(document).ready(() => {
     });
     bs.update();
 
+    // Time hierarchy:
+    // Whole (determined by query_summary) -> Window (around center) -> View
     let bs_stepping = new Vue({
         el: '#card_stepping',
         data: {
-            response: "",
             stepping_view_min_str: "",
             stepping_view_max_str: "",
-            st_view_min_ratio: 0,
-            st_view_max_ratio: 10000,
+            center_ratio: 5000,
+            view_min_ratio: 0,
+            view_max_ratio: 10000,
+        },
+        computed: {
+            center: function() {
+                let t = this.center_ratio * 1e-4;
+                return this.whole_min * (1 - t) + this.whole_max * t;
+            },
+            window_min: function() {
+                return this.center - 300 * 1000; // -5min
+            },
+            window_max: function() {
+                return this.center + 300 * 1000; // +5min
+            },
+            view_min: function() {
+                let t = this.view_min_ratio * 1e-4;
+                return this.window_min * (1 - t) + this.window_max * t;
+            },
+            view_max: function() {
+                let t = this.view_max_ratio * 1e-4;
+                return this.window_min * (1 - t) + this.window_max * t;
+            },
+            view_min_str: {
+                get: function() {
+                    return new Date(this.view_min).toISOString();
+                },
+                set: function(iso_str) {
+                    let d = new Date(iso_str);
+                    if (!isNaN(d)) {
+                        this.view_min = d * 1.0;
+                    }
+                }
+            },
+            view_max_str: {
+                get: function() {
+                    return new Date(this.view_max).toISOString();
+                },
+                set: function(iso_str) {
+                    let d = new Date(iso_str);
+                    if (!isNaN(d)) {
+                        this.view_max = d * 1.0;
+                    }
+                }
+            }
         },
         methods: {
             // For some reason, () => doesn't work.
-            update: function() {
+            update_whole: function() {
                 let query_summary = `
                 select
                   unix_millis(timestamp_trunc(start_at, hour)) as time_bucket,
@@ -108,50 +152,34 @@ $(document).ready(() => {
                     data.addColumn('number', '#events');
                     let ts = [];
                     _.each(resp.result.rows, (row) => {
-                        let t = new Date(parseFloat(row.f[0].v));
-                        data.addRow([t, parseInt(row.f[1].v)]);
+                        let t = parseFloat(row.f[0].v);
+                        data.addRow([new Date(t), parseInt(row.f[1].v)]);
                         ts.push(t);
                     });
                     let chart = new google.visualization.AreaChart(document.getElementById('stepping_summary'));
                     chart.draw(data, {
-                        vAxis: {logScale: true}
+                        vAxis: {
+                            logScale: true
+                        }
                     });
+                    vm.whole_min = _.min(ts);
+                    vm.whole_max = _.max(ts) + 3600e3; // one bucket = 1hr
                 });
-                return;
 
                 authAndCallBq(query).then((resp) => {
-                    let container = document.getElementById('stepping_timeline');
-                    bs_stepping.chart = new google.visualization.Timeline(container);
+                    bs_stepping.chart = new google.visualization.Timeline(document.getElementById('stepping_timeline'));
                     vm.stepping_rows = resp.result.rows;
-
-                    var min_time_ms = 1e20;
-                    var max_time_ms = 0;
-                    _.each(resp.result.rows, (row_location) => {
-                        _.each(row_location.f[2].v, (row_ev) => {
-                            let timestamp_start = parseInt(row_ev.v.f[0].v);
-                            let timestamp_end = parseInt(row_ev.v.f[1].v);
-                            min_time_ms = Math.min(min_time_ms, timestamp_start);
-                            max_time_ms = Math.max(max_time_ms, timestamp_end);
-                        });
-                    });
-                    vm.stepping_min_date = new Date(min_time_ms);
-                    vm.stepping_max_date = new Date(max_time_ms);
-                    vm.stepping_view_min_str = vm.stepping_min_date.toISOString();
-                    vm.stepping_view_max_str = vm.stepping_max_date.toISOString();
-                }, (fail) => {
-                    console.log('Failed to do BQ');
                 });
-            }
+            },
         }
     });
 
     let maybe_update_range = () => {
-        let min_d = new Date(bs_stepping.stepping_view_min_str);
-        let max_d = new Date(bs_stepping.stepping_view_max_str);
-        if (isNaN(min_d) || isNaN(max_d)) {
+        let min_d = bs_stepping.view_min;
+        let max_d = bs_stepping.view_max;
+        if (isNaN(new Date(min_d)) || isNaN(new Date(max_d))) {
             return;
         }
-
         let dataTable = new google.visualization.DataTable();
         dataTable.addColumn({
             type: 'string',
@@ -174,13 +202,14 @@ $(document).ready(() => {
             type: 'date',
             id: 'End'
         });
+        let rows = [];
         _.each(bs_stepping.stepping_rows, (row_location) => {
             let location = row_location.f[0].v + "/" + row_location.f[1].v;
             _.each(row_location.f[2].v, (row_ev) => {
                 let timestamp_start = parseInt(row_ev.v.f[0].v);
                 let timestamp_end = parseInt(row_ev.v.f[1].v);
                 // Don't show if there's no overlap between event span & current view.
-                if (new Date(timestamp_end) < min_d || max_d < new Date(timestamp_start)) {
+                if (timestamp_end < min_d || max_d < timestamp_start) {
                     return;
                 }
                 timestamp_start = Math.max(timestamp_start, min_d);
@@ -188,28 +217,23 @@ $(document).ready(() => {
 
                 let ev_type = row_ev.v.f[2].v;
                 let ev_label = `${ev_type} (${row_ev.v.f[3].v})`;
-                dataTable.addRow([location, ev_type, ev_label, new Date(timestamp_start), new Date(timestamp_end)]);
+                rows.push([location, ev_type, ev_label, new Date(timestamp_start), new Date(timestamp_end)]);
             });
         });
+        const max_num_rows = 100;
+        if (rows.length > max_num_rows) {
+            console.log('Warning: some rows are not shown because of threshold', max_num_rows);
+        }
+        dataTable.addRows(rows.slice(0, max_num_rows));
         // Setting viewWindow doesn't work in timeline chart.
         bs_stepping.chart.draw(dataTable, {
             height: 600,
             hAxis: {
-                minValue: min_d,
-                maxValue: max_d
+                minValue: new Date(min_d),
+                maxValue: new Date(max_d)
             }
         });
     };
-    bs_stepping.$watch('st_view_min_ratio', (val) => {
-        let t = val * 1e-4;
-        let view_min = bs_stepping.stepping_min_date * (1 - t) + bs_stepping.stepping_max_date * t;
-        bs_stepping.stepping_view_min_str = new Date(view_min).toISOString();
-    });
-    bs_stepping.$watch('st_view_max_ratio', (val) => {
-        let t = val * 1e-4;
-        let view_max = bs_stepping.stepping_min_date * (1 - t) + bs_stepping.stepping_max_date * t;
-        bs_stepping.stepping_view_max_str = new Date(view_max).toISOString();
-    });
-    bs_stepping.$watch('stepping_view_min_str', maybe_update_range);
-    bs_stepping.$watch('stepping_view_max_str', maybe_update_range);
+    bs_stepping.$watch('view_min', maybe_update_range);
+    bs_stepping.$watch('view_max', maybe_update_range);
 });
