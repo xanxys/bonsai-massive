@@ -145,7 +145,8 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 	go mcEv.End(proc.cred)
 
 	waitEv := NewEvent(STEPPING_EVENT_WAIT_NEIGHBOR, proc.topo.ChunkId, q.StartTimestamp)
-	neighbors := make(map[string]*NeighborExport)
+	currentNeighbors := make(map[string]*NeighborExport)
+	var futurePackets []*NeighborExport
 	for {
 		select {
 		case <-chunkMeta.quitCh:
@@ -156,22 +157,33 @@ func (proc *ChunkProcess) RunChunk(q *api.SpawnChunkQ) {
 			go quitEv.End(proc.cred)
 			break
 		case packet := <-chunkMeta.recvCh:
-			if packet.Timestamp != proc.chunk.Timestamp {
-				log.Printf("WARNING: chunkId=%s: Dropped too new or too old incoming neighbor packet (packet timestamp=%d chunk timestamp=%d)",
-					proc.topo.ChunkId, packet.Timestamp, proc.chunk.Timestamp)
+			// Packet filtering.
+			if packet.Timestamp < proc.chunk.Timestamp {
+				log.Printf("ERROR: chunkId=%s (t=%d): Dropped too old incoming neighbor packet (packet chunk=%s, timestamp=%d)",
+					proc.topo.ChunkId, proc.chunk.Timestamp, packet.OriginChunkId, packet.Timestamp)
 				continue
-			}
-			neighbors[packet.OriginChunkId] = packet
-			if len(neighbors) < len(proc.topo.Neighbors) {
-				// Not enough packets collected.
+			} else if packet.Timestamp > proc.chunk.Timestamp {
+				futurePackets = append(futurePackets, packet)
 				continue
+			} else {
+				currentNeighbors[packet.OriginChunkId] = packet
+				if len(currentNeighbors) < len(proc.topo.Neighbors) {
+					// Not enough packets collected.
+					continue
+				}
 			}
+
+			// All neighor packets are available.
 			go waitEv.End(proc.cred)
 
-			proc.assembleAndStep(ctx, neighbors)
+			proc.assembleAndStep(ctx, currentNeighbors)
 
 			waitEv = NewEvent(STEPPING_EVENT_WAIT_NEIGHBOR, proc.topo.ChunkId, proc.chunk.Timestamp)
-			neighbors = make(map[string]*NeighborExport)
+			currentNeighbors = make(map[string]*NeighborExport)
+			for _, fp := range futurePackets {
+				chunkMeta.recvCh <- fp
+			}
+			futurePackets = nil
 		}
 	}
 }
