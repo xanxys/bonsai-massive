@@ -35,7 +35,7 @@ function callBq(query) {
 
 $(document).ready(() => {
     google.charts.load('current', {
-        'packages': ['timeline']
+        'packages': ['corechart', 'timeline']
     });
 
     var bs = new Vue({
@@ -66,6 +66,15 @@ $(document).ready(() => {
         methods: {
             // For some reason, () => doesn't work.
             update: function() {
+                let query_summary = `
+                select
+                  unix_millis(timestamp_trunc(start_at, hour)) as time_bucket,
+                  count(*) as num_events
+                from
+                  \`platform.stepping\`
+                group by time_bucket
+                order by time_bucket
+                `;
                 let query = `select
                   machine_ip,
                   chunk_id,
@@ -92,6 +101,23 @@ $(document).ready(() => {
                     chunk_id
                 )`;
                 let vm = this;
+
+                authAndCallBq(query_summary).then((resp) => {
+                    let data = new google.visualization.DataTable();
+                    data.addColumn('datetime', 'bucket');
+                    data.addColumn('number', '#events');
+                    let ts = [];
+                    _.each(resp.result.rows, (row) => {
+                        let t = new Date(parseFloat(row.f[0].v));
+                        data.addRow([t, parseInt(row.f[1].v)]);
+                        ts.push(t);
+                    });
+                    let chart = new google.visualization.AreaChart(document.getElementById('stepping_summary'));
+                    chart.draw(data, {
+                        vAxis: {logScale: true}
+                    });
+                });
+                return;
 
                 authAndCallBq(query).then((resp) => {
                     let container = document.getElementById('stepping_timeline');
