@@ -220,7 +220,7 @@ $(document).ready(() => {
                 rows.push([location, ev_type, ev_label, new Date(timestamp_start), new Date(timestamp_end)]);
             });
         });
-        const max_num_rows = 100;
+        const max_num_rows = 400;
         if (rows.length > max_num_rows) {
             console.log('Warning: some rows are not shown because of threshold', max_num_rows);
         }
