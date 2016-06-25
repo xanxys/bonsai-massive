@@ -177,6 +177,9 @@ $(document).ready(() => {
     });
 
     let maybe_update_range = () => {
+        if (bs_stepping.chart === undefined) {
+            return;
+        }
         let min_d = bs_stepping.view_min;
         let max_d = bs_stepping.view_max;
         if (isNaN(new Date(min_d)) || isNaN(new Date(max_d))) {
