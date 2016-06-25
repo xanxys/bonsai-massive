@@ -22,7 +22,7 @@ $(document).ready(() => {
                 console.log('entering', biosphere.biosphere_id);
                 window.location.href = '/biosphere/' + biosphere.biosphere_id;
             },
-            delete: function(biosphere) {
+            delete_bs: function(biosphere) {
                 console.log('deleting', biosphere.biosphere_id);
                 this.loading = true;
                 call_fe('delete_biosphere', {

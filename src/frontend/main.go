@@ -191,5 +191,6 @@ func main() {
 	http.HandleFunc("/debug/proto/common.proto", FileServingHandler("common.proto"))
 
 	// Start FE server and block on it forever.
-	server.ListenAndServeTLS("/etc/ssl/fullchain.pem", "/etc/ssl/privkey.pem")
+	//server.ListenAndServeTLS("/etc/ssl/fullchain.pem", "/etc/ssl/privkey.pem")
+	server.ListenAndServe()
 }

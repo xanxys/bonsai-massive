@@ -62,6 +62,8 @@ $(document).ready(() => {
             stepping_view_min_str: "",
             stepping_view_max_str: "",
             center_ratio: 5000,
+            whole_min: 0,
+            whole_max: 1,
             view_min_ratio: 0,
             view_max_ratio: 10000,
         },
