@@ -19,6 +19,7 @@
         "selector": {
             "name": "frontend",
             "env": "staging"
-        }
+        },
+        "sessionAffinity": "ClientIP"
     }
 }
