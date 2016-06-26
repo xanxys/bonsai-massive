@@ -110,7 +110,7 @@ func (ctrl *Controller) SetBiosphereState(biosphereId uint64, targetState *Targe
 }
 
 func (ctrl *Controller) resetCoreTarget() {
-	const coresPerChunk = 0.25
+	const coresPerChunk = 0.5
 	numCores := float64(0)
 	for _, ts := range ctrl.targetState {
 		numCores += float64(len(ts.BsTopo.GetChunkTopos())) * coresPerChunk

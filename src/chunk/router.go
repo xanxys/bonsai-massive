@@ -2,6 +2,9 @@ package main
 
 import (
 	"./api"
+	"fmt"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 	"log"
 	"sync"
 	"time"
@@ -9,6 +12,7 @@ import (
 
 // Immutable structure that holds outgoing grains / env grains visible from other
 // chunks.
+// TODO: Migrate to proto.
 type NeighborExport struct {
 	OriginChunkId string
 
@@ -218,6 +222,27 @@ func (router *ChunkRouter) RegisterNewChunk(topo *api.ChunkTopology) *ChunkMetad
 	return meta
 }
 
+func (router *ChunkRouter) AcceptMulticastForExternalNodes(packet *api.NeighborExport) {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+
+	meta, ok := router.runningChunks[packet.DestChunkId]
+	if ok {
+		escapedGrains := make(map[string][]*api.Grain, len(packet.EscapedGrains))
+		for k, v := range packet.EscapedGrains {
+			escapedGrains[k] = v.Grains
+		}
+		meta.recvCh <- &NeighborExport{
+			OriginChunkId: packet.OriginChunkId,
+			Timestamp:     packet.Timestamp,
+			ChunkGrains:   packet.ChunkGrains,
+			EscapedGrains: escapedGrains,
+		}
+	} else {
+		log.Printf("WARNING: Received mutlicast packet, but destChunkId %s is not running. packet %#v dropped", packet.DestChunkId, packet)
+	}
+}
+
 func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_ChunkNeighbor, packet *NeighborExport) {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
@@ -232,7 +257,33 @@ func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_Chunk
 				log.Printf("WARNING: Mutlicast target %s is not running. packet %#v dropped", node.ChunkId, packet)
 			}
 		} else {
-			log.Printf("ERROR: Multicast to external node not supported yet")
+			ctx := context.Background()
+
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", node.Address),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+			if err != nil {
+				log.Printf("Failed to multicast to IP %s because of error %#v", node.Address, err)
+				continue
+			}
+			defer conn.Close()
+
+			chunkService := api.NewChunkServiceClient(conn)
+			escapedGrainsProto := make(map[string]*api.GrainSet, len(packet.EscapedGrains))
+			for k, v := range packet.EscapedGrains {
+				escapedGrainsProto[k] = &api.GrainSet{Grains: v}
+			}
+			_, err = chunkService.NotifyNeighbor(ctx, &api.NotifyNeighborQ{
+				Packet: &api.NeighborExport{
+					OriginChunkId: packet.OriginChunkId,
+					DestChunkId:   node.ChunkId,
+					Timestamp:     packet.Timestamp,
+					ChunkGrains:   packet.ChunkGrains,
+					EscapedGrains: escapedGrainsProto,
+				},
+			})
+			if err != nil {
+				log.Printf("Got error %#v from %s when multicasting", err, node.Address)
+			}
 		}
 	}
 	router.maybeResolveSnapshotRequests(packet)
