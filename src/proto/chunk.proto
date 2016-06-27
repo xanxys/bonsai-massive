@@ -167,15 +167,15 @@ message NeighborExport {
     string origin_chunk_id = 1;
     string dest_chunk_id = 2;
 
-	uint64 timestamp = 3;
+    uint64 timestamp = 3;
 
-	// Can be a subset of a chunk, but it's always safe to pass everything.
-	repeated Grain chunk_grains = 4;
+    // Can be a subset of a chunk, but it's always safe to pass everything.
+    repeated Grain chunk_grains = 4;
 
-	// We don't care much about performance, but rather this will prevent
-	// potential grain duplication.
-	// key: destination chunk id
-	// value: grain in destionatio coordinate
+    // We don't care much about performance, but rather this will prevent
+    // potential grain duplication.
+    // key: destination chunk id
+    // value: grain in destionatio coordinate
     map<string, GrainSet> escaped_grains = 5;
 }
 
