@@ -35,7 +35,7 @@ function callBq(query) {
 
 $(document).ready(() => {
     google.charts.load('current', {
-        'packages': ['corechart', 'timeline']
+        'packages': ['corechart', 'table', 'timeline']
     });
 
     var bs = new Vue({
@@ -62,22 +62,12 @@ $(document).ready(() => {
             stepping_view_min_str: "",
             stepping_view_max_str: "",
             center_ratio: 5000,
-            whole_min: 0,
-            whole_max: 1,
+            window_min: 0,
+            window_max: 0,
             view_min_ratio: 0,
             view_max_ratio: 10000,
         },
         computed: {
-            center: function() {
-                let t = this.center_ratio * 1e-4;
-                return this.whole_min * (1 - t) + this.whole_max * t;
-            },
-            window_min: function() {
-                return this.center - 300 * 1000; // -5min
-            },
-            window_max: function() {
-                return this.center + 300 * 1000; // +5min
-            },
             view_min: function() {
                 let t = this.view_min_ratio * 1e-4;
                 return this.window_min * (1 - t) + this.window_max * t;
@@ -158,20 +148,25 @@ $(document).ready(() => {
                         data.addRow([new Date(t), parseInt(row.f[1].v)]);
                         ts.push(t);
                     });
-                    let chart = new google.visualization.AreaChart(document.getElementById('stepping_summary'));
-                    chart.draw(data, {
-                        vAxis: {
-                            logScale: true
-                        }
+                    let chart = new google.visualization.Table(document.getElementById('stepping_summary'));
+                    chart.draw(data);
+                    google.visualization.events.addListener(chart, 'select', (ev) => {
+                        let selected_ts = _.map(chart.getSelection(), (sel) => ts[sel.row]);
+                        vm.select_bucket(selected_ts);
                     });
-                    vm.whole_min = _.min(ts);
-                    vm.whole_max = _.max(ts) + 3600e3; // one bucket = 1hr
                 });
 
                 authAndCallBq(query).then((resp) => {
                     bs_stepping.chart = new google.visualization.Timeline(document.getElementById('stepping_timeline'));
                     vm.stepping_rows = resp.result.rows;
                 });
+            },
+            select_bucket: function(selection) {
+                console.log(selection);
+                this.window_min = _.min(selection);
+                this.window_max = _.max(selection) + 3600e3; // one bucket + 1hr
+                this.view_min_ratio = 0;
+                this.view_max_ratio = 10000;
             },
         }
     });
