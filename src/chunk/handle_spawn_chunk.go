@@ -10,6 +10,7 @@ import (
 	"google.golang.org/api/bigquery/v2"
 	"google.golang.org/cloud/datastore"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -91,7 +92,7 @@ func (ev *SteppingEvent) End(cred *ServerCred) {
 		Json: map[string]bigquery.JsonValue{
 			"start_at":        float64(ev.StartAtNano) * 1e-9,
 			"end_at":          float64(EndAtNano) * 1e-9,
-			"machine_ip":      "unknown",
+			"machine_ip":      os.Getenv("HOSTNAME"),
 			"chunk_id":        ev.ChunkId,
 			"chunk_timestamp": ev.ChunkTimestamp,
 			"event_type":      ev.EventType,
