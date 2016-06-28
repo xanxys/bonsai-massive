@@ -70,7 +70,7 @@
 						<div class="mdl-card__media">
 							<div id="stepping_summary"></div>
 						</div>
-						
+
 						<form action="#">
 							Start
 							<div class="mdl-textfield mdl-js-textfield">
@@ -85,6 +85,7 @@
 						</form>
 
 						<div class="mdl-card__media">
+							<div class="mdl-spinner mdl-js-spinner is-active" v-bind:class="{'is-active': loading_detail}"></div>
 							<div id="stepping_timeline"></div>
 						</div>
 					</div>
