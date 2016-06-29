@@ -131,9 +131,10 @@ func (ctrl *Controller) GetCurrentState() map[uint64]BiosphereState {
 		}
 		defer conn.Close()
 		service := api.NewChunkServiceClient(conn)
-		s, err := service.ChunkSummary(ctx, &api.ChunkSummaryQ{})
+		strictCtx, _ := context.WithTimeout(ctx, 100*time.Millisecond)
+		s, err := service.ChunkSummary(strictCtx, &api.ChunkSummaryQ{})
 		if err != nil {
-			log.Printf("ChunkSummary@%s failed with %v", ip, err)
+			log.Printf("ERROR: ChunkSummary@%s failed with %v", ip, err)
 			continue
 		}
 		for _, chunk := range s.Chunks {
