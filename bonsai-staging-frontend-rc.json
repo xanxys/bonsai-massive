@@ -18,6 +18,11 @@
                 "containers": [{
                     "name": "bonsai-staging-frontend",
                     "image": "gcr.io/bonsai-genesis/bonsai_container",
+                    "resources": {
+                        "requests": {
+                            "cpu": "500m"
+                        }
+                    },
                     "ports": [{
                         "containerPort": 8000
                     }],
