@@ -272,7 +272,8 @@ func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_Chunk
 			for k, v := range packet.EscapedGrains {
 				escapedGrainsProto[k] = &api.GrainSet{Grains: v}
 			}
-			_, err = chunkService.NotifyNeighbor(ctx, &api.NotifyNeighborQ{
+			strictCtx, _ := context.WithTimeout(ctx, 250*time.Millisecond)
+			_, err = chunkService.NotifyNeighbor(strictCtx, &api.NotifyNeighborQ{
 				Packet: &api.NeighborExport{
 					OriginChunkId: packet.OriginChunkId,
 					DestChunkId:   node.ChunkId,
