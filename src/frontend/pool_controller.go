@@ -42,11 +42,39 @@ func NewPoolController(fe *FeServiceImpl, handler ConfigHandler) *PoolController
 
 func (ctrl *PoolController) GetDebug() *api.PoolDebug {
 	now := time.Now()
+
+	statuses := make(map[string]*api.PoolDebug_NodeStatus)
+	for _, ip := range ctrl.lastGrpcOkIp {
+		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+		if err != nil {
+			statuses[ip] = &api.PoolDebug_NodeStatus{
+				Error: fmt.Sprintf("<connection>@%s failed with %v", ip, err),
+			}
+			continue
+		}
+		defer conn.Close()
+
+		service := api.NewChunkServiceClient(conn)
+		strictCtx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		s, err := service.Status(strictCtx, &api.StatusQ{})
+		if err != nil {
+			statuses[ip] = &api.PoolDebug_NodeStatus{
+				Error: fmt.Sprintf("Status@%s failed with %v", ip, err),
+			}
+			continue
+		}
+		statuses[ip] = &api.PoolDebug_NodeStatus{
+			NumPendingExport: s.NumPendingExport,
+		}
+	}
+
 	debug := &api.PoolDebug{
-		GrpcOkIp:    ctrl.lastGrpcOkIp,
-		TargetNum:   int32(ctrl.targetNum),
-		LastNonZero: ctrl.lastNonZeroTarget.Format(time.RFC3339),
-		CurrentTime: now.Format(time.RFC3339),
+		LastGrpcOkIp:  ctrl.lastGrpcOkIp,
+		AsyncGrpcOkIp: statuses,
+		TargetNum:     int32(ctrl.targetNum),
+		LastNonZero:   ctrl.lastNonZeroTarget.Format(time.RFC3339),
+		CurrentTime:   now.Format(time.RFC3339),
 	}
 	if ctrl.targetNum == 0 && now.Sub(ctrl.lastNonZeroTarget).Seconds() < cooldownPeriodSecond {
 		debug.IsCooldown = true

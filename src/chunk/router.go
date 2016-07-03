@@ -55,8 +55,12 @@ type ChunkMetadata struct {
 	recvCh chan *NeighborExport
 }
 
-// All exported methods are thread-safe, and are supposed to be called from goroutines
-// simulating each chunk or grpc request handler.
+// All exported methods are thread-safe, and are supposed to be called from
+// 1. goroutines simulating each chunk or grpc request handler.
+// 2. RPC handlers
+// 3. Periodic(1s+) router housekeeping task
+// and no others.
+// Especially, public methods MUST NOT call any other public methods.
 type ChunkRouter struct {
 	stateMutex     sync.Mutex
 	snapshotReqs   []*SnapshotRequest
@@ -120,7 +124,7 @@ func (router *ChunkRouter) MaybeResolvePendingMulticast() {
 
 	var newPending []*PendingExport
 	for _, exp := range router.pendingExports {
-		err := router.SendPendingExport(exp)
+		err := router.sendPendingExport(exp)
 		if err != nil {
 			log.Printf("WARNING: Resolving pending export failed. Trying again later.")
 			newPending = append(newPending, exp)
@@ -233,6 +237,14 @@ func (router *ChunkRouter) DeleteChunk(chunkId string) {
 	}
 	chunkMeta.quitCh <- true
 	delete(router.runningChunks, chunkId)
+
+	var filteredPending []*PendingExport
+	for _, exp := range router.pendingExports {
+		if exp.Packet.OriginChunkId != chunkId {
+			filteredPending = append(filteredPending, exp)
+		}
+	}
+	router.pendingExports = filteredPending
 }
 
 // Returns quit channel if caller should continue RequestNeighbor & NotifyResult.
@@ -296,7 +308,7 @@ func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_Chunk
 				Node:   node,
 				Packet: packet,
 			}
-			err := router.SendPendingExport(exp)
+			err := router.sendPendingExport(exp)
 			if err != nil {
 				log.Printf("WARNING: multicast to IP %s failed with %#v. Moved to pending list.", node.Address, err)
 				router.pendingExports = append(router.pendingExports, exp)
@@ -307,8 +319,7 @@ func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_Chunk
 }
 
 // Return within 200 ms at most. Returns null when successful.
-// Lock must be acquired outside this.
-func (router *ChunkRouter) SendPendingExport(exp *PendingExport) error {
+func (router *ChunkRouter) sendPendingExport(exp *PendingExport) error {
 	ctx := context.Background()
 
 	node := exp.Node

@@ -91,8 +91,17 @@ message ControllerDebug {
     map<uint64, BiosphereState> biospheres = 1;
 }
 
+// Next ID: 8
 message PoolDebug {
-    repeated string grpc_ok_ip = 1;
+    repeated string last_grpc_ok_ip = 1;
+    message NodeStatus {
+        string error = 1;
+        int64 num_pending_export = 2;
+    }
+    // More up-to-date
+    // IP -> status
+    map<string, NodeStatus> async_grpc_ok_ip = 7;
+
     int32 target_num = 2;
     string last_non_zero = 3;
     string current_time = 4;
