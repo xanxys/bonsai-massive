@@ -9,6 +9,7 @@
     },
     "spec": {
         "type": "LoadBalancer",
+        "loadBalancerIP": "130.211.169.70",
         "ports": [
             {
                 "port": 80,
