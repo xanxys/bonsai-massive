@@ -82,37 +82,45 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 	} else {
 		enumTrace := InitTrace("/frontend._.getBiosphere")
 		bsState := fe.controller.GetBiosphereState(q.BiosphereId)
-		firstIp := ""
-		for _, ip := range bsState.chunks {
-			firstIp = ip
-			break
+		activeChunkServers := make(map[string][]string) // ip -> [chunk id]
+		for chunkId, ip := range bsState.chunks {
+			activeChunkServers[ip] = append(activeChunkServers[ip], chunkId)
 		}
-		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", firstIp),
-			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-		if err != nil {
-			log.Printf("Invalidating IP %s because of error %#v", firstIp, err)
-			return nil, err
-		}
-		defer conn.Close()
 		FinishTrace(enumTrace, GetCurrentTrace(ctx))
 
-		chunkService := api.NewChunkServiceClient(conn)
-		chunkIds := make([]string, len(bsTopo.GetChunkTopos()))
-		for ix, chunkTopo := range bsTopo.GetChunkTopos() {
-			chunkIds[ix] = chunkTopo.ChunkId
+		for ip, chunkIds := range activeChunkServers {
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+			if err != nil {
+				log.Printf("Invalidating IP %s because of error %#v", ip, err)
+				return nil, err
+			}
+			defer conn.Close()
+
+			chunkService := api.NewChunkServiceClient(conn)
+			resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
+				ChunkId: chunkIds,
+			})
+			if err != nil {
+				log.Printf("ChunkService.Snapshot failed %v", err)
+				return nil, err
+			}
+			if resp.Snapshot == nil {
+				return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
+			}
+			// Merge result.
+			if len(snapshots) == 0 {
+				timestamp = resp.Timestamp
+			} else if len(snapshots) > 0 && timestamp != resp.Timestamp {
+				log.Printf("WARNING: Timestamp mismatch when merging snapshots (existing=%d delta=%d)", timestamp, resp.Timestamp)
+			}
+			for chunkId, snapshot := range resp.Snapshot {
+				snapshots[chunkId] = snapshot
+			}
 		}
-		resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
-			ChunkId: chunkIds,
-		})
-		if err != nil {
-			log.Printf("ChunkService.Snapshot failed %v", err)
-			return nil, err
+		if len(snapshots) < len(bsTopo.GetChunkTopos()) {
+			log.Printf("WARNING: Partial chunk snapshot result (retrieve=%d all=%d)", len(snapshots), len(bsTopo.GetChunkTopos()))
 		}
-		if resp.Snapshot == nil {
-			return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
-		}
-		snapshots = resp.Snapshot
-		timestamp = resp.Timestamp
 	}
 	FinishTrace(fetchTrace, GetCurrentTrace(ctx))
 
