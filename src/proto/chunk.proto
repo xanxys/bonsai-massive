@@ -20,8 +20,7 @@ service ChunkService {
     // maintain), and make FE query them. With this approach, we get history for
     // free. (we can also do dashboards w/ bigquery)
 
-    // Should be renamed.
-    // Get status of chunks.
+    // Get generic status of the router.
     rpc Status(StatusQ) returns (StatusS);
 
     // Return enough information for caller to balance chunks / reach taget state.
@@ -83,6 +82,7 @@ message StatusQ {
 }
 
 message StatusS {
+    int64 num_pending_export = 3;
     reserved 1, 2;
 }
 

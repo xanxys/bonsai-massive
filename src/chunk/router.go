@@ -28,6 +28,13 @@ type NeighborExport struct {
 	EscapedGrains map[string][]*api.Grain
 }
 
+// A packet destined to single node.
+// Node must be something other than this node.
+type PendingExport struct {
+	Node   *api.ChunkTopology_ChunkNeighbor
+	Packet *NeighborExport
+}
+
 type SnapshotRequest struct {
 	receiver       chan *api.SnapshotS
 	targetChunkIds map[string]bool
@@ -51,9 +58,10 @@ type ChunkMetadata struct {
 // All exported methods are thread-safe, and are supposed to be called from goroutines
 // simulating each chunk or grpc request handler.
 type ChunkRouter struct {
-	stateMutex    sync.Mutex
-	snapshotReqs  []*SnapshotRequest
-	runningChunks map[string]*ChunkMetadata
+	stateMutex     sync.Mutex
+	snapshotReqs   []*SnapshotRequest
+	runningChunks  map[string]*ChunkMetadata
+	pendingExports []*PendingExport
 }
 
 // Create a new chunk.
@@ -66,9 +74,19 @@ func StartNewRouter() *ChunkRouter {
 		for {
 			time.Sleep(time.Second)
 			router.MaybeExpireRequests()
+			router.MaybeResolvePendingMulticast()
 		}
 	}()
 	return router
+}
+
+func (router *ChunkRouter) GetRouterStatus() *api.StatusS {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+	s := &api.StatusS{
+		NumPendingExport: int64(len(router.pendingExports)),
+	}
+	return s
 }
 
 // Take synchronized snapshot of given chunks at earliest convenient timestamp.
@@ -94,6 +112,21 @@ func (router *ChunkRouter) RequestSnapshot(chunkIds []string, waitFor time.Durat
 		collectedTimestamp: make(map[string]uint64),
 	})
 	return ch
+}
+
+func (router *ChunkRouter) MaybeResolvePendingMulticast() {
+	router.stateMutex.Lock()
+	defer router.stateMutex.Unlock()
+
+	var newPending []*PendingExport
+	for _, exp := range router.pendingExports {
+		err := router.SendPendingExport(exp)
+		if err != nil {
+			log.Printf("WARNING: Resolving pending export failed. Trying again later.")
+			newPending = append(newPending, exp)
+		}
+	}
+	router.pendingExports = newPending
 }
 
 func (router *ChunkRouter) MaybeExpireRequests() {
@@ -243,6 +276,8 @@ func (router *ChunkRouter) AcceptMulticastForExternalNodes(packet *api.NeighborE
 	}
 }
 
+// Multicast given packet without blocking. Uncessful multicasts are
+// moved to pending list and processed every second.
 func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_ChunkNeighbor, packet *NeighborExport) {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
@@ -254,38 +289,54 @@ func (router *ChunkRouter) MulticastToNeighbors(nodes []*api.ChunkTopology_Chunk
 				// TODO: we can optimzie by dropping escaped grains of different destination.
 				meta.recvCh <- packet
 			} else {
-				log.Printf("WARNING: Mutlicast target %s is not running. packet %#v dropped", node.ChunkId, packet)
+				log.Printf("ERROR: Internal mutlicast target %s is not running. packet %#v dropped", node.ChunkId, packet)
 			}
 		} else {
-			ctx := context.Background()
-
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", node.Address),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-			if err != nil {
-				log.Printf("Failed to multicast to IP %s because of error %#v", node.Address, err)
-				continue
+			exp := &PendingExport{
+				Node:   node,
+				Packet: packet,
 			}
-			defer conn.Close()
-
-			chunkService := api.NewChunkServiceClient(conn)
-			escapedGrainsProto := make(map[string]*api.GrainSet, len(packet.EscapedGrains))
-			for k, v := range packet.EscapedGrains {
-				escapedGrainsProto[k] = &api.GrainSet{Grains: v}
-			}
-			strictCtx, _ := context.WithTimeout(ctx, 250*time.Millisecond)
-			_, err = chunkService.NotifyNeighbor(strictCtx, &api.NotifyNeighborQ{
-				Packet: &api.NeighborExport{
-					OriginChunkId: packet.OriginChunkId,
-					DestChunkId:   node.ChunkId,
-					Timestamp:     packet.Timestamp,
-					ChunkGrains:   packet.ChunkGrains,
-					EscapedGrains: escapedGrainsProto,
-				},
-			})
+			err := router.SendPendingExport(exp)
 			if err != nil {
-				log.Printf("Got error %#v from %s when multicasting", err, node.Address)
+				log.Printf("WARNING: multicast to IP %s failed with %#v. Moved to pending list.", node.Address, err)
+				router.pendingExports = append(router.pendingExports, exp)
 			}
 		}
 	}
 	router.maybeResolveSnapshotRequests(packet)
+}
+
+// Return within 200 ms at most. Returns null when successful.
+// Lock must be acquired outside this.
+func (router *ChunkRouter) SendPendingExport(exp *PendingExport) error {
+	ctx := context.Background()
+
+	node := exp.Node
+	packet := exp.Packet
+	conn, err := grpc.Dial(fmt.Sprintf("%s:9000", node.Address),
+		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	chunkService := api.NewChunkServiceClient(conn)
+	escapedGrainsProto := make(map[string]*api.GrainSet, len(packet.EscapedGrains))
+	for k, v := range packet.EscapedGrains {
+		escapedGrainsProto[k] = &api.GrainSet{Grains: v}
+	}
+	strictCtx, _ := context.WithTimeout(ctx, 250*time.Millisecond)
+	_, err = chunkService.NotifyNeighbor(strictCtx, &api.NotifyNeighborQ{
+		Packet: &api.NeighborExport{
+			OriginChunkId: packet.OriginChunkId,
+			DestChunkId:   node.ChunkId,
+			Timestamp:     packet.Timestamp,
+			ChunkGrains:   packet.ChunkGrains,
+			EscapedGrains: escapedGrainsProto,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
