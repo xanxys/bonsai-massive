@@ -4,9 +4,7 @@ import (
 	"./api"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
-	"log"
 	"sort"
-	"time"
 )
 
 const tickPerYear = 5000
@@ -42,14 +40,14 @@ func (fe *FeServiceImpl) Biospheres(ctx context.Context, q *api.BiospheresQ) (*a
 		topo := NewCylinderTopology(uint64(keys[ix].ID()), int(meta.Nx), int(meta.Ny))
 		chunkId := topo.GetChunkTopos()[0].ChunkId
 
-		t0 := time.Now()
+		metaTrace := InitTrace("ChunkMetaFetch")
 		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId)
 		var ss []*PersistentChunkSnapshot
 		_, err := client.GetAll(ctx, query, &ss)
+		FinishTrace(metaTrace, GetCurrentTrace(ctx))
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Naive query took %s for %s", time.Since(t0), chunkId)
 
 		maxTimestamp := uint64(0)
 		persistedYearsMap := make(map[int32]bool)
