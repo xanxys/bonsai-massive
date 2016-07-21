@@ -126,7 +126,8 @@ func (router *ChunkRouter) MaybeResolvePendingMulticast() {
 	for _, exp := range router.pendingExports {
 		err := router.sendPendingExport(exp)
 		if err != nil {
-			log.Printf("WARNING: Resolving pending export failed. Trying again later.")
+			log.Printf("WARNING: Resolving pending export (%s -> %s : %d grains) failed. Trying again later.",
+				exp.Packet.OriginChunkId, exp.Node.ChunkId, len(exp.Packet.ChunkGrains))
 			newPending = append(newPending, exp)
 		}
 	}
@@ -230,6 +231,7 @@ func (router *ChunkRouter) GetChunks() []*api.ChunkTopology {
 func (router *ChunkRouter) DeleteChunk(chunkId string) {
 	router.stateMutex.Lock()
 	defer router.stateMutex.Unlock()
+	log.Printf("Delete chunk %s", chunkId)
 	chunkMeta, ok := router.runningChunks[chunkId]
 	if !ok {
 		log.Printf("WARNING: Trying to delete non-running chunk %s", chunkId)
