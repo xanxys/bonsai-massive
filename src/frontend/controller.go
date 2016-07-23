@@ -32,6 +32,8 @@ type Controller struct {
 	pool *PoolController
 	// BiosphereId -> TargetState
 	targetState map[uint64]TargetState
+	// BiosphereId -> control channel
+	execution map[uint64]chan bool
 }
 
 /*
@@ -91,8 +93,22 @@ func (ctrl *Controller) GetBiosphereState(biosphereId uint64) BiosphereState {
 func (ctrl *Controller) SetBiosphereState(biosphereId uint64, targetState *TargetState) bool {
 	if targetState != nil {
 		ctrl.targetState[biosphereId] = *targetState
+
+		execCh := make(chan bool, 10)
+		ctrl.execution[biosphereId] = execCh
+		go func() {
+			for {
+				select {
+				case <-execCh:
+					return
+				case <-time.After(time.Second):
+				}
+			}
+		}()
 	} else {
 		delete(ctrl.targetState, biosphereId)
+		ctrl.execution[biosphereId] <- true
+		delete(ctrl.execution, biosphereId)
 	}
 	ctrl.resetCoreTarget()
 	if targetState != nil {

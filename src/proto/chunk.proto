@@ -31,6 +31,9 @@ service ChunkService {
 
     rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
 
+    // Maybe we can make this streaming API
+    rpc StepChunk(StepChunkQ) returns (StepChunkS);
+
     // Delete chunks in the server.
     rpc DeleteChunk(DeleteChunkQ) returns (DeleteChunkS);
 
@@ -69,6 +72,20 @@ message SpawnChunkQ {
 }
 
 message SpawnChunkS {
+}
+
+// Step once.
+message StepChunkQ {
+    string chunk_id = 1;
+
+    // Only step if current timestamp is this.
+    uint64 if_timestamp_is = 2;
+}
+
+// Returned when stepping (including multicasting) is done.
+message StepChunkS {
+    // timestamp after stepping.
+    uint64 new_timestamp = 1;
 }
 
 message DeleteChunkQ {
