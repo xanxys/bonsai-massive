@@ -87,11 +87,11 @@ class ContainerFactory:
                 raise RuntimeError("Chunk build failed")
             if subprocess.call(["bazel", "build", "client:static"], cwd="./src") != 0:
                 raise RuntimeError("Client build failed")
-            shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
-            shutil.copyfile("src/bazel-out/local_linux-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
+            shutil.copyfile("src/bazel-out/local-fastbuild/genfiles/frontend/server.bin", "docker/frontend-server.bin")
+            shutil.copyfile("src/bazel-out/local-fastbuild/genfiles/chunk/server.bin", "docker/chunk-server.bin")
             shutil.rmtree("docker/static", ignore_errors=True)
             os.mkdir("docker/static")
-            subprocess.call(["tar", "-xf", "src/bazel-out/local_linux-fastbuild/bin/client/static.tar", "-C", "docker/static"])
+            subprocess.call(["tar", "-xf", "src/bazel-out/local-fastbuild/bin/client/static.tar", "-C", "docker/static"])
 
         return self._create_container(
             'docker/container', self.get_container_path('bonsai_container'), internal)
