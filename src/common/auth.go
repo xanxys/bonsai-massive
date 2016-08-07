@@ -27,7 +27,6 @@ func NewServerCred() *ServerCred {
 	conf, err := google.JWTConfigFromJSON(
 		jsonKey,
 		datastore.ScopeDatastore,
-		datastore.ScopeUserEmail,
 		storage.DevstorageFullControlScope,
 		"https://www.googleapis.com/auth/cloud-platform",
 		"https://www.googleapis.com/auth/trace.append",

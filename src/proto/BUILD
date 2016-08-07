@@ -9,7 +9,7 @@ genrule(
     ],
     outs = ["chunk.pb.go", "common.pb.go", "frontend.pb.go"],
     local=1,
-    cmd = "env PATH=$$PATH:/home/xyx/go/bin protoc --go_out=plugins=grpc:$$(dirname $(@D)) $(SRCS)",
+    cmd = "env PATH=$$PATH:/home/xyx/go/bin:/home/xyx/protobuf/bin/ protoc --go_out=plugins=grpc:$$(dirname $(@D)) $(SRCS)",
 )
 
 # This rule is necessary to use https://github.com/dcodeIO/protobuf.js,
