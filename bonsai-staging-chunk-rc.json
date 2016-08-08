@@ -1,0 +1,33 @@
+{
+    "apiVersion": "v1",
+    "kind": "ReplicationController",
+    "metadata": {
+        "name": "bonsai-staging-chunk-rc",
+        "labels": {
+            "env": "staging"
+        }
+    },
+    "spec": {
+        "replicas": 1,
+        "selector": {
+            "name": "chunk",
+            "env": "staging"
+        },
+        "template": {
+            "spec": {
+                "containers": [{
+                    "name": "bonsai-staging-chunk",
+                    "image": "gcr.io/bonsai-genesis/bonsai_container",
+                    "ports": [{"containerPort": 9000, "hostPort": 9000}],
+                    "command": ["/root/bonsai/chunk-server.bin"]
+                }]
+            },
+            "metadata": {
+                "labels": {
+                    "name": "chunk",
+                    "env": "staging"
+                }
+            }
+        }
+    }
+}
