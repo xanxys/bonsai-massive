@@ -74,6 +74,8 @@ message DebugS {
 
     ControllerDebug controller_debug = 2;
     PoolDebug pool_debug = 3;
+
+    string cluster_info = 4;
 }
 
 message ControllerDebug {
