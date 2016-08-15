@@ -17,7 +17,6 @@ func NewController(fe *FeServiceImpl) *Controller {
 		fe:          fe,
 		targetState: make(map[uint64]TargetState),
 	}
-	ctrl.pool = NewPoolController(fe, ctrl)
 	return ctrl
 }
 
@@ -28,8 +27,7 @@ func (ctrl *Controller) PostChange() {
 // All methods are thread-safe, and are guranteed to return within 150ms.
 // (one RPC w/ chunk servers or nothing).
 type Controller struct {
-	fe   *FeServiceImpl
-	pool *PoolController
+	fe *FeServiceImpl
 	// BiosphereId -> TargetState
 	targetState map[uint64]TargetState
 	// BiosphereId -> control channel
@@ -112,7 +110,7 @@ func (ctrl *Controller) SetBiosphereState(biosphereId uint64, targetState *Targe
 	}
 	ctrl.resetCoreTarget()
 	if targetState != nil {
-		ips := ctrl.pool.GetUsableIp()
+		ips := ctrl.GetUsableIp()
 		if len(ips) > 0 {
 			ctrl.Reallocate()
 			return true
@@ -131,14 +129,13 @@ func (ctrl *Controller) resetCoreTarget() {
 	for _, ts := range ctrl.targetState {
 		numCores += float64(len(ts.BsTopo.GetChunkTopos())) * coresPerChunk
 	}
-	ctrl.pool.SetTargetCores(numCores)
 }
 
 func (ctrl *Controller) GetCurrentState() map[uint64]BiosphereState {
 	ctx := context.Background()
 
 	biospheres := make(map[uint64]BiosphereState)
-	for _, ip := range ctrl.pool.GetUsableIp() {
+	for _, ip := range ctrl.GetUsableIp() {
 		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
 			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
 		if err != nil {
@@ -186,7 +183,7 @@ func (ctrl *Controller) Reallocate() {
 	log.Printf("Reallocating chunks: current biospherse=%#v, target=%#v", biospheres, ctrl.targetState)
 	// TODO: take snapshots of running biospheres instead of starting from persistent snapshot
 
-	ips := ctrl.pool.GetUsableIp()
+	ips := ctrl.GetUsableIp()
 	if len(ips) == 0 {
 		log.Print("ERROR: Chunk Reallocate requested, but doing nothing because 0 usable ips found. Probably a bug.")
 		return
@@ -289,6 +286,10 @@ func (ctrl *Controller) Reallocate() {
 		}
 	}
 	log.Printf("Reallocate complete!")
+}
+
+func (ctrl *Controller) GetUsableIp() []string {
+	return GetChunkIps()
 }
 
 const chunkIdFormat = "%d-%d:%d"

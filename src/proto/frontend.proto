@@ -73,9 +73,10 @@ message DebugS {
     string chunk_servers_error = 1;
 
     ControllerDebug controller_debug = 2;
-    PoolDebug pool_debug = 3;
 
     string cluster_info = 4;
+
+    reserved 3;
 }
 
 message ControllerDebug {
