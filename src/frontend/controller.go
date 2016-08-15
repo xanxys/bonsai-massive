@@ -16,12 +16,9 @@ func NewController(fe *FeServiceImpl) *Controller {
 	ctrl := &Controller{
 		fe:          fe,
 		targetState: make(map[uint64]TargetState),
+		execution:   make(map[uint64]chan bool),
 	}
 	return ctrl
-}
-
-func (ctrl *Controller) PostChange() {
-	ctrl.Reallocate()
 }
 
 // All methods are thread-safe, and are guranteed to return within 150ms.
