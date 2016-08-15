@@ -315,7 +315,9 @@ message BiosphereDesc {
     int32 ny = 7;
 
     // Persisted years (0-origin) in ascending order.
-    repeated int32 persisted_years = 8;
+    // In proto3, packed=true is default by proto.js doesn't support it yet.
+    // https://github.com/dcodeIO/protobuf.js/issues/432
+    repeated int32 persisted_years = 8 [packed=true];
 }
 
 message PolySoup {
