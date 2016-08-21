@@ -102,9 +102,15 @@ def deploy_containers_gke(container_name):
     print("Pushing containers to google container repository")
     subprocess.call(['gcloud', 'docker', 'push', container_name])
 
-    print("Rolling out new image %s" % container_name)
+    print("Rolling out new image (frontend) %s" % container_name)
     subprocess.call(['kubectl', 'rolling-update',
         'bonsai-%s-frontend-rc' % args.env,
+        '--update-period=10s',
+        '--image=%s' % container_name])
+
+    print("Rolling out new image (chunk) %s" % container_name)
+    subprocess.call(['kubectl', 'rolling-update',
+        'bonsai-%s-chunk-rc' % args.env,
         '--update-period=10s',
         '--image=%s' % container_name])
 
