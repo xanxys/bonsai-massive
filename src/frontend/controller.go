@@ -108,6 +108,10 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 	// Prepare initial chunk data locator.
 	initTimestamp := uint64(0) // TODO: Use maxPersistedTimestamp instead
 	chunks := ctrl.getInitialDataLocators(initTimestamp, target.BsTopo)
+	if chunks == nil {
+		log.Printf("ERROR Failed to get initial data locators. Aborting biosphere")
+		return
+	}
 
 	// Keep running forever until terminated.
 	bsState := &biosphereState{
@@ -298,11 +302,14 @@ func (ctrl *Controller) getInitialDataLocators(timestamp uint64, bsTopo Biospher
 		wg.Add(1)
 		go func(chunkId string) {
 			defer wg.Done()
-			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId).KeysOnly()
+			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId).Filter("Timestamp=", int64(timestamp)).KeysOnly()
 			ks, err := client.GetAll(ctx, query, nil)
-			if err != nil || len(ks) != 1 {
-				log.Printf("ERROR Specified timestamp & chunkId was not found query=%#v err=%#v", query, err)
+			if err != nil || len(ks) == 0 {
+				log.Printf("ERROR Specified timestamp & chunkId was not found query=%#v err=%#v keys=%#v", query, err, ks)
 				return
+			}
+			if len(ks) > 1 {
+				log.Printf("WARNING Multiple keys found for query=%#v keys=%#v. Using the first one", query, ks)
 			}
 			chunks[chunkId] = &api.ChunkDataLocator{
 				Location: &api.ChunkDataLocator_DatastoreKey{
