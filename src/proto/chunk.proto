@@ -5,120 +5,124 @@ syntax="proto3";
 package api;
 import "proto/common.proto";
 
-// One chunk server contains several chunks which might be running or stopped.
-// Chunks can span multiple worlds, and also can run in isolated mode.
-//
-// But for now, there's only one chunk.
-service ChunkService {
-    // New RPC to return CPU/memory/network load of this chunk server? Also need
-    // connectivity info. (IMO it makes sense to make FE manage list of chunk
-    // servers, and each chunk server don't know about list other than
-    // neighbors)
-    //
-    // (FE will decide whether to spawn new chunk servers, migrate chunks etc).
-    // Or maybe just dump them to datastore (because bigtable is expensive to
-    // maintain), and make FE query them. With this approach, we get history for
-    // free. (we can also do dashboards w/ bigquery)
 
+service ChunkService {
     // Get generic status of the router.
     rpc Status(StatusQ) returns (StatusS);
 
-    // Return enough information for caller to balance chunks / reach taget state.
-    rpc ChunkSummary(ChunkSummaryQ) returns (ChunkSummaryS);
-
-    // Return synchronized snapshot at arbitrary timestamp.
-    rpc Snapshot(SnapshotQ) returns (SnapshotS);
-
-    rpc SpawnChunk(SpawnChunkQ) returns (SpawnChunkS);
-
-    // Maybe we can make this streaming API
+    // Calculate a single step almost statelessly.
     rpc StepChunk(StepChunkQ) returns (StepChunkS);
 
-    // Delete chunks in the server.
-    rpc DeleteChunk(DeleteChunkQ) returns (DeleteChunkS);
-
-    // Send a chunk snapshot to neighbor.
-    rpc NotifyNeighbor(NotifyNeighborQ) returns (NotifyNeighborS);
+    rpc GetChunk(GetChunkQ) returns (GetChunkS);
 }
 
-// Spawn a chunk in this chunk server. This request itself is very lightweight.
-// (although server might slowdown afterwards).
-// Next ID: 10
-message SpawnChunkQ {
-    ChunkTopology topology = 2;
-
-    // Store snapshot when timestamp % snapshot_modulo == 0.
-    // Does nothing when snapshot_modulo <= 0.
-    int32 snapshot_modulo = 5;
-
-    // Send grains to bigquery storage for analysis,
-    // when timestamp % record_modulo == 0.
-    // Unlike snapshot_modulo, these records are not 100% reliable. (e.g.
-    // can contain missing or duplicated grains)
-    // Does nothing when snapshot_modulo <= 0.
-    int32 record_modulo = 9;
-
-    // Create a chunk, content filled from PersistentChunkSnapshot in datastore.
-    // The chunk server will delete snaphots that have
-    // (> start_timestamp && same chunk id).
-    // If chunk server cannot find specified snapshot, SpawnChunk will silently fail.
-    uint64 start_timestamp = 6;
-
-    // Wait after simulating each frame. Use >0 to slow simulation, and 0 for
-    // fastest simulation.
-    uint32 frame_wait_ns = 8;
-
-    reserved 1, 3, 4, 7;
-}
-
-message SpawnChunkS {
-}
-
-// Step once.
+// Step once, using given data source and caches the result for a few minutes at least.
+// All inputs must be available immediately, ohterwise this will fail.
 message StepChunkQ {
-    string chunk_id = 1;
-
-    // Only step if current timestamp is this.
-    uint64 if_timestamp_is = 2;
+    message Input {
+        ChunkRel dp = 1;
+        ChunkDataLocator data = 2;
+    }
+    // at most 9 chunks {(dx,dy) | |dx|<=1 && |dy|<=1} including (0, 0).
+    // If omitted, existence of wall is assumed.
+    // Duplicated (dx, dy) will result in undefined behavior.
+    repeated Input chunk_input = 1;
 }
 
-// Returned when stepping (including multicasting) is done.
 message StepChunkS {
-    // timestamp after stepping.
-    uint64 new_timestamp = 1;
+    // Inputs were successful gathered and stepping was properly done.
+    bool success = 1;
+
+    // Cache key of the stepped chunk at (0, 0). Only set when success == true.
+    uint64 cache_key = 2;
 }
 
-message DeleteChunkQ {
-    repeated string chunk_id = 1;
+
+message GetChunkQ {
+  uint64 cache_key = 1;
 }
 
-message DeleteChunkS {
+message GetChunkS {
+  // True if successfully available.
+  // Non avail reason examples: cache expiration due to TTL, invalid key.
+  bool success = 1;
+
+  // Only set when success.
+  ChunkState content = 2;
 }
+
 
 message StatusQ {
 }
 
 message StatusS {
-    int64 num_pending_export = 3;
-    reserved 1, 2;
-}
-
-message ChunkSummaryQ {
-}
-
-message ChunkSummaryS {
-    repeated ChunkTopology chunks = 1;
+    int64 num_chunk_cache = 4;
+    reserved 1, 2, 3;
 }
 
 
-message SnapshotQ {
-    repeated string chunk_id = 1;
+message ChunkState {
+    // self (0,0) + outgoing (others)
+    repeated ChunkShard shards = 1;
 }
 
-message SnapshotS {
-    map<string, ChunkSnapshot> snapshot = 1;
-    uint64 timestamp = 2;
+message ChunkShard {
+    ChunkRel dp = 1;
+    repeated Grain grains = 2;
 }
+
+message ChunkRel {
+    int32 dx = 1;
+    int32 dy = 2;
+}
+
+
+// Snapshot of a chunk at given timestamp.
+// This contains enough and just enough information for reconstructing it on
+// memory.
+// Do not include optimization structures in this, since we don't want to break
+// compatibility every time we optimize implemenetation.
+//
+// Serialization acts as validation of internal state.
+//
+// Coordinates are stored by chunk-local coordinates.
+message ChunkSnapshot {
+    // Should be negative for normal gravity.
+    int32 gravity_z = 1;
+
+    repeated Grain grains = 4;
+    reserved 2, 3;
+}
+
+
+
+
+// Accessor of a chunk data.
+// Chunk data = grains in a chunk + outgoing grains
+// Next ID: 5
+message ChunkDataLocator {
+    // Where a chunk data is stored.
+    oneof location {
+        // Est latency: 1us-
+        uint64 self_cache_key = 1;
+
+        // Est latency: 1ms-
+        RemoteChunkCache remote_cache_key = 2;
+
+        // Est latency: 50ms-
+        int64 datastore_key = 3;
+    }
+}
+
+message RemoteChunkCache {
+    // IP address where ChunkService is running.
+    string ip = 1;
+
+    // Chunk snapshot cache key in the node.
+    uint64 cache_key = 2;
+}
+
+
 
 message ChunkTopology {
     // Opaque unique id of this chunk. Caller will make sure this is actually
@@ -153,52 +157,6 @@ message ChunkTopology {
     repeated ChunkNeighbor neighbors = 2;
 }
 
-
-// Snapshot of a chunk at given timestamp.
-// This contains enough and just enough information for reconstructing it on
-// memory.
-// Do not include optimization structures in this, since we don't want to break
-// compatibility every time we optimize implemenetation.
-//
-// Serialization acts as validation of internal state.
-//
-// Coordinates are stored by chunk-local coordinates.
-message ChunkSnapshot {
-    // Should be negative for normal gravity.
-    int32 gravity_z = 1;
-
-    repeated Grain grains = 4;
-
-    reserved 2, 3;
-}
-
-message NotifyNeighborQ {
-    NeighborExport packet = 1;
-}
-
-message NotifyNeighborS {
-}
-
-// One snapshot.
-message NeighborExport {
-    string origin_chunk_id = 1;
-    string dest_chunk_id = 2;
-
-    uint64 timestamp = 3;
-
-    // Can be a subset of a chunk, but it's always safe to pass everything.
-    repeated Grain chunk_grains = 4;
-
-    // We don't care much about performance, but rather this will prevent
-    // potential grain duplication.
-    // key: destination chunk id
-    // value: grain in destionatio coordinate
-    map<string, GrainSet> escaped_grains = 5;
-}
-
-message GrainSet {
-    repeated Grain grains = 1;
-}
 
 // Next Id: 6
 message Grain {

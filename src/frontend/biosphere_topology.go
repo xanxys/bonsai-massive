@@ -8,6 +8,8 @@ import (
 type BiosphereTopology interface {
 	GetChunkTopos() []*api.ChunkTopology
 	GetGlobalOffsets() map[string]Vec3f
+	// Get locality senstive hash in [0, 1].
+	GetLSHs() map[string]float64
 }
 
 // Edge X=0, nx is connected with each other at same Y,
@@ -77,4 +79,24 @@ func (cylinder *CylinderTopology) GetGlobalOffsets() map[string]Vec3f {
 		}
 	}
 	return offsets
+}
+
+func (cylinder *CylinderTopology) GetLSHs() map[string]float64 {
+	// 0 5-6 11-
+	// 1 4 7 10 ...
+	// 2-3 8-9
+	hashes := make(map[string]float64)
+	for ix := 0; ix < cylinder.Nx; ix++ {
+		for iy := 0; iy < cylinder.Ny; iy++ {
+			offset := ix * cylinder.Ny
+			if ix%2 == 0 {
+				offset += iy
+			} else {
+				offset += cylinder.Ny - 1 - iy
+			}
+			hashes[fmt.Sprintf(chunkIdFormat, cylinder.bsId, ix, iy)] =
+				float64(offset) / float64(cylinder.Nx*cylinder.Ny)
+		}
+	}
+	return hashes
 }

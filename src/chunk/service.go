@@ -1,16 +1,14 @@
 package main
 
-import ()
-
 type CkServiceImpl struct {
-	*ChunkRouter
 	*ServerCred
+	*SnapshotCache
 }
 
 func NewCkService() *CkServiceImpl {
 	ck := &CkServiceImpl{
-		ChunkRouter: StartNewRouter(),
-		ServerCred:  NewServerCred(),
+		ServerCred:    NewServerCred(),
+		SnapshotCache: NewSnapshotCache(),
 	}
 	return ck
 }

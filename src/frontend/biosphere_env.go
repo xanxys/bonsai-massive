@@ -1,7 +1,6 @@
 package main
 
 import (
-	"./api"
 	"bytes"
 	"encoding/binary"
 	"math"
@@ -69,20 +68,4 @@ func perlin2(seed uint64, x, y float64) float64 {
 		freq *= 2
 	}
 	return v
-}
-
-// Generate empty environment.
-// Seed will be ignored completely.
-// TODO: migrate to genenv
-// len(result) == <#chunks in topo>
-// This function is deterministic.
-func GenerateEnv(topo BiosphereTopology, env *api.BiosphereEnvConfig) []*api.SpawnChunkQ {
-	topos := topo.GetChunkTopos()
-	chunkQs := make([]*api.SpawnChunkQ, len(topos))
-	for chunkIx, topo := range topos {
-		chunkQs[chunkIx] = &api.SpawnChunkQ{
-			Topology: topo,
-		}
-	}
-	return chunkQs
 }

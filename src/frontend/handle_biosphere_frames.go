@@ -3,15 +3,12 @@ package main
 import (
 	"./api"
 	"errors"
-	"fmt"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
-	"google.golang.org/grpc"
 	"log"
 	"math"
 	"math/rand"
-	"time"
 )
 
 func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFramesQ) (*api.BiosphereFramesS, error) {
@@ -80,46 +77,9 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		}
 		timestamp = q.SnapshotTimestamp
 	} else {
-		enumTrace := InitTrace("/frontend._.getBiosphere")
-		bsState := fe.controller.GetBiosphereState(q.BiosphereId)
-		activeChunkServers := make(map[string][]string) // ip -> [chunk id]
-		for chunkId, ip := range bsState.chunks {
-			activeChunkServers[ip] = append(activeChunkServers[ip], chunkId)
-		}
-		FinishTrace(enumTrace, GetCurrentTrace(ctx))
-
-		for ip, chunkIds := range activeChunkServers {
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-			if err != nil {
-				log.Printf("Invalidating IP %s because of error %#v", ip, err)
-				return nil, err
-			}
-			defer conn.Close()
-
-			chunkService := api.NewChunkServiceClient(conn)
-			resp, err := chunkService.Snapshot(ctx, &api.SnapshotQ{
-				ChunkId: chunkIds,
-			})
-			if err != nil {
-				log.Printf("ChunkService.Snapshot failed %v", err)
-				return nil, err
-			}
-			if resp.Snapshot == nil {
-				return nil, errors.New("ChunkServer.Snapshot doesn't contain snapshot")
-			}
-			// Merge result.
-			if len(snapshots) == 0 {
-				timestamp = resp.Timestamp
-			} else if len(snapshots) > 0 && timestamp != resp.Timestamp {
-				log.Printf("WARNING: Timestamp mismatch when merging snapshots (existing=%d delta=%d)", timestamp, resp.Timestamp)
-			}
-			for chunkId, snapshot := range resp.Snapshot {
-				snapshots[chunkId] = snapshot
-			}
-		}
-		if len(snapshots) < len(bsTopo.GetChunkTopos()) {
-			log.Printf("WARNING: Partial chunk snapshot result (retrieve=%d all=%d)", len(snapshots), len(bsTopo.GetChunkTopos()))
+		snapshots = fe.controller.GetLatestSnapshot(q.BiosphereId)
+		if snapshots == nil {
+			log.Printf("WARNING snapshot for bsId=%d failed", q.BiosphereId)
 		}
 	}
 	FinishTrace(fetchTrace, GetCurrentTrace(ctx))

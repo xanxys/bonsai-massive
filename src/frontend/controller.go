@@ -7,8 +7,8 @@ import (
 	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
 	"log"
-	"strconv"
-	"strings"
+	"math"
+	"sync"
 	"time"
 )
 
@@ -17,6 +17,7 @@ func NewController(fe *FeServiceImpl) *Controller {
 		fe:          fe,
 		targetState: make(map[uint64]TargetState),
 		execution:   make(map[uint64]chan bool),
+		latestBs:    make(map[uint64]*biosphereState),
 	}
 	return ctrl
 }
@@ -29,6 +30,9 @@ type Controller struct {
 	targetState map[uint64]TargetState
 	// BiosphereId -> control channel
 	execution map[uint64]chan bool
+
+	latestBsLock sync.Mutex
+	latestBs     map[uint64]*biosphereState
 }
 
 /*
@@ -63,8 +67,7 @@ func (ctrl *Controller) GetDebug() *api.ControllerDebug {
 	m := make(map[uint64]*api.ControllerDebug_BiosphereState)
 	for bsId, state := range ctrl.GetCurrentState() {
 		m[bsId] = &api.ControllerDebug_BiosphereState{
-			Flag:   api.ControllerDebug_BiosphereFlag(state.flag),
-			Chunks: state.chunks,
+			Flag: api.ControllerDebug_BiosphereFlag(state.flag),
 		}
 	}
 	return &api.ControllerDebug{
@@ -88,201 +91,222 @@ func (ctrl *Controller) GetBiosphereState(biosphereId uint64) BiosphereState {
 func (ctrl *Controller) SetBiosphereState(biosphereId uint64, targetState *TargetState) bool {
 	if targetState != nil {
 		ctrl.targetState[biosphereId] = *targetState
-
 		execCh := make(chan bool, 10)
 		ctrl.execution[biosphereId] = execCh
-		go func() {
-			for {
-				select {
-				case <-execCh:
-					return
-				case <-time.After(time.Second):
-				}
-			}
-		}()
+		go ctrl.runBiosphere(biosphereId, targetState, execCh)
 	} else {
 		delete(ctrl.targetState, biosphereId)
 		ctrl.execution[biosphereId] <- true
 		delete(ctrl.execution, biosphereId)
 	}
-	ctrl.resetCoreTarget()
-	if targetState != nil {
-		ips := ctrl.GetUsableIp()
-		if len(ips) > 0 {
-			ctrl.Reallocate()
-			return true
-		} else {
-			return false
+	return true
+}
+
+func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, execCh chan bool) {
+	chunkAlloc := assignChunks(target.BsTopo, ctrl.GetUsableIp())
+
+	// Prepare initial chunk data locator.
+	initTimestamp := uint64(0) // TODO: Use maxPersistedTimestamp instead
+	chunks := make(map[string]*api.ChunkDataLocator)
+
+	// Keep running forever until terminated.
+	bsState := &biosphereState{
+		timestamp: initTimestamp,
+		chunks:    chunks,
+	}
+	for {
+		select {
+		case <-execCh:
+			fmt.Printf("INFO terminated signal received in runBiosphere")
+			return
+		default:
 		}
-	} else {
-		ctrl.Reallocate()
-		return true
+		bsState = stepBiosphere(chunkAlloc, bsState)
+		ctrl.publishLatest(pubTargetId, bsState)
+		if target.Slow {
+			time.Sleep(time.Second)
+		}
 	}
 }
 
-func (ctrl *Controller) resetCoreTarget() {
-	const coresPerChunk = 0.5
-	numCores := float64(0)
-	for _, ts := range ctrl.targetState {
-		numCores += float64(len(ts.BsTopo.GetChunkTopos())) * coresPerChunk
+func (ctrl *Controller) GetLatestSnapshot(bsId uint64) map[string]*api.ChunkSnapshot {
+	ctrl.latestBsLock.Lock()
+	bsState := ctrl.latestBs[bsId]
+	ctrl.latestBsLock.Unlock()
+
+	var wg sync.WaitGroup
+	snapshots := make(map[string]*api.ChunkSnapshot)
+	for chunkId, dataLocator := range bsState.chunks {
+		wg.Add(1)
+		go func(chunkId string, remoteKey *api.RemoteChunkCache) {
+			defer wg.Done()
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", remoteKey.Ip),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+			if err != nil {
+				log.Printf("ERROR Couldn't connect to chunk server %s", remoteKey.Ip)
+				return
+			}
+			defer conn.Close()
+			service := api.NewChunkServiceClient(conn)
+			strictCtx, _ := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			s, err := service.GetChunk(strictCtx, &api.GetChunkQ{CacheKey: remoteKey.CacheKey})
+			if err != nil || !s.Success {
+				log.Printf("ERROR GetChunk(%#v) failed", remoteKey)
+				return
+			}
+
+			// Find (0, 0).
+			for _, shard := range s.Content.Shards {
+				if shard.Dp.Dx == 0 && shard.Dp.Dy == 0 {
+					snapshots[chunkId] = &api.ChunkSnapshot{Grains: shard.Grains}
+					return
+				}
+			}
+			log.Printf("ERROR (0, 0) chunk not found in GetChunk result")
+		}(chunkId, dataLocator.GetRemoteCacheKey())
 	}
+	wg.Wait()
+	return snapshots
+}
+
+func (ctrl *Controller) publishLatest(bsId uint64, bsState *biosphereState) {
+	ctrl.latestBsLock.Lock()
+	defer ctrl.latestBsLock.Unlock()
+	ctrl.latestBs[bsId] = bsState
+}
+
+type biosphereState struct {
+	// Immutable biosphere topology.
+	bsTopo BiosphereTopology
+
+	timestamp uint64
+
+	// chunk id -> chunk data.
+	chunks map[string]*api.ChunkDataLocator
+}
+
+// Calculate stepped biosphere state using workers, in a blocking way.
+// If failed, return nil.
+func stepBiosphere(workers map[string]string, st *biosphereState) *biosphereState {
+	var wg sync.WaitGroup
+	newChunks := make(map[string]*api.ChunkDataLocator)
+	for _, cTopo := range st.bsTopo.GetChunkTopos() {
+		ip := workers[cTopo.ChunkId]
+		// Convert neighbor topo into data locators, with self/remote optimization.
+		inputs := make([]*api.StepChunkQ_Input, len(cTopo.Neighbors))
+		for ix, neighborTopo := range cTopo.Neighbors {
+			nLocOptimized := st.chunks[neighborTopo.ChunkId]
+			maybeRemoteCK := nLocOptimized.GetRemoteCacheKey()
+			if maybeRemoteCK != nil && ip == maybeRemoteCK.Ip {
+				nLocOptimized = &api.ChunkDataLocator{
+					Location: &api.ChunkDataLocator_SelfCacheKey{maybeRemoteCK.CacheKey},
+				}
+			}
+			inputs[ix] = &api.StepChunkQ_Input{
+				Dp:   &api.ChunkRel{neighborTopo.Dx, neighborTopo.Dy},
+				Data: nLocOptimized,
+			}
+		}
+		stepChunkQ := &api.StepChunkQ{
+			ChunkInput: append(inputs, &api.StepChunkQ_Input{
+				Dp:   &api.ChunkRel{},
+				Data: st.chunks[cTopo.ChunkId],
+			}),
+		}
+
+		wg.Add(1)
+		go func(chunkId string) {
+			defer wg.Done()
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(1000*time.Millisecond))
+			if err != nil {
+				log.Printf("ERROR Couldn't connect to chunk server %s", ip)
+				return
+			}
+			defer conn.Close()
+			service := api.NewChunkServiceClient(conn)
+			strictCtx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			s, err := service.StepChunk(strictCtx, stepChunkQ)
+			if err != nil {
+				log.Printf("ERROR: StepChunk@%s failed with %v", ip, err)
+				return
+			}
+			if !s.Success {
+				log.Printf("ERROR StepChunk failed")
+				return
+			}
+			newChunks[chunkId] = &api.ChunkDataLocator{
+				Location: &api.ChunkDataLocator_RemoteCacheKey{
+					RemoteCacheKey: &api.RemoteChunkCache{
+						Ip:       ip,
+						CacheKey: s.CacheKey,
+					},
+				},
+			}
+		}(cTopo.ChunkId)
+	}
+	wg.Wait()
+	if len(newChunks) != len(st.bsTopo.GetChunkTopos()) {
+		log.Printf("ERROR some of chunk stepping failed (%d success/%d) prev:%#v new:%#v",
+			len(newChunks), len(st.bsTopo.GetChunkTopos()),
+			st, newChunks)
+		return nil
+	}
+	return &biosphereState{
+		bsTopo:    st.bsTopo,
+		timestamp: st.timestamp + 1,
+		chunks:    newChunks,
+	}
+}
+
+// Assign chunks to given nodes with affinity consideration, and then
+// returns chunk id -> node mapping.
+func assignChunks(bsTopo BiosphereTopology, nodes []string) map[string]string {
+	chunks := make(map[string]string)
+	for chunkId, lsh := range bsTopo.GetLSHs() {
+		workerIx := int(math.Floor(lsh * float64(len(nodes))))
+		if workerIx >= len(nodes) {
+			workerIx = len(nodes) - 1
+		}
+		chunks[chunkId] = nodes[workerIx]
+	}
+	return chunks
 }
 
 func (ctrl *Controller) GetCurrentState() map[uint64]BiosphereState {
-	ctx := context.Background()
-
 	biospheres := make(map[uint64]BiosphereState)
-	for _, ip := range ctrl.GetUsableIp() {
-		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-		if err != nil {
-			log.Printf("Couldn't connect to supposedly grpc-ok chunk server %s", ip)
-			continue
-		}
-		defer conn.Close()
-		service := api.NewChunkServiceClient(conn)
-		strictCtx, _ := context.WithTimeout(ctx, 100*time.Millisecond)
-		s, err := service.ChunkSummary(strictCtx, &api.ChunkSummaryQ{})
-		if err != nil {
-			log.Printf("ERROR: ChunkSummary@%s failed with %v", ip, err)
-			continue
-		}
-		for _, chunk := range s.Chunks {
-			biosphereId, err := strconv.ParseUint(strings.Split(chunk.ChunkId, "-")[0], 10, 64)
-			if err != nil {
-				log.Panicf("Unexpected chunkId %s found! (expecting <uint64 biosphere id>-<chunk descriptor>)", chunk.ChunkId)
-				continue
-			}
-			_, ok := biospheres[biosphereId]
-			if !ok {
-				biospheres[biosphereId] = BiosphereState{
-					flag:   Running,
-					chunks: make(map[string]string),
-				}
-			}
-			biospheres[biosphereId].chunks[chunk.ChunkId] = ip
-		}
-	}
-	// Upgrade some of Stopped to Waiting.
-	for bsId, _ := range ctrl.targetState {
-		state, ok := biospheres[bsId]
-		if !(ok && state.flag == Running) {
-			biospheres[bsId] = BiosphereState{flag: Waiting}
+	for bsId, _ := range ctrl.execution {
+		biospheres[bsId] = BiosphereState{
+			flag: Running,
 		}
 	}
 	return biospheres
 }
 
-// Reallocate all chunks optimally. After this method, all Waiting will become Running.
-func (ctrl *Controller) Reallocate() {
+func (ctrl *Controller) getMaxPersistedTimestamp(ts *TargetState) uint64 {
 	ctx := context.Background()
-	biospheres := ctrl.GetCurrentState()
-	log.Printf("Reallocating chunks: current biospherse=%#v, target=%#v", biospheres, ctrl.targetState)
-	// TODO: take snapshots of running biospheres instead of starting from persistent snapshot
-
-	ips := ctrl.GetUsableIp()
-	if len(ips) == 0 {
-		log.Print("ERROR: Chunk Reallocate requested, but doing nothing because 0 usable ips found. Probably a bug.")
-		return
-	}
-
-	// Turn down all biospheres.
-	for _, ip := range ips {
-		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-		if err != nil {
-			log.Printf("ERROR: Unusable (%v) IP %s returned from GetUsableIp", err, ip)
-			return
-		}
-		defer conn.Close()
-		chunkService := api.NewChunkServiceClient(conn)
-		csummary, err := chunkService.ChunkSummary(ctx, &api.ChunkSummaryQ{})
-		if err != nil {
-			log.Printf("ERROR: Unable to get chunk summary from IP %s: %v", ip, err)
-			return
-		}
-		chunkIds := make([]string, len(csummary.Chunks))
-		for ix, chunkTopo := range csummary.Chunks {
-			chunkIds[ix] = chunkTopo.ChunkId
-		}
-		log.Printf("deleting chunks@ %s: %#v", ip, chunkIds)
-		chunkService.DeleteChunk(ctx, &api.DeleteChunkQ{ChunkId: chunkIds})
-	}
-
-	// Calculate IP <-> chunk correspondence.
 	client, err := ctrl.fe.AuthDatastore(ctx)
 	if err != nil {
 		log.Printf("ERROR: Datastore failed with %#v", err)
-		return
+		return 0
 	}
 
-	numChunks := 0
-	for _, ts := range ctrl.targetState {
-		numChunks += len(GenerateEnv(ts.BsTopo, ts.Env))
+	firstChunkId := ts.BsTopo.GetChunkTopos()[0].ChunkId
+	// TODO: This is slow. Do something.
+	query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", firstChunkId)
+	var ss []*PersistentChunkSnapshot
+	_, err = client.GetAll(ctx, query, &ss)
+	if err != nil {
+		log.Printf("ERROR: failed to retrieve max timestamp %v", err)
+		return 0
 	}
-	chunkIndex := 0
-	chunkLocation := make(map[string]string)            // ChunkId -> IP address
-	serverChunks := make(map[string][]*api.SpawnChunkQ) // IP address -> [ChunkGen]
-	for _, ts := range ctrl.targetState {
-		// TODO: This is slow. Do something.
-		firstChunkId := GenerateEnv(ts.BsTopo, ts.Env)[0].Topology.ChunkId
-		query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", firstChunkId)
-		var ss []*PersistentChunkSnapshot
-		_, err := client.GetAll(ctx, query, &ss)
-		if err != nil {
-			log.Printf("ERROR: failed to retrieve max timestamp %v", err)
-			return
-		}
-		maxTimestamp := uint64(0)
-		for _, snapshot := range ss {
-			if uint64(snapshot.Timestamp) > maxTimestamp {
-				maxTimestamp = uint64(snapshot.Timestamp)
-			}
-		}
-
-		for _, genReq := range GenerateEnv(ts.BsTopo, ts.Env) {
-			serverIndex := (chunkIndex * len(ips)) / numChunks
-			serverIp := ips[serverIndex]
-			genReq.SnapshotModulo = 5000
-			genReq.RecordModulo = 100
-			genReq.StartTimestamp = maxTimestamp
-			if ts.Slow {
-				genReq.FrameWaitNs = uint32(200 * time.Millisecond)
-			} else {
-				genReq.FrameWaitNs = 0
-			}
-			chunkLocation[genReq.Topology.ChunkId] = serverIp
-			serverChunks[serverIp] = append(serverChunks[serverIp], genReq)
-			chunkIndex++
+	maxTimestamp := uint64(0)
+	for _, snapshot := range ss {
+		if uint64(snapshot.Timestamp) > maxTimestamp {
+			maxTimestamp = uint64(snapshot.Timestamp)
 		}
 	}
-	log.Printf("Assignment: %#v %#v", chunkLocation, serverChunks)
-
-	// Respawn biospheres.
-	for _, ip := range ips {
-		conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-			grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-		if err != nil {
-			log.Printf("ERROR: Unusable (%v) IP %s returned from GetUsableIp", err, ip)
-			return
-		}
-		defer conn.Close()
-		chunkService := api.NewChunkServiceClient(conn)
-
-		for _, genReq := range serverChunks[ip] {
-			for _, neighbor := range genReq.Topology.Neighbors {
-				neighborIp := chunkLocation[neighbor.ChunkId]
-				if neighborIp == ip {
-					neighbor.Internal = true
-				} else {
-					neighbor.Internal = false
-					neighbor.Address = neighborIp
-				}
-			}
-			chunkService.SpawnChunk(ctx, genReq)
-		}
-	}
-	log.Printf("Reallocate complete!")
+	return maxTimestamp
 }
 
 func (ctrl *Controller) GetUsableIp() []string {

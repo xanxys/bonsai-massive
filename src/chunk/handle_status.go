@@ -6,5 +6,7 @@ import (
 )
 
 func (ck *CkServiceImpl) Status(ctx context.Context, q *api.StatusQ) (*api.StatusS, error) {
-	return ck.GetRouterStatus(), nil
+	return &api.StatusS{
+		NumChunkCache: ck.SnapshotCache.Count(),
+	}, nil
 }

@@ -87,8 +87,7 @@ message ControllerDebug {
     }
     message BiosphereState {
         BiosphereFlag flag = 1;
-        // chunk id -> ip
-        map<string, string> chunks = 2;
+        reserved 2;
     }
 
     map<uint64, BiosphereState> biospheres = 1;
