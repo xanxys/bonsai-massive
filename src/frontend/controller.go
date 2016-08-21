@@ -127,6 +127,10 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 		default:
 		}
 		bsState = stepBiosphere(chunkAlloc, bsState)
+		if bsState == nil {
+			log.Printf("ERROR stepBiosphere failed. Aborting biosphere %d", pubTargetId)
+			return
+		}
 		ctrl.publishLatest(pubTargetId, bsState)
 		if target.Slow {
 			time.Sleep(time.Second)
@@ -230,7 +234,7 @@ func stepBiosphere(workers map[string]string, st *biosphereState) *biosphereStat
 			}
 			defer conn.Close()
 			service := api.NewChunkServiceClient(conn)
-			strictCtx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			strictCtx, _ := context.WithTimeout(context.Background(), 2500*time.Millisecond)
 			s, err := service.StepChunk(strictCtx, stepChunkQ)
 			if err != nil {
 				log.Printf("ERROR: StepChunk@%s failed with %v", ip, err)

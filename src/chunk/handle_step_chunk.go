@@ -169,7 +169,7 @@ func (ck *CkServiceImpl) fetchRemoteCache(remoteKey *api.RemoteChunkCache) *api.
 }
 
 func (ck *CkServiceImpl) fetchDatastoreSnapshot(dsKey int64) *api.ChunkState {
-	strictCtx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	strictCtx, _ := context.WithTimeout(context.Background(), 2500*time.Millisecond)
 	client, err := ck.AuthDatastore(strictCtx)
 	if err != nil {
 		log.Printf("ERROR datastore auth failed %#v", err)
@@ -181,6 +181,7 @@ func (ck *CkServiceImpl) fetchDatastoreSnapshot(dsKey int64) *api.ChunkState {
 	err = client.Get(strictCtx, key, snapshot)
 	if err != nil {
 		log.Printf("ERROR datastore.Get(%#v) failed %#v", key, err)
+		return nil
 	}
 
 	snapshotProto := &api.ChunkSnapshot{}
