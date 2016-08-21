@@ -109,7 +109,7 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 	initTimestamp := uint64(0) // TODO: Use maxPersistedTimestamp instead
 	chunks := ctrl.getInitialDataLocators(initTimestamp, target.BsTopo)
 	if chunks == nil {
-		log.Printf("ERROR Failed to get initial data locators. Aborting biosphere")
+		log.Printf("ERROR biosphere(%d): failed to get initial data locators. Aborting.", pubTargetId)
 		return
 	}
 
@@ -122,13 +122,15 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 	for {
 		select {
 		case <-execCh:
-			fmt.Printf("INFO terminated signal received in runBiosphere")
+			fmt.Printf("INFO biosphere(%d): terminated signal received (T=%d)",
+				pubTargetId, bsState.timestamp)
 			return
 		default:
 		}
 		bsState = stepBiosphere(chunkAlloc, bsState)
 		if bsState == nil {
-			log.Printf("ERROR stepBiosphere failed. Aborting biosphere %d", pubTargetId)
+			log.Printf("ERROR biosphere(%d): stepBiosphere failed (T:%d->%d). Aborting.",
+				pubTargetId, bsState.timestamp, bsState.timestamp+1)
 			return
 		}
 		ctrl.publishLatest(pubTargetId, bsState)
