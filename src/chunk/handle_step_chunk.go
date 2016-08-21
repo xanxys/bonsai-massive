@@ -4,6 +4,7 @@ import (
 	"./api"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/kr/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
@@ -13,6 +14,7 @@ import (
 )
 
 func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api.StepChunkS, error) {
+	log.Printf("StepChunk inputs=%# v", pretty.Formatter(q.ChunkInput))
 	inputSnapshots := ck.fetchAllInput(q.ChunkInput)
 	if inputSnapshots == nil {
 		log.Printf("ERROR Some input fetch failed for input: %#v", q.ChunkInput)
@@ -26,7 +28,7 @@ func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api
 	chunk.Grains = selfGrains
 	outgoing := chunk.Step(env, convertToWall(inputSnapshots))
 
-	selfShard := &api.ChunkShard{Dp: &api.ChunkRel{}, Grains: make([]*api.Grain, len(chunk.Grains))}
+	selfShard := &api.ChunkShard{Dp: &api.ChunkRel{Dx: 0, Dy: 0}, Grains: make([]*api.Grain, len(chunk.Grains))}
 	for ix, grain := range chunk.Grains {
 		selfShard.Grains[ix] = ser(grain)
 	}
@@ -186,7 +188,7 @@ func (ck *CkServiceImpl) fetchDatastoreSnapshot(dsKey int64) *api.ChunkState {
 	return &api.ChunkState{
 		Shards: []*api.ChunkShard{
 			&api.ChunkShard{
-				Dp:     &api.ChunkRel{},
+				Dp:     &api.ChunkRel{Dx: 0, Dy: 0},
 				Grains: snapshotProto.Grains,
 			},
 		},

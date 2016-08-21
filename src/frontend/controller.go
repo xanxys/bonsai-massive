@@ -107,10 +107,11 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 
 	// Prepare initial chunk data locator.
 	initTimestamp := uint64(0) // TODO: Use maxPersistedTimestamp instead
-	chunks := make(map[string]*api.ChunkDataLocator)
+	chunks := ctrl.getInitialDataLocators(initTimestamp, target.BsTopo)
 
 	// Keep running forever until terminated.
 	bsState := &biosphereState{
+		bsTopo:    target.BsTopo,
 		timestamp: initTimestamp,
 		chunks:    chunks,
 	}
@@ -209,7 +210,7 @@ func stepBiosphere(workers map[string]string, st *biosphereState) *biosphereStat
 		}
 		stepChunkQ := &api.StepChunkQ{
 			ChunkInput: append(inputs, &api.StepChunkQ_Input{
-				Dp:   &api.ChunkRel{},
+				Dp:   &api.ChunkRel{Dx: 0, Dy: 0},
 				Data: st.chunks[cTopo.ChunkId],
 			}),
 		}
@@ -281,6 +282,41 @@ func (ctrl *Controller) GetCurrentState() map[uint64]BiosphereState {
 		}
 	}
 	return biospheres
+}
+
+func (ctrl *Controller) getInitialDataLocators(timestamp uint64, bsTopo BiosphereTopology) map[string]*api.ChunkDataLocator {
+	ctx := context.Background()
+	client, err := ctrl.fe.AuthDatastore(ctx)
+	if err != nil {
+		log.Printf("ERROR: Datastore failed with %#v", err)
+		return nil
+	}
+
+	var wg sync.WaitGroup
+	chunks := make(map[string]*api.ChunkDataLocator)
+	for _, chunkTopo := range bsTopo.GetChunkTopos() {
+		wg.Add(1)
+		go func(chunkId string) {
+			defer wg.Done()
+			query := datastore.NewQuery("PersistentChunkSnapshot").Filter("ChunkId=", chunkId).KeysOnly()
+			ks, err := client.GetAll(ctx, query, nil)
+			if err != nil || len(ks) != 1 {
+				log.Printf("ERROR Specified timestamp & chunkId was not found query=%#v err=%#v", query, err)
+				return
+			}
+			chunks[chunkId] = &api.ChunkDataLocator{
+				Location: &api.ChunkDataLocator_DatastoreKey{
+					DatastoreKey: ks[0].ID(),
+				},
+			}
+		}(chunkTopo.ChunkId)
+	}
+	wg.Wait()
+	if len(chunks) != len(bsTopo.GetChunkTopos()) {
+		log.Printf("ERROR Some PersistentChunkSnapshot key was not found. Returning nil initial data.")
+		return nil
+	}
+	return chunks
 }
 
 func (ctrl *Controller) getMaxPersistedTimestamp(ts *TargetState) uint64 {
