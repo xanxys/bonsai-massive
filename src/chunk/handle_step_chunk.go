@@ -8,13 +8,19 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"log"
 	"sync"
 	"time"
 )
 
 func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api.StepChunkS, error) {
-	log.Printf("StepChunk inputs=%# v", pretty.Formatter(q.ChunkInput))
+	// Validate.
+	if len(q.ChunkInput) == 0 || len(q.ChunkInput) > 9 {
+		log.Printf("Invalid number of ChunkInput. inputs=%# v", pretty.Formatter(q.ChunkInput))
+		return nil, grpc.Errorf(codes.InvalidArgument, "")
+	}
+
 	inputSnapshots := ck.fetchAllInput(q.ChunkInput)
 	if inputSnapshots == nil {
 		log.Printf("ERROR Some input fetch failed for input: %#v", q.ChunkInput)
