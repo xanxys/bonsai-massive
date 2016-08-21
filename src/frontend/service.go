@@ -5,7 +5,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
-	"io/ioutil"
 	"log"
 	"sync"
 )
@@ -14,7 +13,6 @@ type FeServiceImpl struct {
 	envType string
 
 	*ServerCred
-	chunkContainerName string
 
 	controller *Controller
 
@@ -23,15 +21,10 @@ type FeServiceImpl struct {
 }
 
 func NewFeService(envType string) *FeServiceImpl {
-	cont, err := ioutil.ReadFile("/root/bonsai/config.chunk-container")
-	if err != nil {
-		log.Fatal(err)
-	}
 	fe := &FeServiceImpl{
-		envType:            envType,
-		ServerCred:         NewServerCred(),
-		chunkContainerName: string(cont),
-		bsMetaCache:        make(map[uint64]*BiosphereMeta),
+		envType:     envType,
+		ServerCred:  NewServerCred(),
+		bsMetaCache: make(map[uint64]*BiosphereMeta),
 	}
 	// TODO: Ensure one loop is always running when fe crashes.
 	fe.controller = NewController(fe)

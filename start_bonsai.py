@@ -67,7 +67,6 @@ class ContainerFactory:
         chunk_container_name = self.get_container_path('bonsai_container')
         shutil.copyfile(self.path_key, "docker/key.json")
         shutil.copyfile("/etc/ssl/certs/ca-bundle.crt", "docker/ca-bundle.crt")
-        open('docker/config.chunk-container', 'w').write(chunk_container_name)
 
     def _create_container(self, dockerfile_path, container_path, internal_f):
         print("Creating container %s" % container_path)
