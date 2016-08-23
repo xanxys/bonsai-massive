@@ -141,10 +141,14 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 	}
 }
 
+// Returns nil if there's no valid snapshot for bsId.
 func (ctrl *Controller) GetLatestSnapshot(bsId uint64) map[string]*api.ChunkSnapshot {
 	ctrl.latestBsLock.Lock()
 	bsState := ctrl.latestBs[bsId]
 	ctrl.latestBsLock.Unlock()
+	if bsState == nil {
+		return nil
+	}
 
 	var wg sync.WaitGroup
 	snapshots := make(map[string]*api.ChunkSnapshot)
