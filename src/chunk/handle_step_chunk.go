@@ -155,7 +155,7 @@ func (ck *CkServiceImpl) fetchRemoteCache(remoteKey *api.RemoteChunkCache) *api.
 	}
 	defer conn.Close()
 	service := api.NewChunkServiceClient(conn)
-	strictCtx, _ := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	strictCtx, _ := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	s, err := service.GetChunk(strictCtx, &api.GetChunkQ{CacheKey: remoteKey.CacheKey})
 	if err != nil {
 		log.Printf("ERROR: GetChunk@%s(%d) failed with %v", remoteKey.Ip, remoteKey.CacheKey, err)

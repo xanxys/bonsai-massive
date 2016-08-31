@@ -77,7 +77,7 @@ func (fe *FeServiceImpl) BiosphereFrames(ctx context.Context, q *api.BiosphereFr
 		}
 		timestamp = q.SnapshotTimestamp
 	} else {
-		snapshots = fe.controller.GetLatestSnapshot(q.BiosphereId)
+		snapshots, timestamp = fe.controller.GetLatestSnapshot(q.BiosphereId)
 		if snapshots == nil {
 			log.Printf("WARNING snapshot for bsId=%d failed", q.BiosphereId)
 		}

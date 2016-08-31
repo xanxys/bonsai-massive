@@ -141,13 +141,13 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 	}
 }
 
-// Returns nil if there's no valid snapshot for bsId.
-func (ctrl *Controller) GetLatestSnapshot(bsId uint64) map[string]*api.ChunkSnapshot {
+// Returns (snapshot, timestamp) if available, otherwise (nil, undefined).
+func (ctrl *Controller) GetLatestSnapshot(bsId uint64) (map[string]*api.ChunkSnapshot, uint64) {
 	ctrl.latestBsLock.Lock()
 	bsState := ctrl.latestBs[bsId]
 	ctrl.latestBsLock.Unlock()
 	if bsState == nil {
-		return nil
+		return nil, 0
 	}
 
 	var wg sync.WaitGroup
@@ -164,7 +164,7 @@ func (ctrl *Controller) GetLatestSnapshot(bsId uint64) map[string]*api.ChunkSnap
 			}
 			defer conn.Close()
 			service := api.NewChunkServiceClient(conn)
-			strictCtx, _ := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			strictCtx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 			s, err := service.GetChunk(strictCtx, &api.GetChunkQ{CacheKey: remoteKey.CacheKey})
 			if err != nil || !s.Success {
 				log.Printf("ERROR GetChunk(%#v) failed", remoteKey)
@@ -182,7 +182,7 @@ func (ctrl *Controller) GetLatestSnapshot(bsId uint64) map[string]*api.ChunkSnap
 		}(chunkId, dataLocator.GetRemoteCacheKey())
 	}
 	wg.Wait()
-	return snapshots
+	return snapshots, bsState.timestamp
 }
 
 func (ctrl *Controller) publishLatest(bsId uint64, bsState *biosphereState) {
@@ -241,7 +241,7 @@ func stepBiosphere(workers map[string]string, st *biosphereState) *biosphereStat
 			}
 			defer conn.Close()
 			service := api.NewChunkServiceClient(conn)
-			strictCtx, _ := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+			strictCtx, _ := context.WithTimeout(context.Background(), 100000*time.Millisecond)
 			s, err := service.StepChunk(strictCtx, stepChunkQ)
 			if err != nil {
 				log.Printf("ERROR: StepChunk@%s failed with %v", ip, err)
