@@ -511,8 +511,9 @@ func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 				}
 				distSq := world.Grains[ixSelf].Position.Sub(world.Grains[ixN].Position).LengthSq()
 				if distSq < 1e-10 {
-					log.Panicf("Different grains at same position: distSq=%f [%d]=%# v and [%d]=%# v",
+					log.Panicf("Different grains at same position: distSq=%f {grains:%d}={internal:%d}+{env:%d} [%d]=%# v and [%d]=%# v",
 						distSq,
+						len(world.Grains), len(world.Grains)-len(envGrains), len(envGrains),
 						ixSelf, pretty.Formatter(world.Grains[ixSelf]),
 						ixN, pretty.Formatter(world.Grains[ixN]))
 				}

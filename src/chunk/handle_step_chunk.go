@@ -73,7 +73,7 @@ func mergeAndPartition(states map[api.ChunkRel]*api.ChunkState) ([]*Grain, []*Gr
 			if dx == 0 && dy == 0 {
 				grainsSelf = append(grainsSelf, grainsDelta...)
 			} else if iabs(dx) <= 1 && iabs(dy) <= 1 {
-				grainsEnv = append(grainsSelf, grainsDelta...)
+				grainsEnv = append(grainsEnv, grainsDelta...)
 			}
 		}
 	}
