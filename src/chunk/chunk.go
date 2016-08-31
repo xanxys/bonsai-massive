@@ -502,6 +502,22 @@ func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 
 	if world.checkErrors {
 		world.verifyFinite("before iteration")
+
+		// Common error case: multiple grains at same position.
+		for ixSelf, ixsN := range neighbors {
+			for _, ixN := range ixsN {
+				if ixN == ixSelf {
+					continue
+				}
+				distSq := world.Grains[ixSelf].Position.Sub(world.Grains[ixN].Position).LengthSq()
+				if distSq < 1e-10 {
+					log.Panicf("Different grains at same position: distSq=%f [%d]=%# v and [%d]=%# v",
+						distSq,
+						ixSelf, pretty.Formatter(world.Grains[ixSelf]),
+						ixN, pretty.Formatter(world.Grains[ixN]))
+				}
+			}
+		}
 	}
 	// Iteratively resolve collisions & constraints.
 	for iter := 0; iter < numIter; iter++ {
@@ -632,10 +648,17 @@ func (world *GrainChunk) Step(envGrains []*Grain, wall *ChunkWall) []*Grain {
 }
 
 func (world *GrainChunk) verifyFinite(context string) {
+	numInvalidGrains := 0
+	var invalidSample *Grain
 	for _, grain := range world.Grains {
 		if !isFiniteVec(grain.Velocity) || !isFiniteVec(grain.Position) || !isFiniteVec(grain.positionNew) {
-			log.Panicf("NaN observed in %# v at %d, %s", pretty.Formatter(grain), world.Timestamp, context)
+			numInvalidGrains++
+			invalidSample = grain
 		}
+	}
+	if numInvalidGrains > 0 {
+		log.Panicf("NaN observed in %# v at T=%d, %s; %d of %d grains contained NaN",
+			pretty.Formatter(invalidSample), world.Timestamp, context, numInvalidGrains, len(world.Grains))
 	}
 }
 
