@@ -15,12 +15,16 @@ import (
 )
 
 func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api.StepChunkS, error) {
+	ctx = TraceStart(ctx, "/chunk.StepChunk")
+	defer TraceEnd(ctx, ck.ServerCred)
+
 	// Validate.
 	if len(q.ChunkInput) == 0 || len(q.ChunkInput) > 9 {
 		log.Printf("Invalid number of ChunkInput. inputs=%# v", pretty.Formatter(q.ChunkInput))
 		return nil, grpc.Errorf(codes.InvalidArgument, "")
 	}
 
+	fetchTrace := InitTrace("/chunk._.fetchAllInput")
 	inputSnapshots := ck.fetchAllInput(q.ChunkInput)
 	if inputSnapshots == nil {
 		log.Printf("ERROR Some input fetch failed for input: %#v", q.ChunkInput)
@@ -28,11 +32,14 @@ func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api
 			Success: false,
 		}, nil
 	}
+	FinishTrace(fetchTrace, GetCurrentTrace(ctx))
 
+	stepTrace := InitTrace("/chunk._.step")
 	chunk := NewGrainChunk(false)
 	selfGrains, env := mergeAndPartition(inputSnapshots)
 	chunk.Grains = selfGrains
 	outgoing := chunk.Step(env, convertToWall(inputSnapshots))
+	FinishTrace(stepTrace, GetCurrentTrace(ctx))
 
 	selfShard := &api.ChunkShard{Dp: &api.ChunkRel{Dx: 0, Dy: 0}, Grains: make([]*api.Grain, len(chunk.Grains))}
 	for ix, grain := range chunk.Grains {
