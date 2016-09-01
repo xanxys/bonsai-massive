@@ -34,10 +34,13 @@ func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api
 	}
 	FinishTrace(fetchTrace, GetCurrentTrace(ctx))
 
-	stepTrace := InitTrace("/chunk._.step")
+	mpTrace := InitTrace("/chunk._.mergeAndPartition")
 	chunk := NewGrainChunk(false)
 	selfGrains, env := mergeAndPartition(inputSnapshots)
 	chunk.Grains = selfGrains
+	FinishTrace(mpTrace, GetCurrentTrace(ctx))
+
+	stepTrace := InitTrace("/chunk._.step")
 	outgoing := chunk.Step(env, convertToWall(inputSnapshots))
 	FinishTrace(stepTrace, GetCurrentTrace(ctx))
 
