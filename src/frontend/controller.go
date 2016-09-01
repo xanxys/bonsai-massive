@@ -128,12 +128,14 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 		default:
 		}
 		prevBsState := bsState
+		tBegin := time.Now()
 		bsState = stepBiosphere(chunkAlloc, bsState)
 		if bsState == nil {
 			log.Printf("ERROR biosphere(%d): stepBiosphere failed (T:%d->%d). Aborting.",
 				pubTargetId, prevBsState.timestamp, prevBsState.timestamp+1)
 			return
 		}
+		log.Printf("INFO %.3f sec (T:%d->%d)", time.Since(tBegin).Seconds(), prevBsState.timestamp, bsState.timestamp)
 		ctrl.publishLatest(pubTargetId, bsState)
 		if target.Slow {
 			time.Sleep(time.Second)

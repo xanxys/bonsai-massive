@@ -18,6 +18,12 @@
                 "containers": [{
                     "name": "bonsai-staging-chunk",
                     "image": "gcr.io/bonsai-genesis/bonsai_container",
+                    "resources": {
+                        "requests": {
+                            "cpu": "2.0",
+                            "memory": "250M"
+                        }
+                    },
                     "ports": [{"containerPort": 9000, "hostPort": 9000}],
                     "command": ["/root/bonsai/chunk-server.bin"]
                 }]
