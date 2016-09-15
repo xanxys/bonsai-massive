@@ -5,6 +5,19 @@ import (
 	"math/rand"
 )
 
+func GenerateTestMove() *api.ChunkSnapshot {
+	return &api.ChunkSnapshot{
+		Grains: []*api.Grain{
+			&api.Grain{
+				Id:   1,
+				Pos:  &api.CkPosition{0.5, 0.5, 2},
+				Vel:  &api.CkVelocity{1, 0, 0},
+				Kind: api.Grain_WATER,
+			},
+		},
+	}
+}
+
 func GenerateSnapshot(seed int64) *api.ChunkSnapshot {
 	rand.Seed(seed)
 	var grains []*api.Grain
