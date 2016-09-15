@@ -17,11 +17,11 @@
             "spec": {
                 "containers": [{
                     "name": "bonsai-staging-chunk",
-                    "image": "gcr.io/bonsai-genesis/bonsai_container",
+                    "image": "gcr.io/bonsai-genesis/bonsai_container:20160901-2353",
                     "resources": {
                         "requests": {
-                            "cpu": "2.0",
-                            "memory": "250M"
+                            "cpu": "3.0",
+                            "memory": "1G"
                         }
                     },
                     "ports": [{"containerPort": 9000, "hostPort": 9000}],
