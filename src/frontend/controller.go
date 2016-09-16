@@ -153,6 +153,7 @@ func (ctrl *Controller) GetLatestSnapshot(bsId uint64) (map[string]*api.ChunkSna
 	}
 
 	var wg sync.WaitGroup
+	var ssLock sync.Mutex
 	snapshots := make(map[string]*api.ChunkSnapshot)
 	for chunkId, dataLocator := range bsState.chunks {
 		wg.Add(1)
@@ -173,7 +174,9 @@ func (ctrl *Controller) GetLatestSnapshot(bsId uint64) (map[string]*api.ChunkSna
 				return
 			}
 
-			// Find (0, 0).
+			// Find (0, 0) and store.
+			ssLock.Lock()
+			defer ssLock.Unlock()
 			for _, shard := range s.Content.Shards {
 				if shard.Dp.Dx == 0 && shard.Dp.Dy == 0 {
 					snapshots[chunkId] = &api.ChunkSnapshot{Grains: shard.Grains}

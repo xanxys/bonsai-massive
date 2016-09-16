@@ -26,7 +26,6 @@ func NewFeService(envType string) *FeServiceImpl {
 		ServerCred:  NewServerCred(),
 		bsMetaCache: make(map[uint64]*BiosphereMeta),
 	}
-	// TODO: Ensure one loop is always running when fe crashes.
 	fe.controller = NewController(fe)
 	return fe
 }
