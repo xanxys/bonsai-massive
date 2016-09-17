@@ -313,6 +313,7 @@ func (ctrl *Controller) getInitialDataLocators(timestamp uint64, bsTopo Biospher
 	}
 
 	var wg sync.WaitGroup
+	var csLock sync.Mutex
 	chunks := make(map[string]*api.ChunkDataLocator)
 	for _, chunkTopo := range bsTopo.GetChunkTopos() {
 		wg.Add(1)
@@ -327,6 +328,8 @@ func (ctrl *Controller) getInitialDataLocators(timestamp uint64, bsTopo Biospher
 			if len(ks) > 1 {
 				log.Printf("WARNING Multiple keys found for query=%#v keys=%#v. Using the first one", query, ks)
 			}
+			csLock.Lock()
+			defer csLock.Unlock()
 			chunks[chunkId] = &api.ChunkDataLocator{
 				Location: &api.ChunkDataLocator_DatastoreKey{
 					DatastoreKey: ks[0].ID(),
