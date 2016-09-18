@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Reference counted connection chunk server grpc connection cache.
 // All methods are thread-safe.
 type ChunkConnections struct {
 	connCacheLock sync.Mutex

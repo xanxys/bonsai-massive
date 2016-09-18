@@ -174,13 +174,11 @@ func (ck *CkServiceImpl) fetchAllInput(chunkInputs []*api.StepChunkQ_Input) map[
 }
 
 func (ck *CkServiceImpl) fetchRemoteCache(remoteKey *api.RemoteChunkCache) *api.ChunkState {
-	svcIpPort := fmt.Sprintf("%s:9000", remoteKey.Ip)
-	conn, err := grpc.Dial(svcIpPort, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(500*time.Millisecond))
-	if err != nil {
-		log.Printf("ERROR Failed to connect to %s", svcIpPort)
+	conn := ck.GetChunkConn(remoteKey.Ip)
+	if conn == nil {
+		log.Printf("ERROR Failed to connect to %s", remoteKey.Ip)
 		return nil
 	}
-	defer conn.Close()
 	service := api.NewChunkServiceClient(conn)
 	strictCtx, _ := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	s, err := service.GetChunk(strictCtx, &api.GetChunkQ{CacheKey: remoteKey.CacheKey})
