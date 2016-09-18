@@ -1,4 +1,6 @@
 # Bonsai
+![logo](/src/client/icons/favicon.png)
+
 Bonsai is a massive vegetation evolution simulator. Things below are just plans and not implemented.
 
 Bonsai simulates plants at individual cell level, and has well-defined physics for lighting, sofy-body, etc..
