@@ -144,6 +144,11 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 }
 
 // Returns (snapshot, timestamp) if available, otherwise (nil, undefined).
+// WARNING: In-transit grains (grains that escaped a chunk at a previous timestamp)
+//  is included in the SOURCE (not destination) chunk, w/ out-of-bound coordinates.
+// e.g. A grain exited chunk "cs-A" to "cs-B" X+ direction. The grain is returned
+// as ("cs-A", (1.2, 0)), not ("cs-B", (0.2, 0)).
+// This is because this method does not know about chunk topology.
 func (ctrl *Controller) GetLatestSnapshot(bsId uint64) (map[string]*api.ChunkSnapshot, uint64) {
 	ctrl.latestBsLock.Lock()
 	bsState := ctrl.latestBs[bsId]
@@ -174,16 +179,19 @@ func (ctrl *Controller) GetLatestSnapshot(bsId uint64) (map[string]*api.ChunkSna
 				return
 			}
 
-			// Find (0, 0) and store.
-			ssLock.Lock()
-			defer ssLock.Unlock()
+			// Flatten shards.
+			var grains []*api.Grain
 			for _, shard := range s.Content.Shards {
-				if shard.Dp.Dx == 0 && shard.Dp.Dy == 0 {
-					snapshots[chunkId] = &api.ChunkSnapshot{Grains: shard.Grains}
-					return
+				for _, grain := range shard.Grains {
+					grainMoved := *grain
+					grainMoved.Pos.X += float32(shard.Dp.Dx)
+					grainMoved.Pos.Y += float32(shard.Dp.Dy)
+					grains = append(grains, &grainMoved)
 				}
 			}
-			log.Printf("ERROR (0, 0) chunk not found in GetChunk result")
+			ssLock.Lock()
+			defer ssLock.Unlock()
+			snapshots[chunkId] = &api.ChunkSnapshot{Grains: grains}
 		}(chunkId, dataLocator.GetRemoteCacheKey())
 	}
 	wg.Wait()
