@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -53,10 +54,26 @@ func (ck *CkServiceImpl) StepChunk(ctx context.Context, q *api.StepChunkQ) (*api
 	}
 
 	cacheKey := ck.Add(newSnapshot)
+	if false {
+		var inputLog []string
+		for dp, cs := range inputSnapshots {
+			inputLog = append(inputLog, fmt.Sprintf("(%d,%d) = %s", dp.Dx, dp.Dy, fmtChunkState(cs)))
+		}
+		log.Printf("DEBUG StepChunk:\n%s\n-> %s", strings.Join(inputLog, "\n"), fmtChunkState(newSnapshot))
+	}
 	return &api.StepChunkS{
 		Success:  true,
 		CacheKey: cacheKey,
 	}, nil
+}
+
+// Format ChunkState into simple one-line string with focus on #grains.
+func fmtChunkState(cs *api.ChunkState) string {
+	ss := make([]string, len(cs.Shards))
+	for ix, shard := range cs.Shards {
+		ss[ix] = fmt.Sprintf("(%d,%d):%dgs", shard.Dp.Dx, shard.Dp.Dy, len(shard.Grains))
+	}
+	return strings.Join(ss, " + ")
 }
 
 // Return (self, env).
@@ -132,16 +149,16 @@ func (ck *CkServiceImpl) fetchAllInput(chunkInputs []*api.StepChunkQ_Input) map[
 			states[*chunkInput.Dp] = ck.Get(inputType.SelfCacheKey)
 		case *api.ChunkDataLocator_RemoteCacheKey:
 			wg.Add(1)
-			go func() {
+			go func(dp api.ChunkRel) {
 				defer wg.Done()
-				states[*chunkInput.Dp] = ck.fetchRemoteCache(inputType.RemoteCacheKey)
-			}()
+				states[dp] = ck.fetchRemoteCache(inputType.RemoteCacheKey)
+			}(*chunkInput.Dp)
 		case *api.ChunkDataLocator_DatastoreKey:
 			wg.Add(1)
-			go func() {
+			go func(dp api.ChunkRel) {
 				defer wg.Done()
-				states[*chunkInput.Dp] = ck.fetchDatastoreSnapshot(inputType.DatastoreKey)
-			}()
+				states[dp] = ck.fetchDatastoreSnapshot(inputType.DatastoreKey)
+			}(*chunkInput.Dp)
 		default:
 			log.Printf("ERROR: Unknown ChunkInput type %v at rel %v", inputType, chunkInput.Dp)
 		}

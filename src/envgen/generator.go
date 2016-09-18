@@ -11,7 +11,7 @@ func GenerateTestMove() *api.ChunkSnapshot {
 			&api.Grain{
 				Id:   1,
 				Pos:  &api.CkPosition{0.5, 0.5, 2},
-				Vel:  &api.CkVelocity{1, 0, 0},
+				Vel:  &api.CkVelocity{0, 0, 0},
 				Kind: api.Grain_WATER,
 			},
 		},
