@@ -6,6 +6,9 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/datastore"
 	"google.golang.org/grpc"
+	kapi "k8s.io/kubernetes/pkg/api"
+	client "k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/kubernetes/pkg/labels"
 	"log"
 	"math"
 	"sync"
@@ -18,6 +21,7 @@ func NewController(fe *FeServiceImpl) *Controller {
 		targetState: make(map[uint64]TargetState),
 		execution:   make(map[uint64]chan bool),
 		latestBs:    make(map[uint64]*biosphereState),
+		connCache:   make(map[string]*GrpcConnUsage),
 	}
 	return ctrl
 }
@@ -33,6 +37,14 @@ type Controller struct {
 
 	latestBsLock sync.Mutex
 	latestBs     map[uint64]*biosphereState
+
+	connCacheLock sync.Mutex
+	connCache     map[string]*GrpcConnUsage // ip -> usage
+}
+
+type GrpcConnUsage struct {
+	conn   *grpc.ClientConn
+	numRef int
 }
 
 /*
@@ -103,7 +115,12 @@ func (ctrl *Controller) SetBiosphereState(biosphereId uint64, targetState *Targe
 }
 
 func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, execCh chan bool) {
-	chunkAlloc := assignChunks(target.BsTopo, ctrl.GetUsableIp())
+	conns := ctrl.acquireUsableChunkConn()
+	ips := make([]string, 0, len(conns))
+	for ip, _ := range conns {
+		ips = append(ips, ip)
+	}
+	chunkAlloc := assignChunks(target.BsTopo, ips)
 
 	// Prepare initial chunk data locator.
 	initTimestamp := uint64(0) // TODO: Use maxPersistedTimestamp instead
@@ -124,12 +141,13 @@ func (ctrl *Controller) runBiosphere(pubTargetId uint64, target *TargetState, ex
 		case <-execCh:
 			fmt.Printf("INFO biosphere(%d): terminated signal received (T=%d)",
 				pubTargetId, bsState.timestamp)
+			ctrl.releaseChunkConn(ips)
 			return
 		default:
 		}
 		prevBsState := bsState
 		tBegin := time.Now()
-		bsState = stepBiosphere(chunkAlloc, bsState)
+		bsState = stepBiosphere(conns, chunkAlloc, bsState)
 		if bsState == nil {
 			log.Printf("ERROR biosphere(%d): stepBiosphere failed (T:%d->%d). Aborting.",
 				pubTargetId, prevBsState.timestamp, prevBsState.timestamp+1)
@@ -164,13 +182,11 @@ func (ctrl *Controller) GetLatestSnapshot(bsId uint64) (map[string]*api.ChunkSna
 		wg.Add(1)
 		go func(chunkId string, remoteKey *api.RemoteChunkCache) {
 			defer wg.Done()
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", remoteKey.Ip),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
-			if err != nil {
-				log.Printf("ERROR Couldn't connect to chunk server %s", remoteKey.Ip)
+			conn := ctrl.getChunkConn(remoteKey.Ip)
+			if conn == nil {
+				log.Printf("ERROR Chunk server %s is not connected", remoteKey.Ip)
 				return
 			}
-			defer conn.Close()
 			service := api.NewChunkServiceClient(conn)
 			strictCtx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 			s, err := service.GetChunk(strictCtx, &api.GetChunkQ{CacheKey: remoteKey.CacheKey})
@@ -216,7 +232,7 @@ type biosphereState struct {
 
 // Calculate stepped biosphere state using workers, in a blocking way.
 // If failed, return nil.
-func stepBiosphere(workers map[string]string, st *biosphereState) *biosphereState {
+func stepBiosphere(connCache map[string]*grpc.ClientConn, workers map[string]string, st *biosphereState) *biosphereState {
 	var wg sync.WaitGroup
 	newChunks := make(map[string]*api.ChunkDataLocator)
 	for _, cTopo := range st.bsTopo.GetChunkTopos() {
@@ -246,14 +262,7 @@ func stepBiosphere(workers map[string]string, st *biosphereState) *biosphereStat
 		wg.Add(1)
 		go func(chunkId string) {
 			defer wg.Done()
-			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(1000*time.Millisecond))
-			if err != nil {
-				log.Printf("ERROR Couldn't connect to chunk server %s", ip)
-				return
-			}
-			defer conn.Close()
-			service := api.NewChunkServiceClient(conn)
+			service := api.NewChunkServiceClient(connCache[ip])
 			strictCtx, _ := context.WithTimeout(context.Background(), 100000*time.Millisecond)
 			s, err := service.StepChunk(strictCtx, stepChunkQ)
 			if err != nil {
@@ -379,8 +388,88 @@ func (ctrl *Controller) getMaxPersistedTimestamp(ts *TargetState) uint64 {
 	return maxTimestamp
 }
 
-func (ctrl *Controller) GetUsableIp() []string {
-	return GetChunkIps()
+// Get fresh list of chunk pod IP addresses.
+// http://qiita.com/dtan4/items/f2f30207e0acec454c3d
+func GetChunkIps() []string {
+	kubeClient, err := client.NewInCluster()
+	if err != nil {
+		return nil
+	}
+
+	pods, err := kubeClient.Pods(kapi.NamespaceDefault).List(kapi.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"name": "chunk",
+			"env":  "staging",
+		}),
+	})
+	if err != nil {
+		return nil
+	}
+
+	podIps := make([]string, len(pods.Items))
+	for ix, pod := range pods.Items {
+		podIps[ix] = pod.Status.PodIP
+	}
+	return podIps
+}
+
+// Returns {ip: connection}.
+func (ctrl *Controller) acquireUsableChunkConn() map[string]*grpc.ClientConn {
+	ctrl.connCacheLock.Lock()
+	defer ctrl.connCacheLock.Unlock()
+
+	ips := GetChunkIps()
+	conns := make(map[string]*grpc.ClientConn)
+	for _, ip := range ips {
+		connUsage := ctrl.connCache[ip]
+		if connUsage == nil {
+			conn, err := grpc.Dial(fmt.Sprintf("%s:9000", ip),
+				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(100*time.Millisecond))
+			if err != nil {
+				log.Printf("WARNING Couldn't connect to chunk server %s, ignoring. %v", ip, err)
+				continue
+			}
+			connUsage = &GrpcConnUsage{conn: conn, numRef: 0}
+			ctrl.connCache[ip] = connUsage
+		}
+		connUsage.numRef++
+		conns[ip] = connUsage.conn
+	}
+	return conns
+}
+
+// Release ips. Internally, connection cache is referecen-counted and closed when
+// all acquired connections are released.
+func (ctrl *Controller) releaseChunkConn(ips []string) {
+	ctrl.connCacheLock.Lock()
+	defer ctrl.connCacheLock.Unlock()
+
+	for _, ip := range ips {
+		connUsage := ctrl.connCache[ip]
+		if connUsage == nil || connUsage.numRef == 0 {
+			log.Panicf("ERROR releaseChunkConn called for non-existing (or already closed conn) %s", ip)
+		}
+		connUsage.numRef--
+		if connUsage.numRef == 0 {
+			log.Printf("INFO Closing chunk server connection %s", ip)
+			connUsage.conn.Close()
+			delete(ctrl.connCache, ip)
+		}
+	}
+}
+
+// Get short-term connection without increasing refcount.
+// Caller must make sure (last) releaseChunkConn is not yet called while the returned
+// connection for the ip is in use.
+// Returns nil if not possible.
+func (ctrl *Controller) getChunkConn(ip string) *grpc.ClientConn {
+	ctrl.connCacheLock.Lock()
+	defer ctrl.connCacheLock.Unlock()
+	connUsage := ctrl.connCache[ip]
+	if connUsage == nil {
+		return nil
+	}
+	return connUsage.conn
 }
 
 const chunkIdFormat = "%d-%d:%d"

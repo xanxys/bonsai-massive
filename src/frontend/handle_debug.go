@@ -46,27 +46,3 @@ func GetClusterInfo() (string, error) {
 	}
 	return strings.Join(podDescs, "\n"), nil
 }
-
-// http://qiita.com/dtan4/items/f2f30207e0acec454c3d
-func GetChunkIps() []string {
-	kubeClient, err := client.NewInCluster()
-	if err != nil {
-		return nil
-	}
-
-	pods, err := kubeClient.Pods(kapi.NamespaceDefault).List(kapi.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{
-			"name": "chunk",
-			"env":  "staging",
-		}),
-	})
-	if err != nil {
-		return nil
-	}
-
-	podIps := make([]string, len(pods.Items))
-	for ix, pod := range pods.Items {
-		podIps[ix] = pod.Status.PodIP
-	}
-	return podIps
-}
