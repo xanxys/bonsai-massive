@@ -131,10 +131,10 @@ func distribute(outGrains []*Grain) []*api.ChunkShard {
 
 func convertToWall(states map[api.ChunkRel]*api.ChunkState) *ChunkWall {
 	return &ChunkWall{
-		Xp: states[api.ChunkRel{1, 0}] != nil,
-		Xm: states[api.ChunkRel{-1, 0}] != nil,
-		Yp: states[api.ChunkRel{0, 1}] != nil,
-		Ym: states[api.ChunkRel{0, -1}] != nil,
+		Xp: states[api.ChunkRel{1, 0}] == nil,
+		Xm: states[api.ChunkRel{-1, 0}] == nil,
+		Yp: states[api.ChunkRel{0, 1}] == nil,
+		Ym: states[api.ChunkRel{0, -1}] == nil,
 	}
 }
 
