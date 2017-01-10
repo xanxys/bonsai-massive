@@ -1,3 +1,10 @@
+# Update (2017/1)
+**Fxxk massiveness**, the system was too complex to develop in my spare time, and too expensive to run.
+
+(You can tell from the project having 500+ commits and still not displaying something intresting)
+
+Instead, I revived smaller, in-browser version: https://github.com/xanxys/bonsai-small/tree/master
+
 # Bonsai
 ![logo](/src/client/icons/favicon.png)
 
